@@ -1,0 +1,200 @@
+@extends('layouts.app')
+@section('page_title', 'Edit User')
+@section('content')
+<main>
+    <x-page-header :title="'Edit User - ' . $user->name" subtitle="Update account access, role, and branch visibility" icon="edit">
+        <a href="{{ route('users.index') }}" class="btn btn-light text-primary">
+            <i data-feather="arrow-left" class="me-1"></i> Back to Users
+        </a>
+    </x-page-header>
+
+<div class="container-xl px-4 mt-n10">
+    @include('layouts.alerts')
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <form action="{{ route('users.update', $user) }}" method="POST" enctype="multipart/form-data">
+                @csrf @method('PUT')
+                @php
+                    $existingProfilePhoto = $user->profile_photo_path
+                        ? route('profile-photos.show', $user)
+                        : asset('assets/img/illustrations/profiles/profile-1.png');
+                @endphp
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Profile Picture</label>
+                    <input type="file" name="profile_photo" id="profilePhotoInput" class="form-control @error('profile_photo') is-invalid @enderror" accept="image/*">
+                    <input type="hidden" name="profile_photo_cropped" id="profilePhotoCropped" value="{{ old('profile_photo_cropped') }}">
+                    @error('profile_photo')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                    @error('profile_photo_cropped')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+                    <div class="form-text">Choose a new photo and crop it to a square to replace the current profile picture.</div>
+                    <img id="profilePhotoPreview" src="{{ old('profile_photo_cropped') ?: $existingProfilePhoto }}" alt="Profile Preview" class="rounded-circle border mt-2" style="width:72px; height:72px; object-fit:cover;">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Full Name <span class="text-danger">*</span></label>
+                    <input type="text" name="name" class="form-control @error('name') is-invalid @enderror" value="{{ old('name', $user->name) }}" required>
+                    @error('name')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Email <span class="text-danger">*</span></label>
+                    <input type="email" name="email" class="form-control @error('email') is-invalid @enderror" value="{{ old('email', $user->email) }}" required>
+                    @error('email')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">New Password <span class="text-muted small">(leave blank to keep current)</span></label>
+                    <input type="password" name="password" class="form-control @error('password') is-invalid @enderror" minlength="8">
+                    @error('password')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Confirm New Password</label>
+                    <input type="password" name="password_confirmation" class="form-control">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Role <span class="text-danger">*</span></label>
+                    @if(auth()->user()->isBranchManager())
+                        <input type="hidden" name="role" value="staff">
+                        <input type="text" class="form-control" value="Staff" readonly>
+                        <div class="form-text">Branch managers cannot modify roles.</div>
+                    @else
+                    <select name="role" class="form-select" id="roleSelect" required>
+                        <option value="staff" {{ old('role', $user->role) == 'staff' ? 'selected' : '' }}>Staff</option>
+                        <option value="branch_manager" {{ old('role', $user->role) == 'branch_manager' ? 'selected' : '' }}>Branch Manager</option>
+                        <option value="admin" {{ old('role', $user->role) == 'admin' ? 'selected' : '' }}>Admin</option>
+                    </select>
+                    @endif
+                </div>
+                <div class="mb-3" id="branchField" style="{{ old('role', $user->role) === 'admin' ? 'display:none' : '' }}">
+                    <label class="form-label fw-semibold">Branch</label>
+                    @if(auth()->user()->isBranchManager())
+                        <input type="hidden" name="branch_id" value="{{ auth()->user()->branch_id }}">
+                        <input type="text" class="form-control" value="{{ auth()->user()->branch?->name ?? 'Unassigned' }}" readonly>
+                    @else
+                        <select name="branch_id" class="form-select">
+                            <option value="">None</option>
+                            @foreach($branches as $branch)
+                            <option value="{{ $branch->id }}" {{ old('branch_id', $user->branch_id) == $branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
+                            @endforeach
+                        </select>
+                    @endif
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">Update</button>
+                    <a href="{{ route('users.index') }}" class="btn btn-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+</main>
+
+<div class="modal fade" id="profileCropModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Crop Profile Picture</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center cropper-modal-body">
+                <img id="cropperImage" src="" alt="Crop Source" style="width:100%; max-width:100%; max-height:70vh; display:block; margin:0 auto;">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="applyCropBtn">Apply Crop</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@push('styles')
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.css">
+<style>
+    #profileCropModal .cropper-modal-body {
+        overflow: hidden;
+    }
+    #profileCropModal .cropper-container {
+        max-width: 100% !important;
+    }
+</style>
+@endpush
+
+@push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const roleSelect = document.getElementById('roleSelect');
+    const branchField = document.getElementById('branchField');
+    const photoInput = document.getElementById('profilePhotoInput');
+    const photoCroppedInput = document.getElementById('profilePhotoCropped');
+    const photoPreview = document.getElementById('profilePhotoPreview');
+    const cropImage = document.getElementById('cropperImage');
+    const cropModalEl = document.getElementById('profileCropModal');
+    const applyCropBtn = document.getElementById('applyCropBtn');
+    const cropModal = new bootstrap.Modal(cropModalEl);
+    let cropper = null;
+
+    function updateBranchVisibility() {
+        if (!roleSelect || !branchField) {
+            return;
+        }
+        branchField.style.display = roleSelect.value === 'admin' ? 'none' : '';
+    }
+
+    if (roleSelect) {
+        roleSelect.addEventListener('change', updateBranchVisibility);
+        updateBranchVisibility();
+    }
+
+    photoInput.addEventListener('change', function (e) {
+        const file = e.target.files && e.target.files[0];
+        if (!file) {
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function (event) {
+            cropImage.src = event.target.result;
+            cropModal.show();
+        };
+        reader.readAsDataURL(file);
+    });
+
+    cropModalEl.addEventListener('shown.bs.modal', function () {
+        if (cropper) {
+            cropper.destroy();
+        }
+        cropper = new Cropper(cropImage, {
+            aspectRatio: 1,
+            viewMode: 1,
+            dragMode: 'move',
+            autoCropArea: 1,
+            responsive: true,
+            restore: false,
+            background: false,
+        });
+    });
+
+    cropModalEl.addEventListener('hidden.bs.modal', function () {
+        if (cropper) {
+            cropper.destroy();
+            cropper = null;
+        }
+    });
+
+    applyCropBtn.addEventListener('click', function () {
+        if (!cropper) {
+            return;
+        }
+
+        const canvas = cropper.getCroppedCanvas({
+            width: 600,
+            height: 600,
+            imageSmoothingQuality: 'high',
+        });
+
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+        photoCroppedInput.value = dataUrl;
+        photoPreview.src = dataUrl;
+        cropModal.hide();
+    });
+});
+</script>
+@endpush
+@endsection

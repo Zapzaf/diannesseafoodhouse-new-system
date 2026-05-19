@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Receipt {{ $payment->or_number }} - Dianne's Seafood House</title>
+    <style>
+        :root { --receipt-width: 80mm; }
+        * { box-sizing: border-box; }
+        html { font-size: 14px; }
+        body {
+            margin: 0;
+            padding: 20px 0;
+            background: #b0b0b0;
+            color: #000;
+            font-family: ui-monospace, "Courier New", monospace;
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }
+        .toolbar {
+            background: #fff;
+            padding: 8px;
+            text-align: center;
+            border-bottom: 1px solid #ddd;
+            margin-bottom: 16px;
+        }
+        .toolbar button,
+        .toolbar a {
+            display: inline-block;
+            padding: 6px 10px;
+            border: 1px solid #999;
+            background: #fff;
+            color: #000;
+            text-decoration: none;
+            font-size: 12px;
+            cursor: pointer;
+            margin: 0 4px;
+        }
+        .receipt-wrap {
+            display: flex;
+            justify-content: center;
+        }
+        .receipt {
+            width: var(--receipt-width);
+            background: #fff;
+            padding: 6mm 5mm;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+        }
+        .receipt pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: inherit;
+            font-size: inherit;
+        }
+        @media print {
+            .toolbar { display: none !important; }
+            body { margin: 0; padding: 0; background: #fff; }
+            .receipt-wrap { display: block; }
+            .receipt {
+                width: 100%;
+                margin: 0;
+                padding: 4mm 4mm;
+                box-shadow: none;
+            }
+            @page { size: 80mm auto; margin: 4mm 4mm; }
+        }
+    </style>
+</head>
+<body>
+@php
+    use Illuminate\Support\Carbon;
+
+    $order = $payment->order;
+
+    // PAX counts
+    $regularPax = (int) ($order->regular_pax ?? 0);
+    $pwdPax     = (int) ($order->pwd_pax ?? 0);
+    $seniorPax  = (int) ($order->senior_pax ?? 0);
+
+    // Customer type detection for VAT exemption
+    $isVATExempt  = false;
+    $discountType = '';
+    if ($order) {
+        $discountType = (string) ($order->discount_type ?? '');
+        $isVATExempt  = in_array(strtoupper($discountType), ['PWD', 'SENIOR', 'SENIOR CITIZEN']);
+    }
+
+    $lineItems = collect();
+    foreach (($order->items ?? collect()) as $item) {
+        $lineItems->push([
+            'description' => $item->menu->name ?? 'Menu Item',
+            'qty'         => (int) ($item->quantity ?? 0),
+            'total'       => (float) ($item->subtotal ?? 0),
+        ]);
+    }
+    if ((float) ($order->additional_charge_amount ?? 0) > 0) {
+        $lineItems->push([
+            'description' => trim((string) ($order->additional_charge_label ?: 'Additional Charge')),
+            'qty'         => 1,
+            'total'       => (float) ($order->additional_charge_amount ?? 0),
+        ]);
+    }
+
+    $subtotal           = (float) ($order->subtotal ?? $lineItems->sum('total'));
+    $discount           = (float) ($order->discount_amount ?? 0);
+    $discountedSubtotal = $subtotal - $discount;
+
+    // VAT calculation — exempt if PWD or Senior
+    $vatRate   = $isVATExempt ? 0 : (float) ($order->vat_rate ?? 12);
+    $vatAmount = $isVATExempt ? 0 : round($discountedSubtotal * ($vatRate / 100), 2);
+    $total     = round($discountedSubtotal + $vatAmount, 2);
+
+    // Amount paid & change
+    $amountPaid = (float) (!empty($payment->amount_tendered) ? $payment->amount_tendered : ($payment->amount ?? $order->amount_paid ?? 0));
+    $change     = (float) (isset($payment->change_amount) && $payment->change_amount > 0 ? $payment->change_amount : max(0.0, $amountPaid - $total));
+
+    // UTC+8 datetime
+    $paymentDateTime = $payment->payment_date ?? $payment->created_at;
+    $phDateTime = $paymentDateTime
+        ? $paymentDateTime->copy()->setTimezone('Asia/Manila')
+        : now()->setTimezone('Asia/Manila');
+
+    $money = fn (float $v): string => number_format($v, 2);
+
+    $w    = 28; // receipt width in monospace chars
+    $line = str_repeat('-', $w);
+
+    $center = function ($text, $width = 28) {
+        $text = trim((string) $text);
+        if (strlen($text) >= $width) return substr($text, 0, $width);
+        $pad = intdiv($width - strlen($text), 2);
+        return str_repeat(' ', $pad) . $text;
+    };
+
+    // Layout: name(13) + space(1) + qty(3) + space(1) + price(9) = 27 (fits in 28)
+    $formatItem = function ($name, $qty, $price, $width = 28) {
+        $name     = substr(trim($name), 0, 13);
+        $qtyStr   = str_pad((string)(int)$qty, 3, ' ', STR_PAD_LEFT);
+        $priceStr = str_pad(number_format((float)$price, 2), 9, ' ', STR_PAD_LEFT);
+        return str_pad($name, 13) . ' ' . $qtyStr . ' ' . $priceStr;
+    };
+
+    // Layout: label(14) + space(2) + amount(12) = 28
+    $formatTotal = function ($label, $amount, $width = 28) {
+        $label     = substr(trim($label), 0, 14);
+        $amountStr = str_pad(number_format((float)$amount, 2), 12, ' ', STR_PAD_LEFT);
+        return str_pad($label, 14) . '  ' . $amountStr;
+    };
+@endphp
+<div class="toolbar">
+    <button onclick="window.print()">Print Receipt</button>
+    <a href="{{ route('menu-orders.show', $order) }}">Back to Order</a>
+</div>
+<div class="receipt-wrap">
+<div class="receipt">
+<pre>{{ $center(strtoupper($order->branch->name ?? "DIANNE'S SEAFOOD HOUSE"), $w) }}
+{{ $center('DIANNE\'S SEAFOOD HOUSE', $w) }}
+@if(!empty($order->branch->address))
+{{ $center($order->branch->address, $w) }}
+@endif
+@if(!empty($order->branch->tin_number))
+{{ $center('TIN: ' . $order->branch->tin_number, $w) }}
+@endif
+{{ $line }}
+OR#:  {{ $payment->or_number ?? 'N/A' }}
+DATE: {{ $phDateTime->format('Y-m-d') }}
+TIME: {{ $phDateTime->format('H:i:s') }} UTC+8
+@if(!empty($order->customer_name))
+CUSTOMER: {{ $order->customer_name }}
+@endif
+{{ $line }}
+@if($regularPax > 0 || $pwdPax > 0 || $seniorPax > 0)
+PAX:
+@if($regularPax > 0)
+  {{ $regularPax }}x Regular
+@endif
+@if($pwdPax > 0)
+  {{ $pwdPax }}x PWD
+@endif
+@if($seniorPax > 0)
+  {{ $seniorPax }}x Senior Citizen
+@endif
+{{ $line }}
+@endif
+DESC          QTY    AMOUNT
+{{ $line }}
+@foreach($lineItems as $li)
+{{ $formatItem($li['description'], $li['qty'], $li['total'], $w) }}
+@endforeach
+{{ $line }}
+{{ $formatTotal('SUBTOTAL', $subtotal, $w) }}
+@if($discount > 0)
+{{ $formatTotal('DISCOUNT (' . strtoupper($discountType ?: 'GENERAL') . ')', -$discount, $w) }}
+@endif
+@if($isVATExempt)
+{{ $formatTotal('VAT-EXEMPT SALE', $discountedSubtotal, $w) }}
+{{ $formatTotal('VAT (0%)', 0, $w) }}
+@else
+@if($vatRate > 0)
+{{ $formatTotal('VAT (' . number_format($vatRate, 0) . '%)', $vatAmount, $w) }}
+@endif
+@endif
+{{ $line }}
+{{ $formatTotal('TOTAL', $total, $w) }}
+{{ $line }}
+{{ $formatTotal('TENDERED', $amountPaid, $w) }}
+{{ $formatTotal('CHANGE', $change, $w) }}
+{{ $line }}
+@if(!empty($payment->method))
+METHOD: {{ strtoupper($payment->method) }}
+@endif
+@if(!empty($payment->reference_number))
+REF#: {{ $payment->reference_number }}
+@endif
+@if(!empty($payment->receivedBy?->name))
+CASHIER: {{ $payment->receivedBy->name }}
+@endif
+{{ $line }}
+{{ $center('THANK YOU FOR DINING WITH US!', $w) }}
+{{ $center('Please come again.', $w) }}
+</pre>
+</div>
+</div>
+</body>
+</html>

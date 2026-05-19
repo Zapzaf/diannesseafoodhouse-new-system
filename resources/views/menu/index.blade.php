@@ -1,0 +1,104 @@
+@extends('layouts.app')
+
+@section('page_title', 'Menu Items - Dianne\'s Seafood House')
+
+@section('content')
+<main>
+    <x-page-header title="Menu Items" subtitle="Manage restaurant menu items and recipes" icon="coffee">
+        <a class="btn btn-light text-primary" href="{{ route('menus.create') }}">
+            <i data-feather="plus-circle" class="me-1"></i> Add Menu Item
+        </a>
+    </x-page-header>
+
+    <div class="container-xl px-4 mt-n10">
+        @include('layouts.alerts')
+
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div><i data-feather="coffee" class="me-1"></i> All Menu Items</div>
+                <div class="d-flex gap-2">
+                    <select id="perPage" class="form-select form-select-sm" style="width: auto;">
+                        <option value="5">5</option>
+                        <option value="10" selected>10</option>
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                    <input type="text" id="searchInput" class="form-control form-control-sm" placeholder="Search menu items..." style="max-width: 280px;">
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered table-striped" id="menusTable" data-server-sort="1">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Name</th>
+                                <th>Description</th>
+                                <th>Category</th>
+                                <th>Selling Price</th>
+                                <th>Ingredients</th>
+                                <th>Branch</th>
+                                <th class="table-actions-head">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody"><tr><td colspan="8" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div id="tableInfo" class="text-muted small"></div>
+                <nav>
+                    <ul id="pagination" class="pagination pagination-sm mb-0"></ul>
+                </nav>
+            </div>
+        </div>
+    </div>
+</main>
+@endsection
+
+@push('scripts')
+<script src="{{ asset('js/custom-table.js') }}"></script>
+<script src="{{ asset('js/index-table-bridge.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    IndexTableBridge.init({
+        tableId: 'menusTable',
+        dataUrl: @json(route('menus.data')),
+        searchInputId: 'searchInput',
+        perPageId: 'perPage',
+        sortColumns: ['id', 'name', 'category', 'selling_price', 'items_count', 'branch_id'],
+        defaultSort: 'name',
+        defaultDirection: 'asc',
+        emptyMessage: 'No menu items found.',
+        colspan: 8,
+        renderRow: function(menu, ctx) {
+            const ingredientText = Number(menu.items_count || 0) > 0
+                ? `<span class="text-muted small">${menu.items_count} ingredient(s)</span>`
+                : '<span class="text-warning small">No ingredients</span>';
+
+            return `<tr>
+                    <td>${ctx.index}</td>
+                    <td class="fw-semibold">${ctx.escapeHtml(menu.name)}</td>
+                    <td class="text-muted small" style="max-width:200px;">${ctx.escapeHtml(menu.menu_description || '—')}</td>
+                    <td><span class="badge bg-secondary">${ctx.escapeHtml(menu.category || menu.category_label || '\u2014')}</span></td>
+                    <td>\u20B1${Number(menu.selling_price || 0).toFixed(2)}</td>
+                    <td>${ingredientText}</td>
+                    <td>${ctx.escapeHtml(menu.branch ? menu.branch.name : '\u2014')}</td>
+                    <td class="text-nowrap">
+                            <a href="{{ url('/menus') }}/${menu.id}" class="btn btn-sm btn-outline-info" title="View"><i data-feather="eye"></i></a>
+                            <a href="{{ url('/menus') }}/${menu.id}/edit" class="btn btn-sm btn-outline-primary" title="Edit"><i data-feather="edit"></i></a>
+                            <form action="{{ url('/menus') }}/${menu.id}" method="POST" onsubmit="return confirm('Delete this menu item?')">
+                                <input type="hidden" name="_token" value="${csrf}">
+                                <input type="hidden" name="_method" value="DELETE">
+                                <button class="btn btn-sm btn-outline-danger" title="Delete"><i data-feather="trash-2"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                `;
+        }
+    });
+});
+</script>
+@endpush

@@ -1,0 +1,203 @@
+/* Global maroon theme overrides loaded after vendor styles */
+:root {
+    --bs-primary: #a22c29;
+    --bs-primary-rgb: 162, 44, 41;
+    --bs-secondary: #6e5f61;
+    --bs-secondary-rgb: 110, 95, 97;
+    --bs-link-color: #a22c29;
+    --bs-link-hover-color: #8b2522;
+    --bs-body-bg: #f9f6f4;
+    --bs-body-color: #2f2426;
+    --bs-border-color: #e2d8d3;
+    --bs-gradient: none;
+}
+
+body {
+    background-color: var(--bs-body-bg);
+    color: var(--bs-body-color);
+}
+
+a,
+.text-primary {
+    color: var(--bs-primary) !important;
+}
+
+a:hover,
+a:focus {
+    color: #8b2522 !important;
+}
+
+.bg-gradient-primary-to-secondary,
+.page-header.page-header-dark,
+.page-header .page-header-content {
+    background-image: none !important;
+    background-color: #a22c29 !important;
+}
+
+.topnav.navbar,
+.nav-fixed .topnav {
+    background-color: #ffffff !important;
+    border-bottom: 1px solid #e2d8d3;
+}
+
+.topnav .navbar-brand,
+.topnav .navbar-brand:hover,
+.topnav .navbar-brand:focus {
+    color: #a22c29 !important;
+}
+
+.topnav .navbar-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    line-height: 1.2;
+}
+
+.topnav .navbar-brand .feather {
+    width: 1rem;
+    height: 1rem;
+    vertical-align: middle;
+    flex-shrink: 0;
+}
+
+.card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+.card-header .feather {
+    width: 1rem;
+    height: 1rem;
+    vertical-align: middle;
+    flex-shrink: 0;
+}
+
+.sidenav-light,
+.sidenav-light .sidenav-menu {
+    background-color: #f3ece8 !important;
+}
+
+.sidenav-light .sidenav-menu .nav-link,
+.sidenav-light .sidenav-menu .sidenav-menu-heading {
+    color: #4b3b3e !important;
+}
+
+.sidenav-light .sidenav-menu .nav-link.active,
+.sidenav-light .sidenav-menu .nav-link:hover {
+    color: #a22c29 !important;
+    background-color: rgba(162, 44, 41, 0.08) !important;
+}
+
+.btn-primary,
+.bg-primary {
+    background-color: #a22c29 !important;
+    border-color: #a22c29 !important;
+    color: #ffffff !important;
+}
+
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active,
+.btn-primary.active {
+    background-color: #8b2522 !important;
+    border-color: #8b2522 !important;
+}
+
+.btn-outline-primary {
+    color: #a22c29 !important;
+    border-color: #a22c29 !important;
+}
+
+.btn-outline-primary:hover,
+.btn-outline-primary:focus,
+.btn-outline-primary:active {
+    background-color: #a22c29 !important;
+    border-color: #a22c29 !important;
+    color: #ffffff !important;
+}
+
+.form-control:focus,
+.form-select:focus,
+.datatable-input:focus,
+.datatable-selector:focus {
+    border-color: #be5a58 !important;
+    box-shadow: 0 0 0 0.2rem rgba(162, 44, 41, 0.18) !important;
+}
+
+.card,
+.dropdown-menu,
+.table,
+.datatable-table {
+    border-color: #e2d8d3;
+}
+
+.table thead th,
+.datatable-table thead th,
+.customTable thead th {
+    background-color: #a22c29 !important;
+    color: #ffffff !important;
+}
+
+.table-hover > tbody > tr:hover > *,
+.datatable-table > tbody > tr:hover > *,
+.customTable tbody tr:hover {
+    background-color: #f3ece8 !important;
+}
+
+.datatable-wrapper .datatable-top,
+.datatable-wrapper .datatable-bottom {
+    padding: 0.75rem;
+    background-color: #f9f6f4;
+    border: 1px solid #e2d8d3;
+}
+
+.datatable-pagination a,
+.pagination .page-link {
+    color: #a22c29 !important;
+    border-color: #d8cbc5 !important;
+    background-color: #ffffff !important;
+}
+
+.datatable-pagination a:hover,
+.pagination .page-link:hover {
+    color: #ffffff !important;
+    background-color: #a22c29 !important;
+    border-color: #a22c29 !important;
+}
+
+.datatable-pagination .active a,
+.pagination .page-item.active .page-link {
+    color: #ffffff !important;
+    background-color: #a22c29 !important;
+    border-color: #a22c29 !important;
+}
+
+.datatable-pagination .disabled a,
+.pagination .page-item.disabled .page-link {
+    color: #9b9193 !important;
+    background-color: #f9f6f4 !important;
+}
+
+.datatable-sorter::before,
+.datatable-sorter::after {
+    border-top-color: rgba(255, 255, 255, 0.8) !important;
+    border-bottom-color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.dt-button,
+.buttons-html5,
+.buttons-print,
+.buttons-copy {
+    background-color: #a22c29 !important;
+    border: 1px solid #a22c29 !important;
+    color: #ffffff !important;
+}
+
+.dt-button:hover,
+.buttons-html5:hover,
+.buttons-print:hover,
+.buttons-copy:hover {
+    background-color: #8b2522 !important;
+    border-color: #8b2522 !important;
+}
