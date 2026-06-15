@@ -3,6 +3,7 @@
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\BranchManagementController;
 use App\Http\Controllers\CategoryManagementController;
+use App\Http\Controllers\CostingReportController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeliveryManagementController;
 use App\Http\Controllers\InventoryController;
@@ -55,6 +56,7 @@ Route::middleware('auth')->group(function (): void {
 	Route::prefix('inventory')->name('inventory.')->group(function (): void {
 		Route::get('/', [InventoryController::class, 'index'])->name('index');
 		Route::get('/data', [InventoryController::class, 'data'])->name('data');
+		Route::post('/export', [InventoryController::class, 'export'])->name('export');
 		Route::get('/branch/{branch}/items', [InventoryController::class, 'itemsByBranch'])->name('branch-items');
 		Route::get('/create', [InventoryController::class, 'create'])->name('create');
 		Route::post('/', [InventoryController::class, 'store'])->name('store');
@@ -193,14 +195,17 @@ Route::middleware('auth')->group(function (): void {
         Route::get('/data', [MenuOrderController::class, 'data'])->name('data');
         Route::get('/create', [MenuOrderController::class, 'create'])->name('create');
         Route::post('/', [MenuOrderController::class, 'store'])->name('store');
+        Route::post('/{menuOrder}/items', [MenuOrderController::class, 'storeItem'])->name('items.store');
+        Route::delete('/{menuOrder}/items/{item}', [MenuOrderController::class, 'destroyItem'])->name('items.destroy');
+        Route::get('/{menuOrder}/billing', [MenuOrderController::class, 'billingReceipt'])->name('billing');
         Route::get('/{menuOrder}', [MenuOrderController::class, 'show'])->name('show');
         Route::get('/{menuOrder}/edit', [MenuOrderController::class, 'edit'])->name('edit');
         Route::put('/{menuOrder}', [MenuOrderController::class, 'update'])->name('update');
         Route::delete('/{menuOrder}', [MenuOrderController::class, 'destroy'])->name('destroy');
         Route::post('/{menuOrder}/payments', [MenuOrderController::class, 'storePayment'])->name('payments.store');
         Route::get('/payments/{payment}/receipt', [MenuOrderController::class, 'paymentReceipt'])->name('payments.receipt');
-        Route::post('/{menuOrder}/complete', [MenuOrderController::class, 'complete'])->name('complete');
         Route::post('/{menuOrder}/cancel', [MenuOrderController::class, 'cancel'])->name('cancel');
+        Route::post('/{menuOrder}/void', [MenuOrderController::class, 'void'])->name('void');
     });
 
     Route::prefix('tables')->name('tables.')->group(function (): void {
@@ -238,34 +243,24 @@ Route::middleware('auth')->group(function (): void {
 		Route::get('/inventory', [ReportController::class, 'inventory'])->name('inventory.index');
 		Route::get('/transactions', [ReportController::class, 'transaction'])->name('transaction.index');
 		Route::get('/deliveries', [ReportController::class, 'delivery'])->name('delivery.index');
-		Route::get('/costing', [ReportController::class, 'costing'])->name('costing.index');
+		Route::get('/costing', [CostingReportController::class, 'index'])->name('costing.index');
+		Route::get('/costing/create', [CostingReportController::class, 'create'])->name('costing.create');
+		Route::post('/costing', [CostingReportController::class, 'store'])->name('costing.store');
+		Route::get('/costing/{costingReport}', [CostingReportController::class, 'show'])->name('costing.show');
+		Route::post('/costing/{costingReport}/approve', [CostingReportController::class, 'approve'])->name('costing.approve');
+		Route::post('/costing/{costingReport}/reject', [CostingReportController::class, 'reject'])->name('costing.reject');
 	});
 
 	// Settings route (from nav)
 	Route::get('/settings', [SettingsController::class, 'show'])->name('settings.show');
+	Route::put('/settings/branch', [SettingsController::class, 'updateBranch'])->name('settings.branch.update');
 
     Route::prefix('expenses')->name('expenses.')->group(function () {
         Route::get('/', [\App\Http\Controllers\ExpenseController::class, 'index'])->name('index');
         Route::post('/import', [\App\Http\Controllers\ExpenseController::class, 'import'])->name('import');
         Route::get('/export/{monthYear}', [\App\Http\Controllers\ExpenseController::class, 'export'])->name('export');
 
-        // Vatable Purchases CRUD
-        Route::post('/{monthYear}/vatable', [\App\Http\Controllers\ExpenseController::class, 'storeVatable'])->name('vatable.store');
-        Route::put('/{monthYear}/vatable/{vatable}', [\App\Http\Controllers\ExpenseController::class, 'updateVatable'])->name('vatable.update');
-        Route::delete('/{monthYear}/vatable/{vatable}', [\App\Http\Controllers\ExpenseController::class, 'destroyVatable'])->name('vatable.destroy');
-
-        // Non-Vatable Purchases CRUD
-        Route::post('/{monthYear}/nonvatable', [\App\Http\Controllers\ExpenseController::class, 'storeNonVatable'])->name('nonvatable.store');
-        Route::put('/{monthYear}/nonvatable/{nonVatable}', [\App\Http\Controllers\ExpenseController::class, 'updateNonVatable'])->name('nonvatable.update');
-        Route::delete('/{monthYear}/nonvatable/{nonVatable}', [\App\Http\Controllers\ExpenseController::class, 'destroyNonVatable'])->name('nonvatable.destroy');
-
-        // Cash Disbursements CRUD
-        Route::post('/{monthYear}/disbursements', [\App\Http\Controllers\ExpenseController::class, 'storeDisbursement'])->name('disbursement.store');
-        Route::put('/{monthYear}/disbursements/{disbursement}', [\App\Http\Controllers\ExpenseController::class, 'updateDisbursement'])->name('disbursement.update');
-        Route::delete('/{monthYear}/disbursements/{disbursement}', [\App\Http\Controllers\ExpenseController::class, 'destroyDisbursement'])->name('disbursement.destroy');
-
         // Show must be last (wildcard)
         Route::get('/{monthYear}', [\App\Http\Controllers\ExpenseController::class, 'show'])->name('show');
     });
 });
-

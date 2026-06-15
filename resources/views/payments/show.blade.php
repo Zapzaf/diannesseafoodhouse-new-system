@@ -1,5 +1,7 @@
 @extends('layouts.app')
+
 @section('page_title', 'Payment #' . $payment->id . ' - Dianne\'s Seafood House')
+
 @section('content')
 <main>
     <header class="page-header page-header-dark bg-gradient-primary-to-secondary pb-10">
@@ -34,10 +36,14 @@
     <div class="container-xl px-4 mt-n10">
         @include('layouts.alerts')
 
+        @php
+            $additionalCharges = $payment->additionalChargesList();
+        @endphp
+
         @if($payment->is_vat_exempt || (float) $payment->total_discount > 0)
         <div class="alert alert-warning d-flex align-items-center mb-3">
             <i data-feather="tag" class="me-2"></i>
-            <span><strong>VAT EXEMPT / DISCOUNTED SALE</strong> — Per-person computation applied for eligible guests.</span>
+            <span><strong>VAT EXEMPT / DISCOUNTED SALE</strong> - Per-person computation applied for eligible guests.</span>
         </div>
         @endif
 
@@ -47,22 +53,22 @@
                     <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
                         Invoice
                         @if($payment->or_number)
-                        <span class="badge bg-secondary fs-6">OR #{{ $payment->or_number }}</span>
+                        <span class="badge bg-secondary fs-6 text-white">OR #{{ $payment->or_number }}</span>
                         @endif
                     </div>
                     <div class="card-body">
                         <dl class="row">
                             <dt class="col-sm-5">Date</dt><dd class="col-sm-7">{{ $payment->payment_date?->format('M d, Y') }}</dd>
-                            <dt class="col-sm-5">Customer</dt><dd class="col-sm-7">{{ $payment->order?->customerDisplayName() ?? '—' }}</dd>
-                            <dt class="col-sm-5">Order</dt><dd class="col-sm-7">Order #{{ $payment->menu_order_id }}</dd>
+                            <dt class="col-sm-5">Customer</dt><dd class="col-sm-7">{{ $payment->order?->customerDisplayName() ?? '-' }}</dd>
+                            <dt class="col-sm-5">Order</dt><dd class="col-sm-7">{{ $payment->order?->orderNumber() ?? 'Order #' . $payment->menu_order_id }}</dd>
                             <dt class="col-sm-5 mt-2">Amount Applied</dt><dd class="col-sm-7 mt-2 fw-bold text-success fs-5">PHP {{ number_format((float) $payment->amount, 2) }}</dd>
                             <dt class="col-sm-5">Amount Tendered</dt><dd class="col-sm-7">PHP {{ number_format((float) $payment->amount_tendered, 2) }}</dd>
                             <dt class="col-sm-5">Change</dt><dd class="col-sm-7 text-danger">PHP {{ number_format((float) $payment->change_amount, 2) }}</dd>
-                            <dt class="col-sm-5 mt-2">Method</dt><dd class="col-sm-7 mt-2"><span class="badge bg-secondary">{{ ucfirst((string) $payment->method) }}</span></dd>
-                            <dt class="col-sm-5">Reference</dt><dd class="col-sm-7">{{ $payment->reference_number ?? '—' }}</dd>
-                            <dt class="col-sm-5">Notes</dt><dd class="col-sm-7">{{ $payment->notes ?? '—' }}</dd>
-                            <dt class="col-sm-5">Branch</dt><dd class="col-sm-7">{{ $payment->branch?->name ?? '—' }}</dd>
-                            <dt class="col-sm-5">Received By</dt><dd class="col-sm-7">{{ $payment->receivedBy?->name ?? '—' }}</dd>
+                            <dt class="col-sm-5 mt-2">Method</dt><dd class="col-sm-7 mt-2"><span class="badge bg-secondary text-white">{{ ucfirst((string) $payment->method) }}</span></dd>
+                            <dt class="col-sm-5">Reference</dt><dd class="col-sm-7">{{ $payment->reference_number ?? '-' }}</dd>
+                            <dt class="col-sm-5">Notes</dt><dd class="col-sm-7">{{ $payment->notes ?? '-' }}</dd>
+                            <dt class="col-sm-5">Branch</dt><dd class="col-sm-7">{{ $payment->branch?->name ?? '-' }}</dd>
+                            <dt class="col-sm-5">Received By</dt><dd class="col-sm-7">{{ $payment->receivedBy?->name ?? '-' }}</dd>
                         </dl>
                         <hr>
 
@@ -71,11 +77,22 @@
                             <span>Subtotal</span>
                             <span>PHP {{ number_format((float) $payment->subtotal, 2) }}</span>
                         </div>
-                        @if((float) ($payment->additional_charge_amount ?? 0) > 0)
+                        @if(!empty($additionalCharges))
                         <div class="d-flex justify-content-between">
-                            <span>{{ $payment->additional_charge_label ?: 'Additional Charge' }}</span>
+                            <span>Additional Charges</span>
                             <span>PHP {{ number_format((float) $payment->additional_charge_amount, 2) }}</span>
                         </div>
+                        @foreach($additionalCharges as $charge)
+                        <div class="d-flex justify-content-between text-muted small">
+                            <span>
+                                {{ $charge['label'] }}
+                                @if(($charge['type'] ?? 'fixed') === 'percentage')
+                                    ({{ number_format((float) ($charge['value'] ?? 0), 2) }}%)
+                                @endif
+                            </span>
+                            <span>PHP {{ number_format((float) ($charge['amount'] ?? 0), 2) }}</span>
+                        </div>
+                        @endforeach
                         @endif
                         <div class="d-flex justify-content-between">
                             <span>VAT ({{ number_format((float) ($payment->order?->vat_rate ?? 12), 0) }}%)</span>
@@ -103,7 +120,7 @@
                 @if($payment->order)
                 <div class="card shadow-sm mb-4">
                     <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
-                        Payment History for Order #{{ $payment->order->id }}
+                        Payment History for {{ $payment->order->orderNumber() }}
                         <span class="badge bg-light text-dark">{{ $payment->order->payments->count() }} payment(s)</span>
                     </div>
                     <div class="card-body">
@@ -124,12 +141,12 @@
                                     @forelse($payment->order->payments->sortByDesc('payment_date') as $entry)
                                     <tr class="{{ $entry->id === $payment->id ? 'table-warning' : '' }}">
                                         <td>{{ $entry->payment_date?->format('M d, Y') }}</td>
-                                        <td><span class="badge bg-secondary">{{ ucfirst((string) $entry->method) }}</span></td>
+                                        <td><span class="badge bg-secondary text-white">{{ ucfirst((string) $entry->method) }}</span></td>
                                         <td class="text-success fw-semibold">PHP {{ number_format((float) $entry->amount, 2) }}</td>
                                         <td>PHP {{ number_format((float) $entry->amount_tendered, 2) }}</td>
                                         <td class="text-danger">PHP {{ number_format((float) $entry->change_amount, 2) }}</td>
-                                        <td>{{ $entry->or_number ?: '—' }}</td>
-                                        <td>{{ $entry->reference_number ?: '—' }}</td>
+                                        <td>{{ $entry->or_number ?: '-' }}</td>
+                                        <td>{{ $entry->reference_number ?: '-' }}</td>
                                     </tr>
                                     @empty
                                     <tr><td colspan="7" class="text-center text-muted py-3">No payments found.</td></tr>

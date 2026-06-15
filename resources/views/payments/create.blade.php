@@ -39,7 +39,7 @@
                         <input type="hidden" name="menu_order_id" value="{{ $menuOrder->id }}">
 
                         <div class="alert alert-info mb-4">
-                            <strong>Order #{{ $menuOrder->id }}</strong> &mdash; {{ $menuOrder->customerDisplayName() }}
+                            <strong>Order {{ $menuOrder->orderNumber() }}</strong> &mdash; {{ $menuOrder->customerDisplayName() }}
                             <br>
                             Branch: {{ $menuOrder->branch->name ?? '—' }} &middot;
                             Total: ₱{{ number_format((float) $menuOrder->total_amount, 2) }}
@@ -55,7 +55,7 @@
                                 <option value="{{ $order->id }}"
                                     data-balance="{{ number_format((float) $order->balance, 2, '.', '') }}"
                                     {{ (string) old('menu_order_id') === (string) $order->id ? 'selected' : '' }}>
-                                    Order #{{ $order->id }} - {{ $order->customerDisplayName() }}
+                                    Order {{ $order->orderNumber() }} - {{ $order->customerDisplayName() }}
                                     | {{ $order->branch->name ?? '—' }}
                                     | Total: ₱{{ number_format((float) $order->total_amount, 2) }}
                                     | Balance: ₱{{ number_format((float) $order->balance, 2) }}

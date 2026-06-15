@@ -182,6 +182,10 @@ class ExpenseController extends Controller
         $perPage = 15;
         $search = trim((string) $request->input('search', ''));
         $tab = $request->input('tab', 'sales');
+        if (! in_array($tab, ['sales', 'vatable', 'nonvatable', 'disbursements'], true)) {
+            $tab = 'sales';
+            $request->merge(['tab' => $tab]);
+        }
         
         $salesRecords = collect();
         $vatableRecords = collect();
@@ -221,8 +225,10 @@ class ExpenseController extends Controller
             $q = CashDisbursement::query()->where('month_year', $monthYear)->with('branch');
             $q = $this->applyBranchScope($q);
             if ($search !== '') {
-                $q->where('payee', 'like', "%{$search}%")
-                  ->orWhere('check_number', 'like', "%{$search}%");
+                $q->where(function ($nested) use ($search) {
+                    $nested->where('payee', 'like', "%{$search}%")
+                        ->orWhere('check_number', 'like', "%{$search}%");
+                });
             }
             $disbursementRecords = $q->orderBy('date', 'asc')->paginate($perPage)->appends($request->query());
         }

@@ -24,7 +24,8 @@ class DeliveryPolicy
             return true;
         }
 
-        return (int) $user->branch_id === (int) $delivery->destination_branch_id;
+        return (int) $user->branch_id === (int) $delivery->destination_branch_id
+            || (int) $user->branch_id === (int) $delivery->source_branch_id;
     }
 
     /**

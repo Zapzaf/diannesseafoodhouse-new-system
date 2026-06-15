@@ -117,10 +117,12 @@ document.addEventListener('DOMContentLoaded', function() {
         tbody.innerHTML = users.map((u, index) => {
             const displayIndex = ((currentPage - 1) * perPage) + index + 1;
             const roleLabel = String(u.role || '').replace(/_/g, ' ');
-            const branchName = u.branch && u.branch.name ? u.branch.name : '—';
+            const branchName = u.role === 'admin'
+                ? 'All Branches'
+                : (u.branch && u.branch.name ? u.branch.name : 'Unassigned');
             const joined = u.created_at
                 ? new Date(u.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
-                : '—';
+                : '-';
 
             const canManageTarget = currentUserRole === 'admin' || (currentUserRole === 'branch_manager' && String(u.role || '') === 'staff');
 

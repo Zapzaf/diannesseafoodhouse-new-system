@@ -16,6 +16,9 @@
                         <div class="page-header-subtitle">Track stock levels, suppliers, and replenishment activity</div>
                     </div>
                     <div class="col-auto mt-4 d-flex gap-2">
+                        <button type="button" class="btn btn-light text-primary" data-bs-toggle="modal" data-bs-target="#exportInventoryModal">
+                            <i class="me-1" data-feather="download"></i> Export Excel
+                        </button>
                         <a class="btn btn-light text-primary" href="{{ route('inventory.transactions') }}">
                             <i class="me-1" data-feather="list"></i> Transactions
                         </a>
@@ -31,19 +34,49 @@
     <div class="container-xl px-4 mt-n10">
         @include('layouts.alerts')
 
-        <div class="card mb-4">
-            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <div><i class="me-1" data-feather="archive"></i> Inventory Items</div>
-                <div class="d-flex gap-2">
-                    <select id="perPage" class="form-select form-select-sm" style="width: auto;">
-                        <option value="5">5</option>
-                        <option value="10" selected>10</option>
-                        <option value="20">20</option>
-                        <option value="50">50</option>
-                        <option value="100">100</option>
-                    </select>
-                    <input type="text" id="searchInput" class="form-control form-control-sm" placeholder="Search inventory..." style="max-width: 280px;">
+        <div class="card shadow-sm mb-3">
+            <div class="card-body py-3">
+                <div class="d-flex align-items-end gap-3 flex-wrap">
+                    <div class="flex-grow-1" style="min-width: 240px;">
+                        <label for="searchInput" class="form-label small fw-semibold text-muted mb-1">Search Inventory</label>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-white"><i data-feather="search"></i></span>
+                            <input type="text" id="searchInput" class="form-control" placeholder="Search item, category, or location...">
+                        </div>
+                    </div>
+                    <div style="min-width: 180px;">
+                        <label for="categoryFilter" class="form-label small fw-semibold text-muted mb-1">Category</label>
+                        <select id="categoryFilter" class="form-select form-select-sm" aria-label="Filter by category">
+                            <option value="">All Categories</option>
+                            @foreach($inventoryLocations as $location)
+                            <option value="{{ $location->id }}">{{ $location->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div style="min-width: 190px;">
+                        <label for="subcategoryFilter" class="form-label small fw-semibold text-muted mb-1">Subcategory</label>
+                        <select id="subcategoryFilter" class="form-select form-select-sm" aria-label="Filter by subcategory" disabled>
+                            <option value="">All Subcategories</option>
+                        </select>
+                    </div>
+                    <div style="width: 110px;">
+                        <label for="perPage" class="form-label small fw-semibold text-muted mb-1">Show Rows</label>
+                        <select id="perPage" class="form-select form-select-sm" aria-label="Items per page">
+                            <option value="5">5</option>
+                            <option value="10" selected>10</option>
+                            <option value="20">20</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
+                    </div>
                 </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header d-flex align-items-center justify-content-between gap-2">
+                <div><i class="me-1" data-feather="archive"></i> Inventory Items</div>
+                <span class="badge bg-primary-soft text-primary">Live inventory</span>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
@@ -61,7 +94,7 @@
                                 <th class="table-actions-head">Actions</th>
                             </tr>
                         </thead>
-                        <tbody id="tableBody"><tr><td colspan="10" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></td></tr></tbody>
+                        <tbody id="tableBody"><tr><td colspan="9" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></td></tr></tbody>
                     </table>
                 </div>
             </div>
@@ -87,7 +120,8 @@
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Quantity</label>
-                        <input type="number" name="quantity" class="form-control" min="1" required>
+                        <input type="number" name="quantity" id="stockInQuantity" class="form-control" min="1" step="1" required>
+                        <div class="form-text" id="stockInQuantityHelp"></div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Transaction Date</label>
@@ -107,6 +141,40 @@
     </div>
 </div>
 
+<div class="modal fade" id="exportInventoryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form action="{{ route('inventory.export') }}" method="POST">
+            @csrf
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Export Inventory</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted mb-3">Please select a branch.</p>
+                    <div class="mb-0">
+                        <label class="form-label fw-semibold">Branch</label>
+                        <select name="branch_id" class="form-select" required>
+                            <option value="">Select a branch</option>
+                            @foreach($exportBranches as $branch)
+                            <option value="{{ $branch->id }}" {{ (string) old('branch_id', $selectedBranchId) === (string) $branch->id ? 'selected' : '' }}>
+                                {{ $branch->name }}
+                            </option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="me-1" data-feather="download"></i> Export
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
 <div class="modal fade" id="deductStockModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <form action="" method="POST" id="deductStockForm">
@@ -120,7 +188,8 @@
                     <p class="small text-muted mb-3">Remaining stock: <span id="deductRemainingStock"></span></p>
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Quantity</label>
-                        <input type="number" name="quantity" id="deductQuantity" class="form-control" min="1" required>
+                        <input type="number" name="quantity" id="deductQuantity" class="form-control" min="1" step="1" required>
+                        <div class="form-text" id="deductQuantityHelp"></div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Transaction Date</label>
@@ -197,17 +266,37 @@
 
 @push('scripts')
 <script>
-function showStockIn(id, name) {
+function configureQuantityInput(inputId, helpId, unit, allowsDecimals, maximum = null) {
+    const input = document.getElementById(inputId);
+    const help = document.getElementById(helpId);
+    const decimalQuantity = allowsDecimals === true || allowsDecimals === 'true' || allowsDecimals === '1';
+    input.value = '';
+    input.min = decimalQuantity ? '0.01' : '1';
+    input.step = decimalQuantity ? '0.01' : '1';
+
+    if (maximum !== null) {
+        input.max = maximum;
+    } else {
+        input.removeAttribute('max');
+    }
+
+    help.textContent = decimalQuantity
+        ? `${unit || 'This unit'} accepts decimal quantities up to 2 decimal places.`
+        : `${unit || 'This unit'} accepts whole-number quantities only.`;
+}
+
+function showStockIn(id, name, unit, allowsDecimals) {
     document.getElementById('modalItemName').textContent = name;
     document.getElementById('stockInForm').action = '{{ url('/inventory') }}/' + id + '/stock-in';
+    configureQuantityInput('stockInQuantity', 'stockInQuantityHelp', unit, allowsDecimals);
     new bootstrap.Modal(document.getElementById('stockInModal')).show();
 }
 
-function showDeductStock(id, name, remainingStock) {
+function showDeductStock(id, name, remainingStock, unit, allowsDecimals) {
     document.getElementById('deductItemName').textContent = name;
     document.getElementById('deductRemainingStock').textContent = remainingStock;
-    document.getElementById('deductQuantity').max = remainingStock;
     document.getElementById('deductStockForm').action = '{{ url('/inventory') }}/' + id + '/deduct';
+    configureQuantityInput('deductQuantity', 'deductQuantityHelp', unit, allowsDecimals, remainingStock);
     new bootstrap.Modal(document.getElementById('deductStockModal')).show();
 }
 
@@ -247,6 +336,13 @@ function showTransfer(id, name, remainingStock, sourceBranchName, sourceBranchId
 </script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    @if(session('showExportModal'))
+    const exportModalEl = document.getElementById('exportInventoryModal');
+    if (exportModalEl) {
+        new bootstrap.Modal(exportModalEl).show();
+    }
+    @endif
+
     const branchSelect = document.getElementById('transferDestinationBranch');
     const itemSelect = document.getElementById('transferDestinationItem');
     const help = document.getElementById('transferItemHelp');
@@ -290,16 +386,38 @@ document.addEventListener('DOMContentLoaded', function () {
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    const categoryFilter = document.getElementById('categoryFilter');
+    const subcategoryFilter = document.getElementById('subcategoryFilter');
+    const subcategoriesByCategory = {{ Illuminate\Support\Js::from($inventorySubcategories) }};
+
+    categoryFilter.addEventListener('change', function () {
+        const subcategories = subcategoriesByCategory[this.value] || [];
+        subcategoryFilter.innerHTML = '<option value="">All Subcategories</option>' + subcategories.map(function (subcategory) {
+            return '<option value="' + subcategory.id + '">' + escapeFilterHtml(subcategory.name) + '</option>';
+        }).join('');
+        subcategoryFilter.disabled = subcategories.length === 0;
+    });
+
+    function escapeFilterHtml(value) {
+        const element = document.createElement('div');
+        element.textContent = value;
+        return element.innerHTML;
+    }
+
     IndexTableBridge.init({
         tableId: 'inventoryTable',
         dataUrl: @json(route('inventory.data')),
         searchInputId: 'searchInput',
         perPageId: 'perPage',
-        sortColumns: ['name', 'category', 'branch_name', 'location', 'remaining_item', 'unit', 'low_stock_threshold', 'supplier_name'],
+        filters: [
+            { inputId: 'categoryFilter', param: 'location_id' },
+            { inputId: 'subcategoryFilter', param: 'category_id' }
+        ],
+        sortColumns: ['name', 'branch_name', 'location', 'category', 'quantity', 'unit', 'low_stock_threshold', ''],
         defaultSort: 'name',
         defaultDirection: 'asc',
         emptyMessage: 'No inventory items found.',
-        colspan: 10,
+        colspan: 9,
         renderRow: function(item, ctx) {
             const remaining = Number(item.remaining_item || 0);
             const threshold = Number(item.low_stock_threshold || 0);
@@ -317,8 +435,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td>${threshold}</td>
                     <td>${ctx.escapeHtml(item.supplier_name || 'N/A')}</td>
                     <td class="text-nowrap">
-                            <button type="button" class="btn btn-sm btn-outline-success stockin-btn" data-id="${item.id}" data-name="${itemName}"><i data-feather="plus-circle"></i></button>
-                            <button type="button" class="btn btn-sm btn-outline-warning deduct-btn" data-id="${item.id}" data-name="${itemName}" data-remaining="${remaining}"><i data-feather="minus-circle"></i></button>
+                            <button type="button" class="btn btn-sm btn-outline-success stockin-btn" data-id="${item.id}" data-name="${itemName}" data-unit="${ctx.escapeHtml(item.unit || '')}" data-allows-decimals="${item.allows_decimal_quantity ? '1' : '0'}"><i data-feather="plus-circle"></i></button>
+                            <button type="button" class="btn btn-sm btn-outline-warning deduct-btn" data-id="${item.id}" data-name="${itemName}" data-remaining="${remaining}" data-unit="${ctx.escapeHtml(item.unit || '')}" data-allows-decimals="${item.allows_decimal_quantity ? '1' : '0'}"><i data-feather="minus-circle"></i></button>
                             <button type="button" class="btn btn-sm btn-outline-info transfer-btn" data-id="${item.id}" data-name="${itemName}" data-remaining="${remaining}" data-branch-name="${branchName}" data-branch-id="${item.branch_id || ''}" title="Transfer to another branch"><i data-feather="send"></i></button>
                             <a href="{{ url('/inventory') }}/${item.id}/edit" class="btn btn-sm btn-outline-primary"><i data-feather="edit-2"></i></a>
                             <form action="{{ url('/inventory') }}/${item.id}" method="POST" onsubmit="return confirm('Delete this item?')">
@@ -336,9 +454,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!btn) return;
         
         if (btn.classList.contains('stockin-btn')) {
-            showStockIn(btn.dataset.id, btn.dataset.name);
+            showStockIn(btn.dataset.id, btn.dataset.name, btn.dataset.unit, btn.dataset.allowsDecimals);
         } else if (btn.classList.contains('deduct-btn')) {
-            showDeductStock(btn.dataset.id, btn.dataset.name, btn.dataset.remaining);
+            showDeductStock(btn.dataset.id, btn.dataset.name, btn.dataset.remaining, btn.dataset.unit, btn.dataset.allowsDecimals);
         } else if (btn.classList.contains('transfer-btn')) {
             showTransfer(btn.dataset.id, btn.dataset.name, btn.dataset.remaining, btn.dataset.branchName, btn.dataset.branchId);
         }

@@ -106,6 +106,12 @@ class MenuOrderController extends Controller
             ->orderBy($sort, $direction)
             ->paginate($perPage);
 
+        $orders->getCollection()->transform(function (MenuOrder $order) {
+            $order->setAttribute('order_number', $order->orderNumber());
+
+            return $order;
+        });
+
         return response()->json($orders);
     }
 
@@ -132,20 +138,32 @@ class MenuOrderController extends Controller
             ->orderBy('table_number')
             ->get();
 
-        return view('menu-orders.create', compact('branches', 'menus', 'selectedBranchId', 'tables'));
+        return view('menu-orders.create', compact('branches', 'menus', 'selectedBranchId', 'tables', 'user'));
     }
 
     public function store(Request $request): RedirectResponse
     {
         $user = auth()->user();
 
-        $data = $request->validate([
+        $payload = $request->all();
+        $payload['additional_charges'] = $this->normalizeAdditionalChargeInput(
+            $request->input('additional_charges', []),
+            $request->input('additional_charge_label'),
+            $request->input('additional_charge_amount')
+        );
+
+        $data = validator($payload, [
             'branch_id'                => 'required|exists:branches,id',
             'table_id'                 => 'nullable|exists:tables,id',
             'customer_name'            => 'nullable|string|max:255',
             'items'                    => 'required|array|min:1',
+            'items.*.id'               => 'nullable|integer|exists:menu_order_items,id',
             'items.*.menu_id'          => 'required|exists:menus,id',
             'items.*.quantity'         => 'required|integer|min:1|max:999',
+            'additional_charges'       => 'nullable|array',
+            'additional_charges.*.label' => 'required|string|max:120',
+            'additional_charges.*.type' => 'required|in:fixed,percentage',
+            'additional_charges.*.value' => 'required|numeric|gt:0',
             'additional_charge_label'  => 'nullable|string|max:120',
             'additional_charge_amount' => 'nullable|numeric|min:0',
             'regular_pax'              => 'required|integer|min:0|max:999',
@@ -160,7 +178,14 @@ class MenuOrderController extends Controller
             'senior_names'             => 'nullable|array',
             'senior_names.*'           => 'nullable|string|max:255',
             'notes'                    => 'nullable|string',
-        ]);
+        ], [
+            'additional_charges.*.label.required' => 'Each additional charge needs a label or description.',
+            'additional_charges.*.type.required' => 'Select a charge type for each additional charge.',
+            'additional_charges.*.value.required' => 'Enter a value for each additional charge.',
+            'additional_charges.*.value.gt' => 'Additional charge values must be greater than zero.',
+        ])->validate();
+
+        $this->validateAdditionalChargeRows($data['additional_charges'] ?? []);
 
         if (!$user->isAdmin() && (int) $data['branch_id'] !== (int) $user->branch_id) {
             abort(403);
@@ -168,9 +193,11 @@ class MenuOrderController extends Controller
 
         $branchId = (int) $data['branch_id'];
         $branch = Branch::findOrFail($branchId);
+        $data = $this->sanitizeDiscountDetailsForBranch($data, $branch);
 
         $createdOrder = DB::transaction(function () use ($data, $branch, $user) {
             $prepared = $this->prepareOrderComputation($data, $branch);
+            $lockedStocks = $this->lockAndValidateInventoryForItems($data['items'], $prepared['menus_keyed'], $branch->id);
 
             $order = MenuOrder::create([
                 'branch_id' => $branch->id,
@@ -178,6 +205,7 @@ class MenuOrderController extends Controller
                 'subtotal' => $prepared['subtotal'],
                 'additional_charge_label' => $prepared['additional_charge_label'],
                 'additional_charge_amount' => $prepared['additional_charge_amount'],
+                'additional_charges' => $prepared['additional_charges'],
                 'regular_pax' => $prepared['regular_pax'],
                 'pwd_pax' => $prepared['pwd_pax'],
                 'senior_pax' => $prepared['senior_pax'],
@@ -200,7 +228,7 @@ class MenuOrderController extends Controller
 
             $savedItems = $order->items()->createMany($prepared['items_payload']);
             $this->assignTableToOrder($order, isset($data['table_id']) ? (int) $data['table_id'] : null);
-            $this->deductInventoryForOrder($order, $savedItems, $prepared['menus_keyed']);
+            $this->deductInventoryForOrder($order, $savedItems, $prepared['menus_keyed'], $lockedStocks);
 
             return $order;
         });
@@ -215,7 +243,12 @@ class MenuOrderController extends Controller
         $this->authorizeBranch($menuOrder->branch_id);
         $menuOrder->load(['branch', 'items.menu', 'payments.receivedBy']);
 
-        return view('menu-orders.show', compact('menuOrder'));
+        $menus = Menu::with('items')
+            ->where('branch_id', $menuOrder->branch_id)
+            ->orderBy('name')
+            ->get();
+
+        return view('menu-orders.show', compact('menuOrder', 'menus'));
     }
 
     public function edit(MenuOrder $menuOrder): View
@@ -226,14 +259,10 @@ class MenuOrderController extends Controller
             abort(403, 'Orders with payments can no longer be edited.');
         }
 
-        $menuOrder->load(['items.menu']);
+        $menuOrder->load(['branch', 'items.menu', 'table']);
         $user = auth()->user();
         $branches = Branch::where('is_active', true)->orderBy('name')->get();
         $selectedBranchId = $menuOrder->branch_id;
-
-        $menus = Menu::with('items')
-            ->orderBy('name')
-            ->get();
 
         $tables = DiningTable::where('branch_id', $selectedBranchId)
             ->where(function ($query) use ($menuOrder) {
@@ -248,7 +277,7 @@ class MenuOrderController extends Controller
             ->orderBy('table_number')
             ->get();
 
-        return view('menu-orders.create', compact('branches', 'menus', 'selectedBranchId', 'menuOrder', 'tables'))->with('isEdit', true);
+        return view('menu-orders.edit', compact('branches', 'selectedBranchId', 'menuOrder', 'tables'));
     }
 
     public function update(Request $request, MenuOrder $menuOrder): RedirectResponse
@@ -259,13 +288,21 @@ class MenuOrderController extends Controller
             return back()->with('error', 'Orders with payments can no longer be edited.');
         }
 
-        $data = $request->validate([
+        $payload = $request->all();
+        $payload['additional_charges'] = $this->normalizeAdditionalChargeInput(
+            $request->input('additional_charges', []),
+            $request->input('additional_charge_label'),
+            $request->input('additional_charge_amount')
+        );
+
+        $data = validator($payload, [
             'branch_id'                => 'required|exists:branches,id',
             'table_id'                 => 'nullable|exists:tables,id',
             'customer_name'            => 'nullable|string|max:255',
-            'items'                    => 'required|array|min:1',
-            'items.*.menu_id'          => 'required|exists:menus,id',
-            'items.*.quantity'         => 'required|integer|min:1|max:999',
+            'additional_charges'       => 'nullable|array',
+            'additional_charges.*.label' => 'required|string|max:120',
+            'additional_charges.*.type' => 'required|in:fixed,percentage',
+            'additional_charges.*.value' => 'required|numeric|gt:0',
             'additional_charge_label'  => 'nullable|string|max:120',
             'additional_charge_amount' => 'nullable|numeric|min:0',
             'regular_pax'              => 'required|integer|min:0|max:999',
@@ -280,25 +317,42 @@ class MenuOrderController extends Controller
             'senior_names'             => 'nullable|array',
             'senior_names.*'           => 'nullable|string|max:255',
             'notes'                    => 'nullable|string',
-        ]);
+        ], [
+            'additional_charges.*.label.required' => 'Each additional charge needs a label or description.',
+            'additional_charges.*.type.required' => 'Select a charge type for each additional charge.',
+            'additional_charges.*.value.required' => 'Enter a value for each additional charge.',
+            'additional_charges.*.value.gt' => 'Additional charge values must be greater than zero.',
+        ])->validate();
+
+        $this->validateAdditionalChargeRows($data['additional_charges'] ?? []);
 
         $branch = Branch::findOrFail((int) $data['branch_id']);
+        if ((int) $branch->id !== (int) $menuOrder->branch_id) {
+            throw ValidationException::withMessages([
+                'branch_id' => 'The branch of an existing menu order cannot be changed.',
+            ]);
+        }
+
+        $data = $this->sanitizeDiscountDetailsForBranch($data, $branch);
 
         DB::transaction(function () use ($menuOrder, $data, $branch) {
-            $prepared = $this->prepareOrderComputation($data, $branch);
-            $currentTable = DiningTable::where('current_order_id', $menuOrder->id)->lockForUpdate()->first();
+            $lockedOrder = MenuOrder::whereKey($menuOrder->id)->lockForUpdate()->firstOrFail();
+            $prepared = $this->prepareOrderDetailsComputation($lockedOrder, $data, $branch);
+
+            $currentTable = DiningTable::where('current_order_id', $lockedOrder->id)->lockForUpdate()->first();
             $requestedTableId = isset($data['table_id']) ? (int) $data['table_id'] : null;
 
             if ($currentTable && $currentTable->id !== $requestedTableId) {
                 $currentTable->update(['current_order_id' => null, 'status' => 'available']);
             }
 
-            $menuOrder->update([
+            $lockedOrder->update([
                 'branch_id' => $branch->id,
                 'customer_name' => trim((string) ($data['customer_name'] ?? '')) ?: null,
                 'subtotal' => $prepared['subtotal'],
                 'additional_charge_label' => $prepared['additional_charge_label'],
                 'additional_charge_amount' => $prepared['additional_charge_amount'],
+                'additional_charges' => $prepared['additional_charges'],
                 'regular_pax' => $prepared['regular_pax'],
                 'pwd_pax' => $prepared['pwd_pax'],
                 'senior_pax' => $prepared['senior_pax'],
@@ -318,14 +372,77 @@ class MenuOrderController extends Controller
                 'notes' => $data['notes'] ?? null,
             ]);
 
-            $menuOrder->items()->delete();
-            $menuOrder->items()->createMany($prepared['items_payload']);
             if ($requestedTableId && (!$currentTable || $currentTable->id !== $requestedTableId)) {
-                $this->assignTableToOrder($menuOrder, $requestedTableId);
+                $this->assignTableToOrder($lockedOrder, $requestedTableId);
             }
         });
 
         return redirect()->route('menu-orders.show', $menuOrder)->with('success', 'Menu order updated successfully.');
+    }
+
+    public function storeItem(Request $request, MenuOrder $menuOrder): RedirectResponse
+    {
+        $this->authorizeBranch($menuOrder->branch_id);
+
+        if ((string) $menuOrder->status !== 'open') {
+            return back()->with('error', 'Items can only be added to open orders.');
+        }
+
+        if ($menuOrder->payments()->exists()) {
+            return back()->with('error', 'Cannot add order items after payments have been recorded.');
+        }
+
+        $data = $request->validate([
+            'items' => 'required|array|min:1',
+            'items.*.menu_id' => 'required|exists:menus,id',
+            'items.*.quantity' => 'required|integer|min:1|max:999',
+        ]);
+
+        DB::transaction(function () use ($menuOrder, $data) {
+            $lockedOrder = MenuOrder::whereKey($menuOrder->id)->lockForUpdate()->firstOrFail();
+            $branch = Branch::findOrFail($lockedOrder->branch_id);
+            $prepared = $this->prepareOrderComputation($data, $branch);
+            $lockedStocks = $this->lockAndValidateInventoryForItems($data['items'], $prepared['menus_keyed'], $branch->id);
+
+            $savedItems = $lockedOrder->items()->createMany($prepared['items_payload']);
+            $this->deductInventoryForOrder($lockedOrder, $savedItems, $prepared['menus_keyed'], $lockedStocks);
+            $this->refreshOrderTotalsFromCurrentItems($lockedOrder);
+        });
+
+        return redirect()->route('menu-orders.show', $menuOrder)->with('success', 'Menu order items added and inventory deducted.');
+    }
+
+    public function destroyItem(MenuOrder $menuOrder, MenuOrderItem $item): RedirectResponse
+    {
+        $this->authorizeBranch($menuOrder->branch_id);
+
+        if ((int) $item->menu_order_id !== (int) $menuOrder->id) {
+            abort(404);
+        }
+
+        if ($menuOrder->payments()->exists()) {
+            return back()->with('error', 'Cannot delete an order item after payments have been recorded.');
+        }
+
+        DB::transaction(function () use ($menuOrder, $item) {
+            $lockedOrder = MenuOrder::whereKey($menuOrder->id)->lockForUpdate()->firstOrFail();
+            $lockedItem = MenuOrderItem::whereKey($item->id)
+                ->where('menu_order_id', $lockedOrder->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($lockedOrder->items()->count() <= 1) {
+                throw ValidationException::withMessages([
+                    'items' => 'An order must keep at least one menu item.',
+                ]);
+            }
+
+            $this->replenishInventoryForOrderItem($lockedOrder, $lockedItem, 'Deleted Menu Order Item', 'Auto-replenished because an Admin deleted this order item.');
+            $lockedItem->delete();
+            $this->refreshOrderTotalsFromCurrentItems($lockedOrder);
+        });
+
+        return redirect()->route('menu-orders.show', $menuOrder)->with('success', 'Menu order item deleted and inventory replenished.');
     }
 
     public function destroy(MenuOrder $menuOrder): RedirectResponse
@@ -388,6 +505,7 @@ class MenuOrderController extends Controller
                 'subtotal'                => round((float) $lockedOrder->subtotal, 2),
                 'additional_charge_label' => $lockedOrder->additional_charge_label,
                 'additional_charge_amount'=> round((float) ($lockedOrder->additional_charge_amount ?? 0), 2),
+                'additional_charges'      => $lockedOrder->additionalChargesList(),
                 'total_vat_exempt'        => round((float) $lockedOrder->total_vat_exempt, 2),
                 'total_discount'          => round((float) $lockedOrder->discount_amount, 2),
                 'final_total'             => round((float) $lockedOrder->total_amount, 2),
@@ -418,38 +536,6 @@ class MenuOrderController extends Controller
         return redirect()->route('menu-orders.show', $menuOrder)->with('success', 'Payment recorded successfully.');
     }
 
-    public function complete(MenuOrder $menuOrder): RedirectResponse
-    {
-        $this->authorizeBranch($menuOrder->branch_id);
-
-        if ((string) $menuOrder->status === 'completed') {
-            return back()->with('error', 'This order is already completed.');
-        }
-
-        if ((string) $menuOrder->status === 'cancelled') {
-            return back()->with('error', 'Cannot complete a cancelled order.');
-        }
-
-        DB::transaction(function () use ($menuOrder) {
-            $lockedOrder = MenuOrder::whereKey($menuOrder->id)->lockForUpdate()->firstOrFail();
-
-            $amountPaid = round((float) $lockedOrder->payments()->sum('amount'), 2);
-            $totalAmount = round((float) $lockedOrder->total_amount, 2);
-            $newBalance = round(max(0, $totalAmount - $amountPaid), 2);
-
-            $lockedOrder->update([
-                'amount_paid' => $amountPaid,
-                'balance' => $newBalance,
-                'payment_status' => $newBalance <= 0 ? 'paid' : ($amountPaid > 0 ? 'partial' : 'unpaid'),
-                'status' => 'completed',
-            ]);
-
-            $this->releaseTableForOrder($lockedOrder);
-        });
-
-        return redirect()->route('menu-orders.show', $menuOrder)->with('success', 'Order marked as completed.');
-    }
-
     public function cancel(MenuOrder $menuOrder): RedirectResponse
     {
         $this->authorizeBranch($menuOrder->branch_id);
@@ -477,6 +563,55 @@ class MenuOrderController extends Controller
         return redirect()->route('menu-orders.show', $menuOrder)->with('success', 'Order cancelled.');
     }
 
+    public function void(Request $request, MenuOrder $menuOrder): RedirectResponse
+    {
+        $this->authorizeBranch($menuOrder->branch_id);
+
+        if (!auth()->user()->isBranchManager()) {
+            abort(403, 'Only Branch Managers can void orders.');
+        }
+
+        if ((string) $menuOrder->status === 'voided') {
+            return back()->with('error', 'This order is already voided.');
+        }
+
+        if ((string) $menuOrder->status === 'cancelled') {
+            return back()->with('error', 'Cannot void a cancelled order.');
+        }
+
+        if ($menuOrder->payments()->exists()) {
+            return back()->with('error', 'Cannot void an order with recorded payments.');
+        }
+
+        $request->validate([
+            'void_reason' => 'required|string|max:255',
+        ]);
+
+        DB::transaction(function () use ($menuOrder, $request) {
+            $lockedOrder = MenuOrder::whereKey($menuOrder->id)->lockForUpdate()->firstOrFail();
+            
+            if ((string) $lockedOrder->status === 'voided') {
+                return;
+            }
+
+            $this->replenishInventoryForOrderItems($lockedOrder, 'Voided Menu Order', 'Void Reason: ' . $request->input('void_reason'));
+
+            $lockedOrder->update([
+                'status' => 'voided',
+                'payment_status' => 'unpaid',
+                'amount_paid' => 0,
+                'balance' => round((float) $lockedOrder->total_amount, 2),
+                'void_reason' => $request->input('void_reason'),
+                'voided_by' => auth()->id(),
+                'voided_at' => now(),
+            ]);
+
+            $this->releaseTableForOrder($lockedOrder);
+        });
+
+        return redirect()->route('menu-orders.show', $menuOrder)->with('success', 'Order has been voided.');
+    }
+
     public function paymentReceipt(MenuOrderPayment $payment): View
     {
         $this->authorizeBranch($payment->branch_id);
@@ -485,11 +620,19 @@ class MenuOrderController extends Controller
         return view('menu-orders.receipt', compact('payment'));
     }
 
+    public function billingReceipt(MenuOrder $menuOrder): View
+    {
+        $this->authorizeBranch($menuOrder->branch_id);
+        $menuOrder->load(['branch', 'items.menu', 'payments']);
+
+        return view('menu-orders.billing', compact('menuOrder'));
+    }
+
     /**
      * Deduct inventory ingredients for every ordered item.
      * Skips items whose ingredients are already deducted or have no recipe.
      */
-    private function deductInventoryForOrder(MenuOrder $order, $savedItems, $menusKeyed): void
+    private function deductInventoryForOrder(MenuOrder $order, $savedItems, $menusKeyed, $lockedStocks): void
     {
         $userId = auth()->id();
         $now    = now();
@@ -505,8 +648,6 @@ class MenuOrderController extends Controller
                 continue;
             }
 
-            $allDeducted = true;
-
             foreach ($menu->items as $ingredient) {
                 $needed = round((float) $ingredient->pivot->quantity_required * $orderItem->quantity, 4);
                 if ($needed <= 0) {
@@ -514,15 +655,13 @@ class MenuOrderController extends Controller
                 }
 
                 // Lock the inventory row to prevent race conditions
-                $stock = Item::whereKey($ingredient->id)
-                    ->where('branch_id', $order->branch_id)
-                    ->lockForUpdate()
-                    ->first();
+                $stock = $lockedStocks->get($ingredient->id);
 
-                if (! $stock || (float) $stock->quantity < $needed) {
+                if (! $stock) {
                     // Insufficient stock — skip deduction for this ingredient
-                    $allDeducted = false;
-                    continue;
+                    throw ValidationException::withMessages([
+                        'items' => 'Unable to deduct inventory for "' . ($ingredient->name ?? 'Unknown ingredient') . '".',
+                    ]);
                 }
 
                 $beginning = (float) $stock->quantity;
@@ -538,15 +677,203 @@ class MenuOrderController extends Controller
                     'remaining_quantity' => $remaining,
                     'transaction_price'  => $stock->unit_price ? (float) $stock->unit_price * $needed : null,
                     'transaction_date'   => $now,
-                    'reason'             => 'Sale — Menu Order #' . $order->id,
+                    'reason'             => 'Sale — ' . $order->orderNumber(),
                     'status'             => 'approved',
                     'notes'              => 'Auto-deducted from menu order.',
                     'created_by'         => $userId,
                 ]);
             }
 
-            $orderItem->update(['inventory_deducted' => $allDeducted]);
+            $orderItem->update(['inventory_deducted' => true]);
         }
+    }
+
+    private function replenishInventoryForOrderItems(MenuOrder $order, string $reason, string $notes): void
+    {
+        $userId = auth()->id();
+        $now    = now();
+
+        $itemsToReplenish = $order->items()->with('menu.items')->where('inventory_deducted', true)->get();
+
+        foreach ($itemsToReplenish as $orderItem) {
+            $menu = $orderItem->menu;
+            if (! $menu || $menu->items->isEmpty()) {
+                continue;
+            }
+
+            foreach ($menu->items as $ingredient) {
+                $replenishQty = round((float) $ingredient->pivot->quantity_required * $orderItem->quantity, 4);
+                if ($replenishQty <= 0) {
+                    continue;
+                }
+
+                $stock = Item::whereKey($ingredient->id)
+                    ->where('branch_id', $order->branch_id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (! $stock) {
+                    continue; // Stock might have been deleted, skip
+                }
+
+                $beginning = (float) $stock->quantity;
+                $this->inventoryService->increase($stock, $replenishQty);
+                $remaining = (float) $stock->quantity;
+
+                InventoryTransaction::create([
+                    'item_id'            => $stock->id,
+                    'branch_id'          => $order->branch_id,
+                    'type'               => 'in',
+                    'quantity'           => $replenishQty,
+                    'beginning_quantity' => $beginning,
+                    'remaining_quantity' => $remaining,
+                    'transaction_price'  => $stock->unit_price ? (float) $stock->unit_price * $replenishQty : null,
+                    'transaction_date'   => $now,
+                    'reason'             => $reason,
+                    'status'             => 'approved',
+                    'notes'              => $notes,
+                    'created_by'         => $userId,
+                ]);
+            }
+            
+            $orderItem->update(['inventory_deducted' => false]);
+        }
+    }
+
+    private function replenishInventoryForOrderItem(MenuOrder $order, MenuOrderItem $orderItem, string $reason, string $notes): void
+    {
+        if (! $orderItem->inventory_deducted) {
+            return;
+        }
+
+        $userId = auth()->id();
+        $now    = now();
+        $orderItem->loadMissing('menu.items');
+        $menu = $orderItem->menu;
+
+        if (! $menu || $menu->items->isEmpty()) {
+            $orderItem->update(['inventory_deducted' => false]);
+            return;
+        }
+
+        foreach ($menu->items as $ingredient) {
+            $replenishQty = round((float) $ingredient->pivot->quantity_required * $orderItem->quantity, 4);
+            if ($replenishQty <= 0) {
+                continue;
+            }
+
+            $stock = Item::whereKey($ingredient->id)
+                ->where('branch_id', $order->branch_id)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $stock) {
+                continue;
+            }
+
+            $beginning = (float) $stock->quantity;
+            $this->inventoryService->increase($stock, $replenishQty);
+            $remaining = (float) $stock->quantity;
+
+            InventoryTransaction::create([
+                'item_id'            => $stock->id,
+                'branch_id'          => $order->branch_id,
+                'type'               => 'in',
+                'quantity'           => $replenishQty,
+                'beginning_quantity' => $beginning,
+                'remaining_quantity' => $remaining,
+                'transaction_price'  => $stock->unit_price ? (float) $stock->unit_price * $replenishQty : null,
+                'transaction_date'   => $now,
+                'reason'             => $reason,
+                'status'             => 'approved',
+                'notes'              => $notes,
+                'created_by'         => $userId,
+            ]);
+        }
+
+        $orderItem->update(['inventory_deducted' => false]);
+    }
+
+    private function refreshOrderTotalsFromCurrentItems(MenuOrder $order): void
+    {
+        $order->load('items');
+        $branch = Branch::findOrFail($order->branch_id);
+        $subtotal = round((float) $order->items->sum('subtotal'), 2);
+        $chargeComputation = $this->calculateAdditionalCharges($order->additionalChargesList(), $subtotal);
+        $additionalChargeAmount = $chargeComputation['total'];
+        $totalPax = max(1, (int) ($order->total_pax ?? 1));
+        $discountedPax = max(0, (int) ($order->pwd_pax ?? 0) + (int) ($order->senior_pax ?? 0));
+        $totals = $this->computeTotals(
+            $branch,
+            $subtotal,
+            $additionalChargeAmount,
+            $totalPax,
+            $discountedPax,
+            $this->branchUsesVat($branch)
+        );
+
+        $amountPaid = round((float) $order->payments()->sum('amount'), 2);
+        $balance = round(max(0, $totals['total_amount'] - $amountPaid), 2);
+
+        $order->update([
+            'subtotal' => $subtotal,
+            'additional_charge_label' => $chargeComputation['legacy_label'],
+            'additional_charge_amount' => $additionalChargeAmount,
+            'additional_charges' => $chargeComputation['charges'],
+            'discount_amount' => $totals['discount_amount'],
+            'total_vat_exempt' => $totals['total_vat_exempt'],
+            'vat_rate' => $totals['vat_rate'],
+            'vat_amount' => $totals['vat_amount'],
+            'total_amount' => $totals['total_amount'],
+            'amount_paid' => $amountPaid,
+            'balance' => $balance,
+            'payment_status' => $balance <= 0 ? 'paid' : ($amountPaid > 0 ? 'partial' : 'unpaid'),
+        ]);
+    }
+
+    private function prepareOrderDetailsComputation(MenuOrder $order, array $data, Branch $branch): array
+    {
+        $subtotal = round((float) $order->items()->sum('subtotal'), 2);
+        $chargeComputation = $this->calculateAdditionalCharges($data['additional_charges'] ?? [], $subtotal);
+
+        $regularPax = max(0, (int) ($data['regular_pax'] ?? 0));
+        $pwdPax = $this->branchAllowsPwdDiscount($branch) ? max(0, (int) ($data['pwd_pax'] ?? 0)) : 0;
+        $seniorPax = $this->branchAllowsSeniorDiscount($branch) ? max(0, (int) ($data['senior_pax'] ?? 0)) : 0;
+        $totalPax = $regularPax + $pwdPax + $seniorPax;
+        if ($totalPax <= 0) {
+            $regularPax = 1;
+            $totalPax = 1;
+        }
+
+        $discountedPax = $pwdPax + $seniorPax;
+        $discountType = 'none';
+        if ($pwdPax > 0 && $seniorPax > 0) {
+            $discountType = 'mixed';
+        } elseif ($pwdPax > 0) {
+            $discountType = 'pwd';
+        } elseif ($seniorPax > 0) {
+            $discountType = 'senior';
+        }
+
+        return [
+            'subtotal' => $subtotal,
+            'additional_charge_amount' => $chargeComputation['total'],
+            'additional_charge_label' => $chargeComputation['legacy_label'],
+            'additional_charges' => $chargeComputation['charges'],
+            'regular_pax' => $regularPax,
+            'pwd_pax' => $pwdPax,
+            'senior_pax' => $seniorPax,
+            'total_pax' => $totalPax,
+            'discount_type' => $discountType,
+            'totals' => $this->computeTotals(
+                $branch,
+                $subtotal,
+                $chargeComputation['total'],
+                $totalPax,
+                $discountedPax,
+                $this->branchUsesVat($branch)
+            ),
+        ];
     }
 
     private function prepareOrderComputation(array $data, Branch $branch): array
@@ -588,40 +915,34 @@ class MenuOrderController extends Controller
         }
 
         $subtotal = round($subtotal, 2);
-        $additionalChargeAmount = round((float) ($data['additional_charge_amount'] ?? 0), 2);
-        $additionalChargeLabel = trim((string) ($data['additional_charge_label'] ?? ''));
-        if ($additionalChargeAmount <= 0) {
-            $additionalChargeAmount = 0.0;
-            $additionalChargeLabel = null;
-        }
+        $chargeComputation = $this->calculateAdditionalCharges($data['additional_charges'] ?? [], $subtotal);
+        $additionalChargeAmount = $chargeComputation['total'];
+        $additionalChargeLabel = $chargeComputation['legacy_label'];
 
         $regularPax = max(0, (int) ($data['regular_pax'] ?? 0));
-        $pwdPax = max(0, (int) ($data['pwd_pax'] ?? 0));
-        $seniorPax = max(0, (int) ($data['senior_pax'] ?? 0));
+        $pwdPax = $this->branchAllowsPwdDiscount($branch) ? max(0, (int) ($data['pwd_pax'] ?? 0)) : 0;
+        $seniorPax = $this->branchAllowsSeniorDiscount($branch) ? max(0, (int) ($data['senior_pax'] ?? 0)) : 0;
         $totalPax = $regularPax + $pwdPax + $seniorPax;
         if ($totalPax <= 0) {
             $regularPax = 1;
             $totalPax = 1;
         }
 
-        $vatEnabled = (bool) ($branch->vat_enabled ?? true);
-        if (!$vatEnabled) {
-            $pwdPax = 0;
-            $seniorPax = 0;
-        }
+        $vatEnabled = $this->branchUsesVat($branch);
+        $discountedPax = $pwdPax + $seniorPax;
 
         $discountType = 'none';
-        if ($vatEnabled && $pwdPax > 0 && $seniorPax > 0) {
+        if ($pwdPax > 0 && $seniorPax > 0) {
             $discountType = 'mixed';
-        } elseif ($vatEnabled && $pwdPax > 0) {
+        } elseif ($pwdPax > 0) {
             $discountType = 'pwd';
-        } elseif ($vatEnabled && $seniorPax > 0) {
+        } elseif ($seniorPax > 0) {
             $discountType = 'senior';
         }
 
         $totals = $this->computeTotals(
             $branch, $subtotal, $additionalChargeAmount,
-            $regularPax, $pwdPax, $seniorPax, $totalPax, $vatEnabled
+            $totalPax, $discountedPax, $vatEnabled
         );
 
         return [
@@ -630,6 +951,7 @@ class MenuOrderController extends Controller
             'subtotal'                => $subtotal,
             'additional_charge_amount'=> $additionalChargeAmount,
             'additional_charge_label' => $additionalChargeLabel,
+            'additional_charges'      => $chargeComputation['charges'],
             'regular_pax'             => $regularPax,
             'pwd_pax'                 => $pwdPax,
             'senior_pax'              => $seniorPax,
@@ -641,15 +963,15 @@ class MenuOrderController extends Controller
 
     private function computeTotals(
         Branch $branch, float $subtotal, float $additionalChargeAmount,
-        int $regularPax, int $pwdPax, int $seniorPax, int $totalPax, bool $vatEnabled
+        int $totalPax, int $discountedPax, bool $vatEnabled
     ): array {
-        $vatRate = (float) ($branch->vat_percentage ?? 12.00);
+        $vatRate = $vatEnabled ? (float) ($branch->vat_percentage ?? 12.00) : 0.0;
         $gross = round($subtotal + $additionalChargeAmount, 2);
 
-        $discountedPax = $vatEnabled ? ($pwdPax + $seniorPax) : 0;
-        $perPaxGross = round($gross / max(1, $totalPax), 2);
-        $totalVatExempt = round($perPaxGross * $discountedPax, 2);
-        $discountAmount = round($totalVatExempt * 0.20, 2);
+        $perPaxGross = $gross / max(1, $totalPax);
+        $discountBase = $perPaxGross * $discountedPax;
+        $discountAmount = round($discountBase * 0.20, 2);
+        $totalVatExempt = $vatEnabled ? round($discountBase, 2) : 0.0;
 
         $vatAmount = 0.0;
         if ($vatEnabled) {
@@ -668,6 +990,190 @@ class MenuOrderController extends Controller
         ];
     }
 
+    private function branchUsesVat(Branch $branch): bool
+    {
+        return (bool) ($branch->vat_enabled ?? true);
+    }
+
+    private function branchAllowsPwdDiscount(Branch $branch): bool
+    {
+        return (bool) ($branch->pwd_discount_enabled ?? true);
+    }
+
+    private function branchAllowsSeniorDiscount(Branch $branch): bool
+    {
+        return (bool) ($branch->senior_discount_enabled ?? true);
+    }
+
+    private function lockAndValidateInventoryForItems(array $items, $menusKeyed, int $branchId)
+    {
+        $requirements = [];
+
+        foreach ($items as $row) {
+            $menu = $menusKeyed->get((int) $row['menu_id']);
+            if (! $menu || $menu->items->isEmpty()) {
+                continue;
+            }
+
+            $quantity = max(0, (int) ($row['quantity'] ?? 0));
+
+            foreach ($menu->items as $ingredient) {
+                $required = round((float) $ingredient->pivot->quantity_required * $quantity, 4);
+                if ($required <= 0) {
+                    continue;
+                }
+
+                $existing = $requirements[$ingredient->id] ?? [
+                    'name' => $ingredient->name,
+                    'unit' => $ingredient->unit,
+                    'required' => 0.0,
+                ];
+
+                $existing['required'] += $required;
+                $requirements[$ingredient->id] = $existing;
+            }
+        }
+
+        if (empty($requirements)) {
+            return collect();
+        }
+
+        $stocks = Item::query()
+            ->where('branch_id', $branchId)
+            ->whereIn('id', array_keys($requirements))
+            ->lockForUpdate()
+            ->get()
+            ->keyBy('id');
+
+        $errors = [];
+
+        foreach ($requirements as $ingredientId => $requirement) {
+            $stock = $stocks->get($ingredientId);
+            $available = $stock ? (float) $stock->quantity : 0.0;
+            $required = round((float) $requirement['required'], 4);
+
+            if (! $stock || $available < $required) {
+                $errors['items.stock_' . $ingredientId] = sprintf(
+                    'Insufficient stock for ingredient "%s". Available: %s %s, required: %s %s.',
+                    $requirement['name'] ?? 'Unknown ingredient',
+                    number_format($available, 2),
+                    $requirement['unit'] ?? '',
+                    number_format($required, 2),
+                    $requirement['unit'] ?? ''
+                );
+            }
+        }
+
+        if (! empty($errors)) {
+            throw ValidationException::withMessages($errors);
+        }
+
+        return $stocks;
+    }
+
+    private function normalizeAdditionalChargeInput(array $rows, ?string $legacyLabel = null, $legacyAmount = null): array
+    {
+        $normalized = [];
+
+        foreach ($rows as $row) {
+            $label = trim((string) ($row['label'] ?? ''));
+            $type = trim((string) ($row['type'] ?? ''));
+            $value = $row['value'] ?? null;
+
+            if ($label === '' && $type === '' && ($value === null || $value === '')) {
+                continue;
+            }
+
+            $normalized[] = [
+                'label' => $label,
+                'type' => $type,
+                'value' => $value,
+            ];
+        }
+
+        if (! empty($normalized)) {
+            return $normalized;
+        }
+
+        $legacyAmount = round((float) ($legacyAmount ?? 0), 2);
+        if ($legacyAmount <= 0) {
+            return [];
+        }
+
+        return [[
+            'label' => trim((string) ($legacyLabel ?: 'Additional Charge')),
+            'type' => 'fixed',
+            'value' => $legacyAmount,
+        ]];
+    }
+
+    private function validateAdditionalChargeRows(array $charges): void
+    {
+        $errors = [];
+
+        foreach ($charges as $index => $charge) {
+            $type = (string) ($charge['type'] ?? '');
+            $value = round((float) ($charge['value'] ?? 0), 2);
+
+            if ($type === 'percentage' && $value > 100) {
+                $errors["additional_charges.$index.value"] = 'Percentage-based additional charges cannot exceed 100%.';
+            }
+        }
+
+        if (! empty($errors)) {
+            throw ValidationException::withMessages($errors);
+        }
+    }
+
+    private function calculateAdditionalCharges(array $charges, float $subtotal): array
+    {
+        $normalized = [];
+        $total = 0.0;
+
+        foreach ($charges as $charge) {
+            $label = trim((string) ($charge['label'] ?? ''));
+            $type = (string) ($charge['type'] ?? 'fixed');
+            $value = round((float) ($charge['value'] ?? 0), 2);
+
+            if ($label === '' || $value <= 0) {
+                continue;
+            }
+
+            $amount = $type === 'percentage'
+                ? round($subtotal * ($value / 100), 2)
+                : round($value, 2);
+
+            if ($amount <= 0) {
+                continue;
+            }
+
+            $normalized[] = [
+                'label' => $label,
+                'type' => $type === 'percentage' ? 'percentage' : 'fixed',
+                'value' => $value,
+                'amount' => $amount,
+                'base_subtotal' => $type === 'percentage' ? round($subtotal, 2) : null,
+            ];
+
+            $total += $amount;
+        }
+
+        $normalized = array_values($normalized);
+        $legacyLabel = null;
+
+        if (count($normalized) === 1) {
+            $legacyLabel = $normalized[0]['label'];
+        } elseif (count($normalized) > 1) {
+            $legacyLabel = 'Multiple Additional Charges';
+        }
+
+        return [
+            'charges' => $normalized,
+            'total' => round($total, 2),
+            'legacy_label' => $legacyLabel,
+        ];
+    }
+
     private function buildDiscountJson(array $data, string $field): ?string
     {
         $pwdKey    = $field === 'ids' ? 'pwd_ids'    : 'pwd_names';
@@ -678,5 +1184,22 @@ class MenuOrderController extends Controller
         if (!empty($pwd))    $result['pwd']    = $pwd;
         if (!empty($senior)) $result['senior'] = $senior;
         return !empty($result) ? json_encode($result) : null;
+    }
+
+    private function sanitizeDiscountDetailsForBranch(array $data, Branch $branch): array
+    {
+        if (! $this->branchAllowsPwdDiscount($branch)) {
+            $data['pwd_pax'] = 0;
+            $data['pwd_ids'] = [];
+            $data['pwd_names'] = [];
+        }
+
+        if (! $this->branchAllowsSeniorDiscount($branch)) {
+            $data['senior_pax'] = 0;
+            $data['senior_ids'] = [];
+            $data['senior_names'] = [];
+        }
+
+        return $data;
     }
 }

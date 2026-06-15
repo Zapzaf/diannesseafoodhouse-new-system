@@ -11,6 +11,7 @@ use App\Models\Item;
 use App\Models\ProductionInput;
 use App\Models\ProductionOrder;
 use App\Models\Supplier;
+use App\Models\Transfer;
 use App\Services\InventoryService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -93,6 +94,33 @@ class DeliveryManagementController extends Controller
         Gate::authorize('create', Delivery::class);
         $validated = $request->validated();
         $branchId = $this->resolveBranchId($request);
+
+        if ($branchId && (int) $validated['destination_branch_id'] !== $branchId) {
+            throw ValidationException::withMessages([
+                'destination_branch_id' => 'Please use the active branch as the delivery destination.',
+            ]);
+        }
+
+        $inventoryItemIds = collect($validated['items'])
+            ->where('allocated_to', 'inventory')
+            ->pluck('item_id')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique();
+
+        if ($inventoryItemIds->isNotEmpty()) {
+            $validInventoryItems = Item::query()
+                ->whereIn('id', $inventoryItemIds)
+                ->where('branch_id', $validated['destination_branch_id'])
+                ->count();
+
+            if ($validInventoryItems !== $inventoryItemIds->count()) {
+                throw ValidationException::withMessages([
+                    'items' => 'Inventory destination items must belong to the delivery destination branch.',
+                ]);
+            }
+        }
+
         $transferSourceItemId = $request->integer('source_item_id') ?: null;
         $isTransfer = (bool) $transferSourceItemId;
         $isAutoApprove = $isTransfer
@@ -173,6 +201,7 @@ class DeliveryManagementController extends Controller
 
     public function show(Delivery $delivery): View
     {
+        Gate::authorize('view', $delivery);
         $delivery->loadMissing(['items.item.category', 'supplier', 'destinationBranch', 'sourceBranch', 'creator', 'approver']);
 
         return view('deliveries.view', compact('delivery'));
@@ -229,6 +258,22 @@ class DeliveryManagementController extends Controller
             return redirect()->route('deliveries.index')->with('error', 'Delivery already approved.');
         }
 
+        $delivery->loadMissing('items.item');
+        $allocations = collect($validated['items'])->keyBy('delivery_item_id');
+        $invalidInventoryDestination = $delivery->items->contains(function (DeliveryItem $item) use ($allocations, $delivery): bool {
+            $allocation = $allocations->get($item->id);
+            $allocatedTo = $allocation['allocated_to'] ?? $item->allocated_to;
+
+            return $allocatedTo === 'inventory'
+                && (! $item->item || (int) $item->item->branch_id !== (int) $delivery->destination_branch_id);
+        });
+
+        if ($invalidInventoryDestination) {
+            throw ValidationException::withMessages([
+                'items' => 'Every inventory allocation must select an item from the delivery destination branch.',
+            ]);
+        }
+
         DB::transaction(function () use ($delivery, $validated, $request): void {
             $delivery->loadMissing('items.item');
             $allocations = collect($validated['items'])->keyBy('delivery_item_id');
@@ -268,6 +313,14 @@ class DeliveryManagementController extends Controller
                 'approved_by' => $request->user()->id,
                 'approved_at' => now(),
             ]);
+
+            Transfer::query()
+                ->where('delivery_id', $delivery->id)
+                ->where('status', 'pending')
+                ->update([
+                    'status' => 'approved',
+                    'approved_by' => $request->user()->id,
+                ]);
 
             if ($delivery->source_branch_id) {
                 $delivery->loadMissing('items.sourceItem');

@@ -45,13 +45,34 @@ window.IndexTableBridge = (function () {
         let html = '';
         const currentPage = Number(data.current_page || 1);
         const lastPage = Number(data.last_page || 1);
+        const pages = [];
 
         if (currentPage > 1) {
             html += '<li class="page-item"><a class="page-link" href="#" data-page="' + (currentPage - 1) + '">Previous</a></li>';
         }
 
         for (let page = 1; page <= lastPage; page += 1) {
+            if (
+                lastPage <= 9
+                || page <= 3
+                || page >= lastPage - 1
+                || Math.abs(page - currentPage) <= 1
+            ) {
+                pages.push(page);
+            }
+        }
+
+        pages.forEach(function (page, index) {
+            const previousPage = pages[index - 1];
+            if (previousPage && page - previousPage > 1) {
+                html += '<li class="page-item disabled"><span class="page-link">&hellip;</span></li>';
+            }
+
             html += '<li class="page-item ' + (page === currentPage ? 'active' : '') + '"><a class="page-link" href="#" data-page="' + page + '">' + page + '</a></li>';
+        });
+
+        if (lastPage === 0) {
+            html = '';
         }
 
         if (currentPage < lastPage) {
@@ -85,6 +106,14 @@ window.IndexTableBridge = (function () {
         const info = document.getElementById(config.infoId || 'tableInfo');
         const searchInput = config.searchInputId ? document.getElementById(config.searchInputId) : null;
         const filterInput = config.filterInputId ? document.getElementById(config.filterInputId) : null;
+        const filters = (config.filters || []).map(function (filterConfig) {
+            return {
+                element: document.getElementById(filterConfig.inputId),
+                param: filterConfig.param
+            };
+        }).filter(function (filterConfig) {
+            return filterConfig.element && filterConfig.param;
+        });
         const perPageInput = config.perPageId ? document.getElementById(config.perPageId) : null;
         const tableElement = document.getElementById(config.tableId);
 
@@ -112,6 +141,12 @@ window.IndexTableBridge = (function () {
             if (config.filterParam && filter !== '') {
                 params.set(config.filterParam, filter);
             }
+
+            filters.forEach(function (filterConfig) {
+                if (filterConfig.element.value !== '') {
+                    params.set(filterConfig.param, filterConfig.element.value);
+                }
+            });
 
             fetch(config.dataUrl + '?' + params.toString())
                 .then(function (response) {
@@ -166,6 +201,13 @@ window.IndexTableBridge = (function () {
                 loadData();
             });
         }
+
+        filters.forEach(function (filterConfig) {
+            filterConfig.element.addEventListener('change', function () {
+                currentPage = 1;
+                loadData();
+            });
+        });
         
         if (perPageInput) {
             perPageInput.addEventListener('change', function (event) {

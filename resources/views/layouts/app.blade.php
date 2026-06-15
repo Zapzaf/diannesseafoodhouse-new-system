@@ -919,6 +919,7 @@
                                     <a class="nav-link {{ request()->routeIs('reports.inventory.*') ? 'active' : '' }}" href="{{ route('reports.inventory.index') }}">Inventory Report</a>
                                     <a class="nav-link {{ request()->routeIs('reports.transaction.*') ? 'active' : '' }}" href="{{ route('reports.transaction.index') }}">Transaction Report</a>
                                     <a class="nav-link {{ request()->routeIs('reports.delivery.*') ? 'active' : '' }}" href="{{ route('reports.delivery.index') }}">Delivery Report</a>
+                                    <a class="nav-link {{ request()->routeIs('reports.costing.*') ? 'active' : '' }}" href="{{ route('reports.costing.index') }}">Costing Report</a>
                                 </nav>
                             </div>
 

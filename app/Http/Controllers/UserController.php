@@ -66,7 +66,7 @@ class UserController extends Controller
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'role' => $validated['role'] === 'staff' ? 'regular_user' : $validated['role'],
-            'branch_id' => $validated['branch_id'] ?? null,
+            'branch_id' => $validated['role'] === 'admin' ? null : ($validated['branch_id'] ?? null),
             'phone' => $validated['phone'] ?? null,
         ]);
 
@@ -96,7 +96,7 @@ class UserController extends Controller
             'name' => $validated['name'],
             'email' => $validated['email'],
             'role' => $validated['role'] === 'staff' ? 'regular_user' : $validated['role'],
-            'branch_id' => $validated['branch_id'] ?? null,
+            'branch_id' => $validated['role'] === 'admin' ? null : ($validated['branch_id'] ?? null),
             'phone' => $validated['phone'] ?? null,
         ];
 

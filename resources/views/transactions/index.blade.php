@@ -32,7 +32,7 @@
                 <table class="table table-striped table-bordered">
                     <thead class="table-dark">
                         <tr>
-                            <th>#</th>
+                            <th>Log ID</th>
                             <th>Trans. Date</th>
                             @if(auth()->user()?->isAdmin())
                             <th>Branch</th>
@@ -58,7 +58,7 @@
                             $typeClass = $isBeginning ? 'bg-primary' : ($tx->type === 'in' ? 'bg-success' : 'bg-danger');
                         @endphp
                         <tr>
-                            <td>{{ $loop->iteration }}</td>
+                            <td class="text-nowrap fw-semibold small">{{ $tx->log_id ?? 'N/A' }}</td>
                             <td class="text-muted small">{{ $tx->transaction_date ? $tx->transaction_date->format('M d, Y H:i') : $tx->created_at->format('M d, Y H:i') }}</td>
                             @if(auth()->user()?->isAdmin())
                             <td class="text-muted small">{{ $tx->branch?->name ?? ($tx->inventory?->branch?->name ?? '—') }}</td>

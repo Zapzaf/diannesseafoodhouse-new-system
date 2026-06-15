@@ -36,7 +36,7 @@
                 <table class="table table-striped table-bordered">
                     <thead class="table-dark">
                         <tr>
-                            <th>#</th>
+                            <th>Log ID</th>
                             <th>Date</th>
                             <th>Item</th>
                             <th>Type</th>
@@ -49,7 +49,7 @@
                     <tbody>
                         @forelse($transactions as $tx)
                         <tr>
-                            <td>{{ $loop->iteration }}</td>
+                            <td class="text-nowrap fw-semibold small">{{ $tx->log_id ?? 'N/A' }}</td>
                             <td class="text-nowrap">{{ $tx->created_at->format('M d, Y H:i') }}</td>
                             <td class="fw-semibold">{{ $tx->inventory?->name ?? '—' }}</td>
                             <td>

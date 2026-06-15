@@ -68,7 +68,7 @@
                         <input type="text" class="form-control" value="{{ auth()->user()->branch?->name ?? 'Unassigned' }}" readonly>
                     @else
                         <select name="branch_id" class="form-select">
-                            <option value="">None</option>
+                            <option value="">Unassigned</option>
                             @foreach($branches as $branch)
                             <option value="{{ $branch->id }}" {{ old('branch_id', $user->branch_id) == $branch->id ? 'selected' : '' }}>{{ $branch->name }}</option>
                             @endforeach

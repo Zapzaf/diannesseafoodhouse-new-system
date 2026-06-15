@@ -10,6 +10,7 @@ use App\Models\MenuCategory;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -79,20 +80,23 @@ class MenuController extends Controller
     public function create(): View
     {
         $user = auth()->user();
-        $branches = Branch::where('is_active', true)->get();
+        $branches = Branch::where('is_active', true)->orderBy('name')->get();
 
         $branchId = $user->isAdmin()
             ? (session('selected_branch_id') ?? ($branches->first()->id ?? null))
             : $user->branch_id;
 
-        $items = Item::when($branchId, fn($q) => $q->where('branch_id', $branchId))
+        $loadAllBranches = $user->isAdmin() && !session('selected_branch_id');
+
+        $items = Item::query()
+            ->when(!$loadAllBranches && $branchId, fn($q) => $q->where('branch_id', $branchId))
             ->with('category.location')
             ->orderBy('name')
-            ->get()
-            ->filter(fn($item) => (float) $item->quantity > 0);
+            ->get();
 
-        $menuCategories = MenuCategory::with('branch')
-            ->when($branchId, fn($q) => $q->where('branch_id', $branchId))
+        $menuCategories = MenuCategory::query()
+            ->with('branch')
+            ->when(!$loadAllBranches && $branchId, fn($q) => $q->where('branch_id', $branchId))
             ->orderBy('name')
             ->get();
 
@@ -111,8 +115,15 @@ class MenuController extends Controller
             'menu_category_id'  => 'required|exists:menu_categories,id',
             'image'             => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
             'ingredients'       => 'required|array|min:1',
-            'ingredients.*.item_id'            => 'required|exists:items,id',
+            'ingredients.*.item_id'            => ['required', 'exists:items,id', 'distinct'],
             'ingredients.*.quantity_required'  => 'required|numeric|min:0.01',
+        ], [
+            'ingredients.required' => 'Add at least one ingredient to save this menu item.',
+            'ingredients.min' => 'Add at least one ingredient to save this menu item.',
+            'ingredients.*.item_id.required' => 'Choose an inventory item for each ingredient row.',
+            'ingredients.*.item_id.distinct' => 'Each ingredient can only be added once.',
+            'ingredients.*.quantity_required.required' => 'Enter the required quantity for every ingredient.',
+            'ingredients.*.quantity_required.min' => 'Ingredient quantity must be greater than zero.',
         ]);
 
         if (!$user->isAdmin() && (int) $data['branch_id'] !== $user->branch_id) {
@@ -126,23 +137,41 @@ class MenuController extends Controller
             ]);
         }
 
+        $ingredientItems = Item::query()
+            ->whereIn('id', collect($data['ingredients'])->pluck('item_id')->all())
+            ->get()
+            ->keyBy('id');
+
+        $primaryCategoryId = $this->resolveMenuCategoryIdFromIngredients($data['ingredients'], $ingredientItems, (int) $data['branch_id']);
+
         $imagePath = null;
-        if ($request->hasFile('image')) {
-            $imagePath = $request->file('image')->store('menus', 'public');
+        try {
+            if ($request->hasFile('image')) {
+                $imagePath = $request->file('image')->store('menus', 'public');
+            }
+
+            DB::transaction(function () use ($data, $menuCategory, $primaryCategoryId, $imagePath, $user, $ingredientItems): void {
+                $menu = Menu::create([
+                    'branch_id'        => $data['branch_id'],
+                    'category_id'      => $primaryCategoryId,
+                    'menu_category_id' => $menuCategory->id,
+                    'name'             => $data['name'],
+                    'menu_description' => $data['menu_description'] ?? null,
+                    'selling_price'    => $data['selling_price'],
+                    'image'            => $imagePath,
+                    'category'         => $menuCategory->name,
+                    'created_by'       => $user->id,
+                ]);
+
+                $this->syncIngredients($menu, $data['ingredients'], $ingredientItems);
+            });
+        } catch (\Throwable $e) {
+            if ($imagePath && Storage::disk('public')->exists($imagePath)) {
+                Storage::disk('public')->delete($imagePath);
+            }
+
+            throw $e;
         }
-
-        $menu = Menu::create([
-            'branch_id'        => $data['branch_id'],
-            'menu_category_id' => $menuCategory->id,
-            'name'             => $data['name'],
-            'menu_description' => $data['menu_description'] ?? null,
-            'selling_price'    => $data['selling_price'],
-            'image'            => $imagePath,
-            'category'         => $menuCategory->name,
-            'created_by'       => $user->id,
-        ]);
-
-        $this->syncIngredients($menu, $data['ingredients']);
 
         return redirect()->route('menus.index')->with('success', 'Menu item created successfully.');
     }
@@ -187,8 +216,15 @@ class MenuController extends Controller
             'menu_category_id'  => 'required|exists:menu_categories,id',
             'image'             => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
             'ingredients'       => 'required|array|min:1',
-            'ingredients.*.item_id'            => 'required|exists:items,id',
+            'ingredients.*.item_id'            => ['required', 'exists:items,id', 'distinct'],
             'ingredients.*.quantity_required'  => 'required|numeric|min:0.01',
+        ], [
+            'ingredients.required' => 'Add at least one ingredient to save this menu item.',
+            'ingredients.min' => 'Add at least one ingredient to save this menu item.',
+            'ingredients.*.item_id.required' => 'Choose an inventory item for each ingredient row.',
+            'ingredients.*.item_id.distinct' => 'Each ingredient can only be added once.',
+            'ingredients.*.quantity_required.required' => 'Enter the required quantity for every ingredient.',
+            'ingredients.*.quantity_required.min' => 'Ingredient quantity must be greater than zero.',
         ]);
 
         $menuCategory = MenuCategory::findOrFail($data['menu_category_id']);
@@ -198,7 +234,15 @@ class MenuController extends Controller
             ]);
         }
 
+        $ingredientItems = Item::query()
+            ->whereIn('id', collect($data['ingredients'])->pluck('item_id')->all())
+            ->get()
+            ->keyBy('id');
+
+        $primaryCategoryId = $this->resolveMenuCategoryIdFromIngredients($data['ingredients'], $ingredientItems, (int) $menu->branch_id);
+
         $updateData = [
+            'category_id'      => $primaryCategoryId,
             'menu_category_id' => $menuCategory->id,
             'name'             => $data['name'],
             'menu_description' => $data['menu_description'] ?? null,
@@ -206,17 +250,29 @@ class MenuController extends Controller
             'category'         => $menuCategory->name,
         ];
 
+        $newImagePath = null;
+        $oldImagePath = $menu->image;
         if ($request->hasFile('image')) {
-            // Delete old image
-            if ($menu->image && Storage::disk('public')->exists($menu->image)) {
-                Storage::disk('public')->delete($menu->image);
-            }
-            $updateData['image'] = $request->file('image')->store('menus', 'public');
+            $newImagePath = $request->file('image')->store('menus', 'public');
+            $updateData['image'] = $newImagePath;
         }
 
-        $menu->update($updateData);
+        try {
+            DB::transaction(function () use ($menu, $updateData, $data, $ingredientItems): void {
+                $menu->update($updateData);
+                $this->syncIngredients($menu, $data['ingredients'], $ingredientItems);
+            });
+        } catch (\Throwable $e) {
+            if ($newImagePath && Storage::disk('public')->exists($newImagePath)) {
+                Storage::disk('public')->delete($newImagePath);
+            }
 
-        $this->syncIngredients($menu, $data['ingredients']);
+            throw $e;
+        }
+
+        if ($newImagePath && $oldImagePath && Storage::disk('public')->exists($oldImagePath)) {
+            Storage::disk('public')->delete($oldImagePath);
+        }
 
         return redirect()->route('menus.index')->with('success', 'Menu item updated successfully.');
     }
@@ -230,12 +286,17 @@ class MenuController extends Controller
         return redirect()->route('menus.index')->with('success', 'Menu item deleted.');
     }
 
-    private function syncIngredients(Menu $menu, array $ingredients): void
+    private function syncIngredients(Menu $menu, array $ingredients, $ingredientItems = null): void
     {
+        $ingredientItems = $ingredientItems ?: Item::query()
+            ->whereIn('id', collect($ingredients)->pluck('item_id')->all())
+            ->get()
+            ->keyBy('id');
+
         $syncData = [];
         foreach ($ingredients as $ing) {
             if (!empty($ing['item_id'])) {
-                $item = Item::find($ing['item_id']);
+                $item = $ingredientItems->get((int) $ing['item_id']);
                 if (!$item || (int) $item->branch_id !== (int) $menu->branch_id) {
                     throw ValidationException::withMessages([
                         'ingredients' => 'All ingredients must belong to the same branch as the menu item.',
@@ -248,5 +309,30 @@ class MenuController extends Controller
             }
         }
         $menu->items()->sync($syncData);
+    }
+
+    private function resolveMenuCategoryIdFromIngredients(array $ingredients, $ingredientItems, int $branchId): ?int
+    {
+        $categoryIds = [];
+
+        foreach ($ingredients as $ingredient) {
+            $item = $ingredientItems->get((int) ($ingredient['item_id'] ?? 0));
+
+            if (! $item || (int) $item->branch_id !== $branchId) {
+                throw ValidationException::withMessages([
+                    'ingredients' => 'All ingredients must belong to the same branch as the menu item.',
+                ]);
+            }
+
+            if (! $item->category_id) {
+                throw ValidationException::withMessages([
+                    'ingredients' => 'Each ingredient must have a valid inventory category before it can be used in a menu recipe.',
+                ]);
+            }
+
+            $categoryIds[] = (int) $item->category_id;
+        }
+
+        return $categoryIds[0] ?? null;
     }
 }

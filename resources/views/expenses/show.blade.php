@@ -68,20 +68,6 @@
                 @endif
             </div>
             <div class="d-flex gap-2 align-items-center flex-wrap">
-                {{-- Add New button (not for sales) --}}
-                @if($activeTab === 'vatable')
-                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#createVatableModal">
-                    <i data-feather="plus" style="width:14px;height:14px;"></i> Add New
-                </button>
-                @elseif($activeTab === 'nonvatable')
-                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#createNonVatableModal">
-                    <i data-feather="plus" style="width:14px;height:14px;"></i> Add New
-                </button>
-                @elseif($activeTab === 'disbursements')
-                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#createDisbursementModal">
-                    <i data-feather="plus" style="width:14px;height:14px;"></i> Add New
-                </button>
-                @endif
                 <form method="GET" action="{{ url()->current() }}" class="d-flex gap-2 align-items-center">
                     <input type="hidden" name="tab" value="{{ $activeTab }}">
                     <div class="input-group input-group-sm" style="max-width:220px;">
@@ -136,7 +122,6 @@
                             @if(auth()->user()?->isAdmin())<th>Branch</th>@endif
                             <th>Vendor Name</th><th>Address</th><th>SI No.</th><th>TIN</th>
                             <th class="text-end">Gross</th><th class="text-end">VAT</th><th class="text-end">Net</th>
-                            <th class="text-center">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -152,30 +137,9 @@
                             <td class="text-end">₱{{ number_format((float)$record->gross_amount,2) }}</td>
                             <td class="text-end">₱{{ number_format((float)$record->vat,2) }}</td>
                             <td class="text-end fw-semibold">₱{{ number_format((float)$record->net_purchases,2) }}</td>
-                            <td class="text-center">
-                                <div class="d-inline-flex gap-1">
-                                    <button class="btn btn-sm btn-warning" title="Edit"
-                                        data-bs-toggle="modal" data-bs-target="#editVatableModal"
-                                        data-id="{{ $record->id }}" data-my="{{ $monthYear }}"
-                                        data-date="{{ $record->date?->format('Y-m-d') }}"
-                                        data-vendor="{{ $record->vendor_name }}"
-                                        data-address="{{ $record->address }}"
-                                        data-si="{{ $record->si_number }}"
-                                        data-tin="{{ $record->tin }}"
-                                        data-gross="{{ $record->gross_amount }}"
-                                        data-vat="{{ $record->vat }}"
-                                        data-net="{{ $record->net_purchases }}">
-                                        <i data-feather="edit-2" style="width:13px;height:13px;"></i>
-                                    </button>
-                                    <form action="{{ route('expenses.vatable.destroy', [$monthYear, $record->id]) }}" method="POST" onsubmit="return confirm('Delete this record?')">
-                                        @csrf @method('DELETE')
-                                        <button type="submit" class="btn btn-sm btn-danger" title="Delete"><i data-feather="trash-2" style="width:13px;height:13px;"></i></button>
-                                    </form>
-                                </div>
-                            </td>
                         </tr>
                         @empty
-                        <tr><td colspan="{{ auth()->user()?->isAdmin() ? 11 : 10 }}" class="text-center text-muted py-4">No vatable purchases for this period.</td></tr>
+                        <tr><td colspan="{{ auth()->user()?->isAdmin() ? 10 : 9 }}" class="text-center text-muted py-4">No vatable purchases for this period.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -188,7 +152,6 @@
                             <th>#</th><th>Date</th>
                             @if(auth()->user()?->isAdmin())<th>Branch</th>@endif
                             <th>Vendor Name</th><th class="text-end">Amount</th>
-                            <th class="text-center">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -199,25 +162,9 @@
                             @if(auth()->user()?->isAdmin())<td class="text-muted small">{{ $record->branch?->name ?? '—' }}</td>@endif
                             <td>{{ $record->vendor_name }}</td>
                             <td class="text-end fw-semibold">₱{{ number_format((float)$record->gross_amount,2) }}</td>
-                            <td class="text-center">
-                                <div class="d-inline-flex gap-1">
-                                    <button class="btn btn-sm btn-warning" title="Edit"
-                                        data-bs-toggle="modal" data-bs-target="#editNonVatableModal"
-                                        data-id="{{ $record->id }}" data-my="{{ $monthYear }}"
-                                        data-date="{{ $record->date?->format('Y-m-d') }}"
-                                        data-vendor="{{ $record->vendor_name }}"
-                                        data-gross="{{ $record->gross_amount }}">
-                                        <i data-feather="edit-2" style="width:13px;height:13px;"></i>
-                                    </button>
-                                    <form action="{{ route('expenses.nonvatable.destroy', [$monthYear, $record->id]) }}" method="POST" onsubmit="return confirm('Delete this record?')">
-                                        @csrf @method('DELETE')
-                                        <button type="submit" class="btn btn-sm btn-danger" title="Delete"><i data-feather="trash-2" style="width:13px;height:13px;"></i></button>
-                                    </form>
-                                </div>
-                            </td>
                         </tr>
                         @empty
-                        <tr><td colspan="{{ auth()->user()?->isAdmin() ? 6 : 5 }}" class="text-center text-muted py-4">No non-vatable purchases for this period.</td></tr>
+                        <tr><td colspan="{{ auth()->user()?->isAdmin() ? 5 : 4 }}" class="text-center text-muted py-4">No non-vatable purchases for this period.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -230,7 +177,6 @@
                             <th>#</th><th>Date</th>
                             @if(auth()->user()?->isAdmin())<th>Branch</th>@endif
                             <th>Check No.</th><th>Payee</th><th class="text-end">Amount</th><th>Reference</th>
-                            <th class="text-center">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -243,27 +189,9 @@
                             <td>{{ $record->payee }}</td>
                             <td class="text-end fw-semibold">₱{{ number_format((float)$record->amount,2) }}</td>
                             <td class="text-muted small">{{ $record->reference ?? '—' }}</td>
-                            <td class="text-center">
-                                <div class="d-inline-flex gap-1">
-                                    <button class="btn btn-sm btn-warning" title="Edit"
-                                        data-bs-toggle="modal" data-bs-target="#editDisbursementModal"
-                                        data-id="{{ $record->id }}" data-my="{{ $monthYear }}"
-                                        data-date="{{ $record->date?->format('Y-m-d') }}"
-                                        data-check="{{ $record->check_number }}"
-                                        data-payee="{{ $record->payee }}"
-                                        data-amount="{{ $record->amount }}"
-                                        data-reference="{{ $record->reference }}">
-                                        <i data-feather="edit-2" style="width:13px;height:13px;"></i>
-                                    </button>
-                                    <form action="{{ route('expenses.disbursement.destroy', [$monthYear, $record->id]) }}" method="POST" onsubmit="return confirm('Delete this record?')">
-                                        @csrf @method('DELETE')
-                                        <button type="submit" class="btn btn-sm btn-danger" title="Delete"><i data-feather="trash-2" style="width:13px;height:13px;"></i></button>
-                                    </form>
-                                </div>
-                            </td>
                         </tr>
                         @empty
-                        <tr><td colspan="{{ auth()->user()?->isAdmin() ? 8 : 7 }}" class="text-center text-muted py-4">No disbursements for this period.</td></tr>
+                        <tr><td colspan="{{ auth()->user()?->isAdmin() ? 7 : 6 }}" class="text-center text-muted py-4">No disbursements for this period.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -295,11 +223,6 @@
         </style>
     </div>
 </div>
-
-{{-- Modals --}}
-@include('expenses.partials.modal-vatable')
-@include('expenses.partials.modal-nonvatable')
-@include('expenses.partials.modal-disbursement')
 
 </main>
 @endsection

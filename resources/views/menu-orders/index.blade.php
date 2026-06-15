@@ -50,7 +50,7 @@
                     <table class="table table-bordered table-striped" id="menuOrdersTable" data-server-sort="1">
                         <thead class="table-dark">
                             <tr>
-                                <th>#</th>
+                                <th>Sales ID</th>
                                 <th>Customer</th>
                                 <th>Branch</th>
                                 <th>Total</th>
@@ -74,6 +74,32 @@
         </div>
     </div>
 </main>
+
+<div class="modal fade" id="voidModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form id="voidForm" method="POST">
+            @csrf
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title text-warning"><i data-feather="alert-triangle"></i> Void Menu Order</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to void this menu order? This action will replenish all deducted inventory. This cannot be undone.</p>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Reason for Voiding <span class="text-danger">*</span></label>
+                        <textarea name="void_reason" class="form-control" rows="3" required placeholder="Please provide a reason..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">Confirm Void</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
 @endsection
 
 @push('scripts')
@@ -99,6 +125,9 @@ document.addEventListener('DOMContentLoaded', function() {
         renderRow: function(order, ctx) {
             const customer = order.customer_name || 'Walk-in Customer';
             const canEdit = Number(order.payments_count || 0) === 0;
+            const isBranchManager = {{ auth()->user()->isBranchManager() ? 'true' : 'false' }};
+            const canVoid = isBranchManager && order.status !== 'voided' && order.status !== 'cancelled' && Number(order.payments_count || 0) === 0;
+
             const editActions = canEdit ? `
                 <a href="{{ url('/menu-orders') }}/${order.id}/edit" class="btn btn-sm btn-outline-secondary" title="Edit"><i data-feather="edit"></i></a>
                 <form action="{{ url('/menu-orders') }}/${order.id}" method="POST" class="d-inline" onsubmit="return confirm('Delete this menu order?')">
@@ -108,9 +137,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 </form>
             ` : '';
 
+            const voidAction = canVoid ? `
+                <button type="button" class="btn btn-sm btn-outline-warning" title="Void Order" onclick="openVoidModal(${order.id})">
+                    <i data-feather="slash"></i>
+                </button>
+            ` : '';
+
             return `
                 <tr>
-                    <td>${ctx.index}</td>
+                    <td class="fw-semibold">${ctx.escapeHtml(order.order_number || ('SALES-BR' + order.branch_id + '-' + order.id))}</td>
                     <td>${ctx.escapeHtml(customer)}</td>
                     <td>${ctx.escapeHtml(order.branch ? order.branch.name : '\u2014')}</td>
                     <td>\u20B1${Number(order.total_amount || 0).toFixed(2)}</td>
@@ -121,6 +156,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td class="text-nowrap">
                         <a href="{{ url('/menu-orders') }}/${order.id}" class="btn btn-sm btn-outline-info" title="View"><i data-feather="eye"></i></a>
                         ${editActions}
+                        ${voidAction}
                     </td>
                 </tr>
             `;
@@ -136,5 +172,12 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
+
+function openVoidModal(orderId) {
+    var form = document.getElementById('voidForm');
+    form.action = '{{ url('/menu-orders') }}/' + orderId + '/void';
+    var modal = new bootstrap.Modal(document.getElementById('voidModal'));
+    modal.show();
+}
 </script>
 @endpush

@@ -69,61 +69,41 @@
 </head>
 <body>
 @php
-    use Illuminate\Support\Carbon;
-
     $order = $payment->order;
+    $additionalCharges = $payment->additionalChargesList();
 
-    // PAX counts
     $regularPax = (int) ($order->regular_pax ?? 0);
-    $pwdPax     = (int) ($order->pwd_pax ?? 0);
-    $seniorPax  = (int) ($order->senior_pax ?? 0);
+    $pwdPax = (int) ($order->pwd_pax ?? 0);
+    $seniorPax = (int) ($order->senior_pax ?? 0);
 
-    // Customer type detection for VAT exemption
-    $isVATExempt  = false;
-    $discountType = '';
-    if ($order) {
-        $discountType = (string) ($order->discount_type ?? '');
-        $isVATExempt  = in_array(strtoupper($discountType), ['PWD', 'SENIOR', 'SENIOR CITIZEN']);
-    }
+    $discountType = (string) ($order->discount_type ?? '');
+    $isVatExempt = round((float) ($payment->total_vat_exempt ?? 0), 2) > 0;
 
     $lineItems = collect();
     foreach (($order->items ?? collect()) as $item) {
         $lineItems->push([
             'description' => $item->menu->name ?? 'Menu Item',
-            'qty'         => (int) ($item->quantity ?? 0),
-            'total'       => (float) ($item->subtotal ?? 0),
-        ]);
-    }
-    if ((float) ($order->additional_charge_amount ?? 0) > 0) {
-        $lineItems->push([
-            'description' => trim((string) ($order->additional_charge_label ?: 'Additional Charge')),
-            'qty'         => 1,
-            'total'       => (float) ($order->additional_charge_amount ?? 0),
+            'qty' => (int) ($item->quantity ?? 0),
+            'total' => (float) ($item->subtotal ?? 0),
         ]);
     }
 
-    $subtotal           = (float) ($order->subtotal ?? $lineItems->sum('total'));
-    $discount           = (float) ($order->discount_amount ?? 0);
-    $discountedSubtotal = $subtotal - $discount;
 
-    // VAT calculation — exempt if PWD or Senior
-    $vatRate   = $isVATExempt ? 0 : (float) ($order->vat_rate ?? 12);
-    $vatAmount = $isVATExempt ? 0 : round($discountedSubtotal * ($vatRate / 100), 2);
-    $total     = round($discountedSubtotal + $vatAmount, 2);
+    $subtotal = (float) ($payment->subtotal ?? $order->subtotal ?? 0);
+    $additionalChargeAmount = (float) ($payment->additional_charge_amount ?? 0);
+    $discount = (float) ($payment->discount_amount ?? $order->discount_amount ?? 0);
+    $vatRate = (float) ($order->vat_rate ?? 12);
+    $vatAmount = (float) ($payment->vat_amount ?? 0);
+    $finalTotal = (float) ($payment->final_total ?? $order->total_amount ?? 0);
+    $amountPaid = (float) ($payment->amount_tendered ?: $payment->amount ?? 0);
+    $change = (float) ($payment->change_amount ?? max(0.0, $amountPaid - $finalTotal));
 
-    // Amount paid & change
-    $amountPaid = (float) (!empty($payment->amount_tendered) ? $payment->amount_tendered : ($payment->amount ?? $order->amount_paid ?? 0));
-    $change     = (float) (isset($payment->change_amount) && $payment->change_amount > 0 ? $payment->change_amount : max(0.0, $amountPaid - $total));
-
-    // UTC+8 datetime
     $paymentDateTime = $payment->payment_date ?? $payment->created_at;
     $phDateTime = $paymentDateTime
         ? $paymentDateTime->copy()->setTimezone('Asia/Manila')
         : now()->setTimezone('Asia/Manila');
 
-    $money = fn (float $v): string => number_format($v, 2);
-
-    $w    = 28; // receipt width in monospace chars
+    $w = 28;
     $line = str_repeat('-', $w);
 
     $center = function ($text, $width = 28) {
@@ -133,18 +113,16 @@
         return str_repeat(' ', $pad) . $text;
     };
 
-    // Layout: name(13) + space(1) + qty(3) + space(1) + price(9) = 27 (fits in 28)
-    $formatItem = function ($name, $qty, $price, $width = 28) {
-        $name     = substr(trim($name), 0, 13);
-        $qtyStr   = str_pad((string)(int)$qty, 3, ' ', STR_PAD_LEFT);
-        $priceStr = str_pad(number_format((float)$price, 2), 9, ' ', STR_PAD_LEFT);
+    $formatItem = function ($name, $qty, $price) {
+        $name = substr(trim($name), 0, 13);
+        $qtyStr = str_pad((string) (int) $qty, 3, ' ', STR_PAD_LEFT);
+        $priceStr = str_pad(number_format((float) $price, 2), 9, ' ', STR_PAD_LEFT);
         return str_pad($name, 13) . ' ' . $qtyStr . ' ' . $priceStr;
     };
 
-    // Layout: label(14) + space(2) + amount(12) = 28
-    $formatTotal = function ($label, $amount, $width = 28) {
-        $label     = substr(trim($label), 0, 14);
-        $amountStr = str_pad(number_format((float)$amount, 2), 12, ' ', STR_PAD_LEFT);
+    $formatTotal = function ($label, $amount) {
+        $label = substr(trim($label), 0, 14);
+        $amountStr = str_pad(number_format((float) $amount, 2), 12, ' ', STR_PAD_LEFT);
         return str_pad($label, 14) . '  ' . $amountStr;
     };
 @endphp
@@ -155,7 +133,7 @@
 <div class="receipt-wrap">
 <div class="receipt">
 <pre>{{ $center(strtoupper($order->branch->name ?? "DIANNE'S SEAFOOD HOUSE"), $w) }}
-{{ $center('DIANNE\'S SEAFOOD HOUSE', $w) }}
+{{ $center("DIANNE'S SEAFOOD HOUSE", $w) }}
 @if(!empty($order->branch->address))
 {{ $center($order->branch->address, $w) }}
 @endif
@@ -186,26 +164,27 @@ PAX:
 DESC          QTY    AMOUNT
 {{ $line }}
 @foreach($lineItems as $li)
-{{ $formatItem($li['description'], $li['qty'], $li['total'], $w) }}
+{{ $formatItem($li['description'], $li['qty'], $li['total']) }}
 @endforeach
 {{ $line }}
-{{ $formatTotal('SUBTOTAL', $subtotal, $w) }}
+{{ $formatTotal('SUBTOTAL', $subtotal) }}
+@if($additionalChargeAmount > 0)
+{{ $formatTotal('ADDL CHARGES', $additionalChargeAmount) }}
+@endif
 @if($discount > 0)
-{{ $formatTotal('DISCOUNT (' . strtoupper($discountType ?: 'GENERAL') . ')', -$discount, $w) }}
+{{ $formatTotal('DISCOUNT (' . strtoupper($discountType ?: 'GENERAL') . ')', -$discount) }}
 @endif
-@if($isVATExempt)
-{{ $formatTotal('VAT-EXEMPT SALE', $discountedSubtotal, $w) }}
-{{ $formatTotal('VAT (0%)', 0, $w) }}
-@else
-@if($vatRate > 0)
-{{ $formatTotal('VAT (' . number_format($vatRate, 0) . '%)', $vatAmount, $w) }}
-@endif
+@if($isVatExempt)
+{{ $formatTotal('VAT-EXEMPT SALE', (float) ($payment->total_vat_exempt ?? 0)) }}
+{{ $formatTotal('VAT (0%)', 0) }}
+@elseif($vatRate > 0)
+{{ $formatTotal('VAT (' . number_format($vatRate, 0) . '%)', $vatAmount) }}
 @endif
 {{ $line }}
-{{ $formatTotal('TOTAL', $total, $w) }}
+{{ $formatTotal('TOTAL', $finalTotal) }}
 {{ $line }}
-{{ $formatTotal('TENDERED', $amountPaid, $w) }}
-{{ $formatTotal('CHANGE', $change, $w) }}
+{{ $formatTotal('TENDERED', $amountPaid) }}
+{{ $formatTotal('CHANGE', $change) }}
 {{ $line }}
 @if(!empty($payment->method))
 METHOD: {{ strtoupper($payment->method) }}

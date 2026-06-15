@@ -30,7 +30,11 @@ class StoreDeliveryRequest extends FormRequest
             'source_item_id'        => ['nullable', 'exists:items,id'],
             'items'                 => ['required', 'array', 'min:1'],
             'items.*.description'   => ['required', 'string', 'max:255'],
-            'items.*.item_id'       => [$isBranchTransfer ? 'required' : 'nullable', 'exists:items,id'],
+            'items.*.item_id'       => [
+                $isBranchTransfer ? 'required' : 'nullable',
+                'required_if:items.*.allocated_to,inventory',
+                'exists:items,id',
+            ],
             'items.*.quantity'      => ['required', 'numeric', 'gt:0'],
             'items.*.unit'          => ['required', 'string', 'max:32'],
             'items.*.price'         => ['nullable', 'numeric', 'min:0'],

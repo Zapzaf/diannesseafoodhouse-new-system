@@ -22,26 +22,16 @@ class DashboardController extends Controller
             ->whereColumn('quantity', '<=', 'low_stock_threshold')
             ->with('category')
             ->limit(10)
-            ->get()
-            ->map(function (Item $item): array {
-                return [
-                    'name' => $item->name,
-                    'category' => $item->category?->name ?? '-',
-                    'quantity' => $item->quantity,
-                    'low_stock_threshold' => $item->low_stock_threshold,
-                ];
-            });
+            ->get();
 
         $revenueChart = Sale::query()
-            ->selectRaw("DATE_FORMAT(created_at, '%Y-%m') as month_key")
-            ->selectRaw('SUM(grand_total) as amount')
             ->where('created_at', '>=', now()->subMonths(5)->startOfMonth())
-            ->groupBy('month_key')
-            ->orderBy('month_key')
-            ->get()
-            ->map(fn ($row) => [
-                'label' => $row->month_key,
-                'amount' => (float) $row->amount,
+            ->orderBy('created_at')
+            ->get(['created_at', 'grand_total'])
+            ->groupBy(fn (Sale $sale) => $sale->created_at->format('Y-m'))
+            ->map(fn ($sales, $monthKey) => [
+                'label' => $monthKey,
+                'amount' => (float) $sales->sum('grand_total'),
             ]);
 
         return view('dashboard', [

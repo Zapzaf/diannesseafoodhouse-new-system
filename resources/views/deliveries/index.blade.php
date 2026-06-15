@@ -87,7 +87,7 @@
                             </td>
                             @endif
                             <td>{{ $delivery->items->count() }}</td>
-                            <td class="fw-semibold">&#8369;{{ number_format($delivery->items->sum(fn($i) => $i->quantity * $i->price), 2) }}</td>
+                            <td class="fw-semibold">&#8369;{{ number_format($delivery->items->sum(fn($i) => (float) ($i->price ?? 0)), 2) }}</td>
                             <td class="text-muted small">{{ $delivery->created_at->format('M d, Y H:i') }}</td>
                             <td>
                                 <span class="badge-status badge-{{ $delivery->status }}">{{ strtoupper($delivery->status) }}</span>

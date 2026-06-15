@@ -7,22 +7,25 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Facades\DB;
 
 class MenuOrder extends Model
 {
     protected $fillable = [
-        'branch_id', 'customer_name',
-        'subtotal', 'additional_charge_label', 'additional_charge_amount',
+        'order_number', 'branch_id', 'customer_name',
+        'subtotal', 'additional_charge_label', 'additional_charge_amount', 'additional_charges',
         'regular_pax', 'pwd_pax', 'senior_pax', 'total_pax',
         'discount_type', 'discount_id_number', 'discount_name', 'discount_amount',
         'total_vat_exempt', 'vat_rate', 'vat_amount',
         'total_amount', 'amount_paid', 'balance',
         'payment_status', 'status', 'notes', 'created_by',
+        'void_reason', 'voided_by', 'voided_at',
     ];
 
     protected $casts = [
         'subtotal' => 'decimal:2',
         'additional_charge_amount' => 'decimal:2',
+        'additional_charges' => 'array',
         'discount_amount' => 'decimal:2',
         'total_vat_exempt' => 'decimal:2',
         'vat_rate' => 'decimal:2',
@@ -31,6 +34,23 @@ class MenuOrder extends Model
         'amount_paid' => 'decimal:2',
         'balance' => 'decimal:2',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (MenuOrder $order): void {
+            if (! empty($order->order_number)) {
+                return;
+            }
+
+            $timestamp = $order->created_at ?? now();
+            do {
+                $orderNumber = static::makeOrderNumber((int) $order->branch_id, $timestamp);
+                $timestamp = $timestamp->copy()->addSecond();
+            } while (DB::table($order->getTable())->where('order_number', $orderNumber)->exists());
+
+            $order->order_number = $orderNumber;
+        });
+    }
 
     public function branch(): BelongsTo
     {
@@ -52,6 +72,11 @@ class MenuOrder extends Model
         return $this->hasMany(MenuOrderPayment::class);
     }
 
+    public function voidedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'voided_by');
+    }
+
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
@@ -60,5 +85,56 @@ class MenuOrder extends Model
     public function customerDisplayName(): string
     {
         return $this->customer_name ?: 'Walk-in Customer';
+    }
+
+    public function orderNumber(): string
+    {
+        return $this->order_number ?: static::makeOrderNumber((int) $this->branch_id, $this->created_at ?? now());
+    }
+
+    public static function makeOrderNumber(int $branchId, $timestamp): string
+    {
+        return 'SALES-BR' . $branchId . '-' . $timestamp->format('Ymd-His');
+    }
+
+    public function additionalChargesList(): array
+    {
+        $charges = $this->additional_charges;
+
+        if (is_array($charges) && ! empty($charges)) {
+            return array_values(array_filter(array_map(function ($charge) {
+                $label = trim((string) ($charge['label'] ?? ''));
+                $type = in_array(($charge['type'] ?? ''), ['fixed', 'percentage'], true)
+                    ? $charge['type']
+                    : 'fixed';
+                $value = round((float) ($charge['value'] ?? 0), 2);
+                $amount = round((float) ($charge['amount'] ?? $value), 2);
+
+                if ($label === '' || $amount <= 0) {
+                    return null;
+                }
+
+                return [
+                    'label' => $label,
+                    'type' => $type,
+                    'value' => $value,
+                    'amount' => $amount,
+                    'base_subtotal' => isset($charge['base_subtotal']) ? round((float) $charge['base_subtotal'], 2) : null,
+                ];
+            }, $charges)));
+        }
+
+        $legacyAmount = round((float) ($this->additional_charge_amount ?? 0), 2);
+        if ($legacyAmount <= 0) {
+            return [];
+        }
+
+        return [[
+            'label' => trim((string) ($this->additional_charge_label ?: 'Additional Charge')),
+            'type' => 'fixed',
+            'value' => $legacyAmount,
+            'amount' => $legacyAmount,
+            'base_subtotal' => null,
+        ]];
     }
 }

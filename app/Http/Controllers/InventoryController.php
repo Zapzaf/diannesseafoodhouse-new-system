@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\ItemsExport;
 use App\Http\Requests\StoreItemRequest;
 use App\Models\Branch;
 use App\Models\Category;
@@ -9,46 +10,79 @@ use App\Models\Delivery;
 use App\Models\DeliveryItem;
 use App\Models\InventoryTransaction;
 use App\Models\Item;
+use App\Models\Location;
 use App\Models\Transfer;
 use App\Services\InventoryService;
+use App\Support\InventoryQuantity;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Maatwebsite\Excel\Facades\Excel;
 
 class InventoryController extends Controller
 {
     public function __construct(private readonly InventoryService $inventoryService) {}
 
-    public function index()
+    public function index(Request $request)
     {
+        $user = $request->user();
+        $selectedBranchId = $user->isAdmin()
+            ? ($request->session()->get('selected_branch_id') ?: null)
+            : ($user->branch_id ? (int) $user->branch_id : null);
+        $inventoryLocations = Location::query()
+            ->with(['categories' => fn ($query) => $query->orderBy('name')])
+            ->when($selectedBranchId, fn ($query, $branchId) => $query->where('branch_id', $branchId))
+            ->orderBy('name')
+            ->get();
+
         return view('inventory.index', [
             'branches' => Branch::orderBy('name')->get(),
+            'exportBranches' => $user->isAdmin()
+                ? Branch::query()->where('is_active', true)->orderBy('name')->get()
+                : Branch::query()->whereKey($user->branch_id)->get(),
+            'selectedBranchId' => $selectedBranchId,
+            'inventoryLocations' => $inventoryLocations,
+            'inventorySubcategories' => $inventoryLocations->mapWithKeys(fn (Location $location): array => [
+                $location->id => $location->categories->map(fn (Category $category): array => [
+                    'id' => $category->id,
+                    'name' => $category->name,
+                ])->values(),
+            ]),
         ]);
     }
 
     public function data(Request $request)
     {
         $branchId = $this->resolveBranchId($request);
-        $query = Item::with(['category', 'branch']);
+        $query = Item::with(['category.location', 'branch']);
 
         if ($branchId) {
-            $query->where('branch_id', $branchId);
+            $query->where('items.branch_id', $branchId);
+        }
+
+        if ($locationId = $request->integer('location_id')) {
+            $query->whereHas('category', fn ($categoryQuery) => $categoryQuery->where('location_id', $locationId));
+        }
+
+        if ($categoryId = $request->integer('category_id')) {
+            $query->where('items.category_id', $categoryId);
         }
 
         if ($search = trim((string) $request->input('search', ''))) {
             $query->where(function ($q) use ($search): void {
-                $q->where('name', 'like', "%{$search}%")
-                    ->orWhere('unit', 'like', "%{$search}%")
-                    ->orWhere('supplier_name', 'like', "%{$search}%");
+                $q->where('items.name', 'like', "%{$search}%")
+                    ->orWhere('items.unit', 'like', "%{$search}%")
+                    ->orWhereHas('category', fn ($categoryQuery) => $categoryQuery->where('name', 'like', "%{$search}%"))
+                    ->orWhereHas('category.location', fn ($locationQuery) => $locationQuery->where('name', 'like', "%{$search}%"));
             });
         }
 
         $sort = (string) $request->input('sort', 'name');
         $direction = strtolower((string) $request->input('direction', 'asc')) === 'desc' ? 'desc' : 'asc';
-        $sortable = ['name', 'category', 'branch_name', 'quantity', 'unit', 'low_stock_threshold', 'supplier_name', 'created_at'];
+        $sortable = ['name', 'category', 'location', 'branch_name', 'quantity', 'unit', 'low_stock_threshold', 'created_at'];
         if (! in_array($sort, $sortable, true)) {
             $sort = 'name';
         }
@@ -61,6 +95,11 @@ class InventoryController extends Controller
         } elseif ($sort === 'category') {
             $query->join('categories', 'items.category_id', '=', 'categories.id')
                 ->orderBy('categories.name', $direction)
+                ->select('items.*');
+        } elseif ($sort === 'location') {
+            $query->join('categories', 'items.category_id', '=', 'categories.id')
+                ->join('locations', 'categories.location_id', '=', 'locations.id')
+                ->orderBy('locations.name', $direction)
                 ->select('items.*');
         } else {
             $query->orderBy('items.'.$sort, $direction);
@@ -80,7 +119,8 @@ class InventoryController extends Controller
                 'remaining_item' => $item->quantity,
                 'unit' => $item->unit,
                 'low_stock_threshold' => $item->low_stock_threshold,
-                'supplier_name' => $item->supplier_name,
+                'supplier_name' => null,
+                'allows_decimal_quantity' => InventoryQuantity::allowsDecimals($item->unit),
             ];
         });
 
@@ -216,32 +256,35 @@ class InventoryController extends Controller
         $this->ensureItemInActiveBranch($request, $inventory);
 
         $validated = $request->validate([
-            'quantity' => ['required', 'numeric', 'gt:0'],
+            'quantity' => InventoryQuantity::validationRules($inventory->unit),
             'reason' => ['nullable', 'string', 'max:255'],
             'transaction_date' => ['nullable', 'date'],
-        ]);
+        ], InventoryQuantity::validationMessages($inventory->unit));
 
         $quantity = (float) $validated['quantity'];
-        $beginning = (float) $inventory->quantity;
-        $this->inventoryService->increase($inventory, $quantity);
-        $remaining = (float) $inventory->quantity;
+        DB::transaction(function () use ($inventory, $quantity, $validated, $request): void {
+            $inventory = Item::query()->lockForUpdate()->findOrFail($inventory->id);
+            $beginning = (float) $inventory->quantity;
+            $this->inventoryService->increase($inventory, $quantity);
+            $remaining = (float) $inventory->quantity;
 
-        InventoryTransaction::create([
-            'item_id' => $inventory->id,
-            'branch_id' => $inventory->branch_id,
-            'type' => 'in',
-            'quantity' => $quantity,
-            'beginning_quantity' => $beginning,
-            'remaining_quantity' => $remaining,
-            'transaction_price' => $inventory->unit_price ? (float) $inventory->unit_price : null,
-            'transaction_date' => $validated['transaction_date'] ?? now(),
-            'reason' => $validated['reason'] ?? 'Manual stock-in',
-            'status' => 'pending',
-            'notes' => 'Manual adjustment — awaiting review by admin or branch manager.',
-            'created_by' => $request->user()?->id,
-        ]);
+            InventoryTransaction::create([
+                'item_id' => $inventory->id,
+                'branch_id' => $inventory->branch_id,
+                'type' => 'in',
+                'quantity' => $quantity,
+                'beginning_quantity' => $beginning,
+                'remaining_quantity' => $remaining,
+                'transaction_price' => $inventory->unit_price ? (float) $inventory->unit_price : null,
+                'transaction_date' => $validated['transaction_date'] ?? now(),
+                'reason' => $validated['reason'] ?? 'Manual stock-in',
+                'status' => 'approved',
+                'notes' => 'Manual stock adjustment.',
+                'created_by' => $request->user()?->id,
+            ]);
+        });
 
-        return redirect()->route('inventory.index')->with('success', 'Stock added and logged as pending review.');
+        return redirect()->route('inventory.index')->with('success', 'Stock added and transaction logged successfully.');
     }
 
     public function deduct(Request $request, Item $inventory)
@@ -249,35 +292,45 @@ class InventoryController extends Controller
         $this->ensureItemInActiveBranch($request, $inventory);
 
         $validated = $request->validate([
-            'quantity' => ['required', 'numeric', 'gt:0'],
+            'quantity' => [...InventoryQuantity::validationRules($inventory->unit), 'max:'.(float) $inventory->quantity],
             'reason' => ['required', 'string', 'max:255'],
             'transaction_date' => ['nullable', 'date'],
-        ]);
+        ], InventoryQuantity::validationMessages($inventory->unit));
 
         $quantity = (float) $validated['quantity'];
-        $beginning = (float) $inventory->quantity;
-        $unitPrice = $inventory->unit_price ? (float) $inventory->unit_price : null;
-        $totalPrice = $unitPrice !== null ? $unitPrice * $quantity : null;
+        DB::transaction(function () use ($inventory, $quantity, $validated, $request): void {
+            $inventory = Item::query()->lockForUpdate()->findOrFail($inventory->id);
 
-        $this->inventoryService->decrease($inventory, $quantity);
-        $remaining = (float) $inventory->quantity;
+            if ((float) $inventory->quantity < $quantity) {
+                throw ValidationException::withMessages([
+                    'quantity' => 'Quantity cannot exceed the remaining stock.',
+                ]);
+            }
 
-        InventoryTransaction::create([
-            'item_id' => $inventory->id,
-            'branch_id' => $inventory->branch_id,
-            'type' => 'out',
-            'quantity' => $quantity,
-            'beginning_quantity' => $beginning,
-            'remaining_quantity' => $remaining,
-            'transaction_price' => $totalPrice,
-            'transaction_date' => $validated['transaction_date'] ?? now(),
-            'reason' => $validated['reason'],
-            'status' => 'pending',
-            'notes' => 'Manual adjustment — awaiting review by admin or branch manager.',
-            'created_by' => $request->user()?->id,
-        ]);
+            $beginning = (float) $inventory->quantity;
+            $unitPrice = $inventory->unit_price ? (float) $inventory->unit_price : null;
+            $totalPrice = $unitPrice !== null ? $unitPrice * $quantity : null;
 
-        return redirect()->route('inventory.index')->with('success', 'Stock deducted and logged as pending review.');
+            $this->inventoryService->decrease($inventory, $quantity);
+            $remaining = (float) $inventory->quantity;
+
+            InventoryTransaction::create([
+                'item_id' => $inventory->id,
+                'branch_id' => $inventory->branch_id,
+                'type' => 'out',
+                'quantity' => $quantity,
+                'beginning_quantity' => $beginning,
+                'remaining_quantity' => $remaining,
+                'transaction_price' => $totalPrice,
+                'transaction_date' => $validated['transaction_date'] ?? now(),
+                'reason' => $validated['reason'],
+                'status' => 'approved',
+                'notes' => 'Manual stock adjustment.',
+                'created_by' => $request->user()?->id,
+            ]);
+        });
+
+        return redirect()->route('inventory.index')->with('success', 'Stock deducted and transaction logged successfully.');
     }
 
     public function transactions(Request $request)
@@ -286,7 +339,11 @@ class InventoryController extends Controller
 
         $transactions = InventoryTransaction::with(['inventory', 'creator'])
             ->when($branchId, fn ($query, $branchId) => $query->whereHas('inventory', fn ($inner) => $inner->where('branch_id', $branchId)))
-            ->when(request('search'), fn ($q, $s) => $q->whereHas('inventory', fn ($inner) => $inner->where('name', 'like', "%$s%"))->orWhere('reason', 'like', "%$s%"))
+            ->when(request('search'), fn ($q, $s) => $q->where(function ($query) use ($s): void {
+                $query->where('log_id', 'like', "%$s%")
+                    ->orWhereHas('inventory', fn ($inner) => $inner->where('name', 'like', "%$s%"))
+                    ->orWhere('reason', 'like', "%$s%");
+            }))
             ->latest()
             ->paginate((int) request('per_page', 10))->withQueryString();
 
@@ -388,7 +445,11 @@ class InventoryController extends Controller
         $transactions = InventoryTransaction::with(['inventory', 'creator'])
             ->where('status', 'pending')
             ->when($branchId, fn ($query, $branchId) => $query->whereHas('inventory', fn ($inner) => $inner->where('branch_id', $branchId)))
-            ->when(request('search'), fn ($q, $s) => $q->whereHas('inventory', fn ($inner) => $inner->where('name', 'like', "%$s%"))->orWhere('reason', 'like', "%$s%"))
+            ->when(request('search'), fn ($q, $s) => $q->where(function ($query) use ($s): void {
+                $query->where('log_id', 'like', "%$s%")
+                    ->orWhereHas('inventory', fn ($inner) => $inner->where('name', 'like', "%$s%"))
+                    ->orWhere('reason', 'like', "%$s%");
+            }))
             ->latest()
             ->paginate((int) request('per_page', 20))->withQueryString();
 
@@ -408,6 +469,36 @@ class InventoryController extends Controller
         return view('inventory.low-stock', compact('items'));
     }
 
+    public function export(Request $request)
+    {
+        $branchId = $request->integer('branch_id');
+        if (! $branchId) {
+            return back()
+                ->with('error', 'Please select a branch.')
+                ->with('showExportModal', true);
+        }
+
+        $branch = Branch::query()
+            ->where('is_active', true)
+            ->find($branchId);
+
+        if (! $branch) {
+            return back()
+                ->with('error', 'Please select a valid branch.')
+                ->with('showExportModal', true);
+        }
+
+        if (! $request->user()->isAdmin() && (int) $request->user()->branch_id !== (int) $branch->id) {
+            abort(403, 'You can only export inventory for your assigned branch.');
+        }
+
+        $slug = strtolower((string) preg_replace('/[^A-Za-z0-9]+/', '-', $branch->name));
+
+        $filename = 'inventory-'.trim($slug, '-').'-'.now()->format('Ymd-His').'.xlsx';
+
+        return Excel::download(new ItemsExport($branch->id), $filename);
+    }
+
     public function transfer(Request $request, Item $inventory): RedirectResponse
     {
         $this->ensureItemInActiveBranch($request, $inventory);
@@ -415,12 +506,23 @@ class InventoryController extends Controller
         $validated = $request->validate([
             'destination_branch_id' => ['required', 'exists:branches,id'],
             'destination_item_id' => ['required', 'exists:items,id'],
-            'quantity' => ['required', 'numeric', 'gt:0'],
+            'quantity' => ['required', 'numeric', 'gt:0', 'max:'.(float) $inventory->quantity],
             'reason' => ['nullable', 'string', 'max:255'],
         ]);
 
         if ((int) $validated['destination_branch_id'] === (int) $inventory->branch_id) {
             return back()->with('error', 'Destination branch must be different from the source branch.');
+        }
+
+        $destinationItemBelongsToBranch = Item::query()
+            ->whereKey($validated['destination_item_id'])
+            ->where('branch_id', $validated['destination_branch_id'])
+            ->exists();
+
+        if (! $destinationItemBelongsToBranch) {
+            throw ValidationException::withMessages([
+                'destination_item_id' => 'The destination item must belong to the selected destination branch.',
+            ]);
         }
 
         DB::transaction(function () use ($inventory, $validated, $request): void {

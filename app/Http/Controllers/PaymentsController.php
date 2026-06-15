@@ -70,7 +70,7 @@ class PaymentsController extends Controller
             return [
                 'id' => $payment->id,
                 'transaction_type' => 'menu_order',
-                'transaction_reference' => 'Order #' . $payment->menu_order_id,
+                'transaction_reference' => $payment->order?->orderNumber() ?? 'Order #' . $payment->menu_order_id,
                 'payment_date' => $payment->payment_date?->format('Y-m-d'),
                 'customer_name' => $payment->order?->customerDisplayName() ?? '—',
                 'room_or_order' => $payment->order?->branch?->name ?? '—',
@@ -168,6 +168,7 @@ class PaymentsController extends Controller
                 'subtotal' => round((float) $lockedOrder->subtotal, 2),
                 'additional_charge_label' => $lockedOrder->additional_charge_label,
                 'additional_charge_amount' => round((float) ($lockedOrder->additional_charge_amount ?? 0), 2),
+                'additional_charges' => $lockedOrder->additionalChargesList(),
                 'total_vat_exempt' => round((float) $lockedOrder->total_vat_exempt, 2),
                 'total_discount' => round((float) $lockedOrder->discount_amount, 2),
                 'final_total' => round((float) $lockedOrder->total_amount, 2),

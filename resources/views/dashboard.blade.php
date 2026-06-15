@@ -149,7 +149,7 @@
                             @foreach($lowStockItems as $item)
                             <tr>
                                 <td>{{ $item->name }}</td>
-                                <td>{{ $item->category }}</td>
+                                <td>{{ $item->category?->name ?? '-' }}</td>
                                 <td class="text-danger fw-bold">{{ $item->quantity }}</td>
                                 <td>{{ $item->low_stock_threshold }}</td>
                             </tr>

@@ -183,16 +183,26 @@ class ProductionManagementController extends Controller
             return redirect()->route('productions.show', $production)->with('error', 'Production order already finished.');
         }
 
+        $relatedItemIds = collect($validated['outputs'])
+            ->pluck('item_id')
+            ->merge(collect($validated['wastage'] ?? [])->pluck('convert_to_item_id'))
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique();
+
+        $branchItemCount = Item::query()
+            ->whereIn('id', $relatedItemIds)
+            ->where('branch_id', $production->branch_id)
+            ->count();
+
+        if ($branchItemCount !== $relatedItemIds->count()) {
+            throw ValidationException::withMessages([
+                'outputs' => 'All output and converted waste items must belong to the production branch.',
+            ]);
+        }
+
         DB::transaction(function () use ($production, $validated, $request): void {
             $production->loadMissing('inputs.item', 'inputs.deliveryItem');
-
-            foreach ($production->inputs as $input) {
-                if ($input->delivery_item_id) {
-                    continue;
-                }
-
-                $this->inventoryService->decrease($input->item, (float) $input->quantity_used);
-            }
 
             $totalInputCost = 0.0;
             foreach ($production->inputs as $input) {
