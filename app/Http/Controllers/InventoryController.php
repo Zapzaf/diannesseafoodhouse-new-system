@@ -14,6 +14,7 @@ use App\Models\Location;
 use App\Models\Transfer;
 use App\Services\InventoryService;
 use App\Support\InventoryQuantity;
+use App\Support\InventoryUnit;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -167,6 +168,7 @@ class InventoryController extends Controller
             'categoryOptions' => $categoryOptions,
             'selectedCategoryId' => $selectedCategoryOption['id'] ?? null,
             'selectedCategoryBranchId' => $selectedCategoryOption['branch_id'] ?? null,
+            'unitOptions' => InventoryUnit::options(),
         ]);
     }
 
@@ -207,6 +209,7 @@ class InventoryController extends Controller
 
         return view('inventory.edit', [
             'inventory' => $inventory,
+            'unitOptions' => InventoryUnit::options(),
             'categoryOptions' => Category::with('location')
                 ->when($branchId, fn ($query, $branchId) => $query->where('branch_id', $branchId))
                 ->orderBy('name')
@@ -355,7 +358,7 @@ class InventoryController extends Controller
         $branchId = $this->resolveBranchId($request);
 
         return view('transactions.create', [
-            'items' => Item::with(['category.location', 'branch'])
+            'items' => Item::with(['category.location'])
                 ->when($branchId, fn ($query, $branchId) => $query->where('branch_id', $branchId))
                 ->orderBy('name')
                 ->get(),
@@ -371,7 +374,6 @@ class InventoryController extends Controller
             'items' => ['required', 'array', 'min:1'],
             'items.*.item_id' => ['required', 'exists:items,id'],
             'items.*.quantity' => ['required', 'numeric', 'gt:0'],
-            'items.*.transaction_price' => ['nullable', 'numeric', 'min:0'],
             'type' => ['required', 'in:in,out'],
             'reason' => ['required', 'string', 'max:255'],
             'transaction_date' => ['nullable', 'date'],
@@ -404,9 +406,12 @@ class InventoryController extends Controller
 
         DB::transaction(function () use ($validated, $request): void {
             foreach ($validated['items'] as $row) {
-                $item = Item::findOrFail($row['item_id']);
+                $item = Item::query()->lockForUpdate()->findOrFail($row['item_id']);
                 $quantity = (float) $row['quantity'];
                 $beginning = (float) $item->quantity;
+                $transactionPrice = $item->unit_price !== null
+                    ? (float) $item->unit_price * $quantity
+                    : null;
 
                 if ($validated['type'] === 'in') {
                     $this->inventoryService->increase($item, $quantity);
@@ -423,7 +428,7 @@ class InventoryController extends Controller
                     'quantity' => $quantity,
                     'beginning_quantity' => $beginning,
                     'remaining_quantity' => $remaining,
-                    'transaction_price' => isset($row['transaction_price']) ? (float) $row['transaction_price'] : null,
+                    'transaction_price' => $transactionPrice,
                     'transaction_date' => $validated['transaction_date'] ?? now(),
                     'reason' => $validated['reason'],
                     'status' => 'approved',
@@ -514,14 +519,20 @@ class InventoryController extends Controller
             return back()->with('error', 'Destination branch must be different from the source branch.');
         }
 
-        $destinationItemBelongsToBranch = Item::query()
+        $destinationItem = Item::query()
             ->whereKey($validated['destination_item_id'])
             ->where('branch_id', $validated['destination_branch_id'])
-            ->exists();
+            ->first();
 
-        if (! $destinationItemBelongsToBranch) {
+        if (! $destinationItem) {
             throw ValidationException::withMessages([
                 'destination_item_id' => 'The destination item must belong to the selected destination branch.',
+            ]);
+        }
+
+        if (! InventoryUnit::matches($inventory->unit, $destinationItem->unit)) {
+            throw ValidationException::withMessages([
+                'destination_item_id' => "The destination item unit ({$destinationItem->unit}) must match the source item unit ({$inventory->unit}).",
             ]);
         }
 

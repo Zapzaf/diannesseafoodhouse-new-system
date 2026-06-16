@@ -244,7 +244,6 @@
             'id'        => $item->id,
             'name'      => $item->name,
             'branch_id' => $item->branch_id,
-            'branch'    => $item->branch?->name ?? '—',
             'location'  => $item->category?->location?->name ?? '—',
             'category'  => $item->category?->name ?? '—',
             'quantity'  => (float) $item->quantity,
@@ -260,30 +259,42 @@
     const addBtn = document.getElementById('addItemBtn');
     const form = document.getElementById('transactionForm');
     const typeSelect = document.getElementById('transaction_type');
+    const MAX_SEARCH_RESULTS = 30;
+    const itemsByBranch = new Map();
+    const itemsById = new Map();
+    const alertIcon = ico('alert-triangle');
 
     let rowIndex = 0;
+
+    allItems.forEach(item => {
+        itemsById.set(item.id, item);
+        item.searchText = `${item.name} ${item.location} ${item.category} ${item.unit}`.toLowerCase();
+        const branchItems = itemsByBranch.get(item.branch_id) || [];
+        branchItems.push(item);
+        itemsByBranch.set(item.branch_id, branchItems);
+    });
 
     // ────────────────────────────────────
     //  Get currently visible items
     // ────────────────────────────────────
     function getFilteredItems() {
-        let items = allItems;
         if (isAdminAll && branchFilter) {
             const bid = parseInt(branchFilter.value);
             if (!bid) return [];
-            items = items.filter(i => i.branch_id === bid);
+            return itemsByBranch.get(bid) || [];
         }
-        return items;
+
+        return allItems;
     }
 
     // ────────────────────────────────────
     //  Get item IDs already selected
     // ────────────────────────────────────
     function getSelectedItemIds() {
-        const ids = [];
+        const ids = new Set();
         container.querySelectorAll('input[data-selected-item-id]').forEach(input => {
             const val = parseInt(input.value);
-            if (val) ids.push(val);
+            if (val) ids.add(val);
         });
         return ids;
     }
@@ -303,10 +314,10 @@
         div.innerHTML = `
             <div class="item-name">${escapeHtml(item.name)}</div>
             <div class="item-meta">
-                <span>${ico('map-pin')} ${escapeHtml(item.location)}</span>
-                <span>${ico('folder')} ${escapeHtml(item.category)}</span>
-                <span class="badge-stock ${stockClass}">${ico('package')} ${item.quantity} ${escapeHtml(item.unit)}</span>
-                <span>${ico('dollar-sign')} ${item.price !== null ? '₱' + Number(item.price).toFixed(2) : '—'}</span>
+                <span>${escapeHtml(item.location)}</span>
+                <span>${escapeHtml(item.category)}</span>
+                <span class="badge-stock ${stockClass}">${item.quantity} ${escapeHtml(item.unit)}</span>
+                <span>${item.price !== null ? '₱' + Number(item.price).toFixed(2) : '—'}</span>
             </div>
         `;
         return div;
@@ -340,14 +351,13 @@
                     <label class="form-label small text-muted mb-1">Quantity</label>
                     <input type="number" name="items[${idx}][quantity]" step="0.01" min="0.01"
                            class="form-control item-qty-input" placeholder="0" required>
-                    <div class="stock-warning">${ico('alert-triangle')} Exceeds available stock!</div>
+                    <div class="stock-warning">${alertIcon} Exceeds available stock!</div>
                 </div>
                 <div class="col-md-4">
-                    <label class="form-label small text-muted mb-1">Transaction Price <span class="text-muted">(optional)</span></label>
+                    <label class="form-label small text-muted mb-1">Transaction Price <span class="text-muted">(automatic)</span></label>
                     <div class="input-group">
                         <span class="input-group-text">₱</span>
-                        <input type="number" name="items[${idx}][transaction_price]" step="0.01" min="0"
-                               class="form-control item-price-input" placeholder="0.00">
+                        <input type="text" class="form-control item-price-input" placeholder="Select an item" disabled>
                     </div>
                 </div>
             </div>
@@ -398,28 +408,50 @@
             const selectedIds = getSelectedItemIds();
             const q = query.trim().toLowerCase();
 
-            let filtered = items.filter(i => !selectedIds.includes(i.id) || i.id === parseInt(hiddenInput.value));
-            if (q) {
-                filtered = filtered.filter(i =>
-                    i.name.toLowerCase().includes(q) ||
-                    i.location.toLowerCase().includes(q) ||
-                    i.category.toLowerCase().includes(q) ||
-                    i.unit.toLowerCase().includes(q)
-                );
+            if (!q) {
+                dropdown.innerHTML = '<div class="item-search-no-results">Type to search items by name, location, category, or unit.</div>';
+                dropdown.classList.add('show');
+                return;
+            }
+
+            const currentItemId = parseInt(hiddenInput.value);
+            const filtered = [];
+            let hasMore = false;
+
+            for (const item of items) {
+                if ((selectedIds.has(item.id) && item.id !== currentItemId) || !item.searchText.includes(q)) {
+                    continue;
+                }
+
+                if (filtered.length >= MAX_SEARCH_RESULTS) {
+                    hasMore = true;
+                    break;
+                }
+
+                filtered.push(item);
             }
 
             dropdown.innerHTML = '';
             if (filtered.length === 0) {
                 dropdown.innerHTML = '<div class="item-search-no-results">No items found</div>';
             } else {
+                const fragment = document.createDocumentFragment();
                 filtered.forEach(item => {
                     const opt = renderOption(item);
                     opt.addEventListener('mousedown', (e) => {
                         e.preventDefault();
                         selectItem(item);
                     });
-                    dropdown.appendChild(opt);
+                    fragment.appendChild(opt);
                 });
+                dropdown.appendChild(fragment);
+
+                if (hasMore) {
+                    dropdown.insertAdjacentHTML(
+                        'beforeend',
+                        `<div class="item-search-no-results">Showing the first ${MAX_SEARCH_RESULTS} matches. Type more to narrow the results.</div>`
+                    );
+                }
             }
             dropdown.classList.add('show');
         }
@@ -474,7 +506,7 @@
             const qty  = parseFloat(qtyInput.value) || 0;
 
             if (type === 'out' && qty > selectedItem.quantity) {
-                stockWarning.innerHTML = `${ico('alert-triangle')} Exceeds available stock! Only ${selectedItem.quantity} ${selectedItem.unit} available.`;
+                stockWarning.innerHTML = `${alertIcon} Exceeds available stock! Only ${selectedItem.quantity} ${selectedItem.unit} available.`;
                 stockWarning.classList.add('show');
             } else {
                 stockWarning.classList.remove('show');
@@ -485,9 +517,12 @@
         }
 
         function updatePrice() {
-            if (!selectedItem || selectedItem.price === null) return;
+            if (!selectedItem || selectedItem.price === null) {
+                priceInput.value = selectedItem ? 'No item price set' : '';
+                return;
+            }
             const qty = parseFloat(qtyInput.value) || 0;
-            priceInput.value = qty > 0 ? (selectedItem.price * qty).toFixed(2) : '';
+            priceInput.value = qty > 0 ? Number(selectedItem.price * qty).toFixed(2) : Number(selectedItem.price).toFixed(2);
         }
     }
 
@@ -549,10 +584,10 @@
             }
 
             if (type === 'out') {
-                const item = allItems.find(i => i.id === itemId);
+                const item = itemsById.get(itemId);
                 if (item && qty > item.quantity) {
                     hasError = true;
-                    stockWarning.innerHTML = `${ico('alert-triangle')} Exceeds available stock! Only ${item.quantity} ${item.unit} available.`;
+                    stockWarning.innerHTML = `${alertIcon} Exceeds available stock! Only ${item.quantity} ${item.unit} available.`;
                     stockWarning.classList.add('show');
                     qtyInput.classList.add('is-invalid');
                 }

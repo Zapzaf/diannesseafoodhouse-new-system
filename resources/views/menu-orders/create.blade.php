@@ -1274,7 +1274,7 @@
         rowsToAdd.forEach(function(item, idx) {
             var index = orderItemsBody.querySelectorAll('.item-row').length + idx;
             var imgHtml = item.image
-                ? '<img src="' + item.image + '" style="max-width:50px;max-height:50px;border-radius:4px;">'
+                ? '<img src="' + escapeAttribute(item.image) + '" style="max-width:50px;max-height:50px;border-radius:4px;">'
                 : '<span class="text-muted" style="font-size:10px;">No img</span>';
 
             var row = document.createElement('tr');
@@ -1287,11 +1287,11 @@
                 '<div style="width:50px;height:50px;margin:0 auto;display:flex;align-items:center;justify-content:center;">' + imgHtml + '</div>' +
                 '</td>' +
                 '<td class="item-menu-name">' +
-                item.menuName +
-                '<input type="hidden" name="items[' + index + '][menu_id]" value="' + item.menuId + '" data-price="' + item.price + '">' +
+                escapeHtml(item.menuName) +
+                '<input type="hidden" name="items[' + index + '][menu_id]" value="' + escapeAttribute(item.menuId) + '" data-price="' + escapeAttribute(item.price) + '">' +
                 '</td>' +
                 '<td class="item-qty-cell">' +
-                '<input type="number" name="items[' + index + '][quantity]" class="form-control item-qty" min="1" max="999" value="' + item.qty + '" required>' +
+                '<input type="number" name="items[' + index + '][quantity]" class="form-control item-qty" min="1" max="999" value="' + escapeAttribute(item.qty) + '" required>' +
                 '</td>' +
                 '<td class="text-end item-unit-price">\u20B1' + Number(item.price).toFixed(2) + '</td>' +
                 '<td class="text-end fw-semibold item-line-total">\u20B1' + (Number(item.price) * item.qty).toFixed(2) + '</td>' +
@@ -1312,6 +1312,16 @@
             setTimeout(function() { feather.replace(); }, 100);
         }
         });
+    }
+
+    function escapeHtml(value) {
+        var div = document.createElement('div');
+        div.textContent = value == null ? '' : String(value);
+        return div.innerHTML;
+    }
+
+    function escapeAttribute(value) {
+        return escapeHtml(value).replace(/`/g, '&#x60;');
     }
 
     menuOrderForm.addEventListener('submit', function (event) {

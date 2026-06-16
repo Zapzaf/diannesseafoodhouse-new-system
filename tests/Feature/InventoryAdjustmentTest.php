@@ -35,6 +35,56 @@ function inventoryAdjustmentItem(object $test, string $name, string $unit, float
     ]);
 }
 
+it('shows database-compatible units in inventory create and edit dropdowns', function () {
+    $item = inventoryAdjustmentItem($this, 'Frozen Shrimp', 'pcs');
+
+    $this->actingAs($this->user)
+        ->get(route('inventory.create'))
+        ->assertOk()
+        ->assertSee('value="pcs"', false)
+        ->assertDontSee('value="piece"', false)
+        ->assertSee('value="case"', false)
+        ->assertSee('value="tank"', false);
+
+    $this->actingAs($this->user)
+        ->get(route('inventory.edit', $item))
+        ->assertOk()
+        ->assertSee('value="pcs" selected', false)
+        ->assertDontSee('value="piece"', false);
+});
+
+it('renders the optimized transaction item search', function () {
+    inventoryAdjustmentItem($this, 'Frozen Shrimp', 'pcs');
+
+    $this->actingAs($this->user)
+        ->get(route('transactions.create'))
+        ->assertOk()
+        ->assertSee('MAX_SEARCH_RESULTS = 30', false)
+        ->assertSee('Type to search items by name, location, category, or unit.', false)
+        ->assertDontSee('Item Model unit price × quantity', false)
+        ->assertDontSee('name="items[${idx}][transaction_price]"', false)
+        ->assertDontSee('selectedIds.includes(', false);
+});
+
+it('uses the item model price for manual inventory transactions', function () {
+    $item = inventoryAdjustmentItem($this, 'Priced Shrimp', 'pcs');
+    $item->update(['unit_price' => 125]);
+
+    $this->actingAs($this->user)
+        ->post(route('transactions.store'), [
+            'items' => [[
+                'item_id' => $item->id,
+                'quantity' => 2,
+                'transaction_price' => 1,
+            ]],
+            'type' => 'in',
+            'reason' => 'Inventory Adjustment / Stock Correction',
+        ])
+        ->assertRedirect(route('transactions.index'));
+
+    expect((float) InventoryTransaction::query()->firstOrFail()->transaction_price)->toBe(250.0);
+});
+
 it('allows decimal stock additions for measurable units', function () {
     $item = inventoryAdjustmentItem($this, 'Cooking Oil', 'liters');
 

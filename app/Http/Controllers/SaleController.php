@@ -3,11 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreSaleRequest;
+use App\Models\Item;
 use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Services\InventoryService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class SaleController extends Controller
 {
@@ -20,9 +22,15 @@ class SaleController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        return response()->json(Sale::with(['items.item', 'user', 'branch'])->latest()->paginate((int) request('per_page', 20))->withQueryString());
+        return response()->json(
+            Sale::with(['items.item', 'user', 'branch'])
+                ->when(! $request->user()->isAdmin(), fn ($query) => $query->where('branch_id', $request->user()->branch_id))
+                ->latest()
+                ->paginate((int) request('per_page', 20))
+                ->withQueryString()
+        );
     }
 
     /**
@@ -31,10 +39,17 @@ class SaleController extends Controller
     public function store(StoreSaleRequest $request)
     {
         $validated = $request->validated();
+        $this->ensureBranchAccess($request, (int) $validated['branch_id']);
+        $this->ensureSaleItemsBelongToBranch($validated['items'], (int) $validated['branch_id']);
 
         $sale = DB::transaction(function () use ($validated, $request): Sale {
             $subtotal = 0.0;
             $vatTotal = 0.0;
+            $items = Item::query()
+                ->whereIn('id', collect($validated['items'])->pluck('item_id')->map(fn ($id) => (int) $id)->unique())
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
 
             $sale = Sale::create([
                 'reference_number' => 'SAL-' . now()->format('YmdHis') . '-' . random_int(100, 999),
@@ -46,7 +61,9 @@ class SaleController extends Controller
             ]);
 
             foreach ($validated['items'] as $row) {
-                $lineSubtotal = (float) $row['unit_price'] * (float) $row['quantity_sold'];
+                $item = $items->get((int) $row['item_id']);
+                $unitPrice = $item->unit_price !== null ? (float) $item->unit_price : 0.0;
+                $lineSubtotal = $unitPrice * (float) $row['quantity_sold'];
                 $vatAmount = $lineSubtotal * self::VAT_RATE;
                 $total = $lineSubtotal + $vatAmount;
 
@@ -55,15 +72,15 @@ class SaleController extends Controller
 
                 $line = SaleItem::create([
                     'sale_id' => $sale->id,
-                    'item_id' => $row['item_id'],
+                    'item_id' => $item->id,
                     'quantity_sold' => $row['quantity_sold'],
-                    'unit_price' => $row['unit_price'],
+                    'unit_price' => $unitPrice,
                     'subtotal' => $lineSubtotal,
                     'vat_amount' => $vatAmount,
                     'total' => $total,
                 ]);
 
-                $this->inventoryService->decrease($line->item, (float) $line->quantity_sold);
+                $this->inventoryService->decrease($item, (float) $line->quantity_sold);
             }
 
             $sale->update([
@@ -81,9 +98,12 @@ class SaleController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(string $id)
+    public function show(Request $request, string $id)
     {
-        return response()->json(Sale::with(['items.item', 'user', 'branch'])->findOrFail($id));
+        $sale = Sale::with(['items.item', 'user', 'branch'])->findOrFail($id);
+        $this->ensureBranchAccess($request, (int) $sale->branch_id);
+
+        return response()->json($sale);
     }
 
     /**
@@ -97,11 +117,40 @@ class SaleController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id)
+    public function destroy(Request $request, string $id)
     {
-        Sale::findOrFail($id)->delete();
+        $sale = Sale::findOrFail($id);
+        $this->ensureBranchAccess($request, (int) $sale->branch_id);
+        $sale->delete();
 
         return response()->json(status: 204);
+    }
+
+    private function ensureBranchAccess(Request $request, int $branchId): void
+    {
+        if (! $request->user()->isAdmin() && (int) $request->user()->branch_id !== $branchId) {
+            abort(403, 'This sale is outside your branch.');
+        }
+    }
+
+    private function ensureSaleItemsBelongToBranch(array $rows, int $branchId): void
+    {
+        $itemIds = collect($rows)
+            ->pluck('item_id')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        $scopedCount = Item::query()
+            ->whereIn('id', $itemIds)
+            ->where('branch_id', $branchId)
+            ->count();
+
+        if ($scopedCount !== $itemIds->count()) {
+            throw ValidationException::withMessages([
+                'items' => 'All sale items must belong to the selected branch.',
+            ]);
+        }
     }
 }
 

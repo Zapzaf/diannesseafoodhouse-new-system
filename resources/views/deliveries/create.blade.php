@@ -28,8 +28,14 @@
     <div class="container-xl px-4 mt-n10">
         @include('layouts.alerts')
 
-        <div class="card mb-4">
-            <div class="card-header fw-semibold">Delivery Details</div>
+        <div class="card shadow-sm mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="fw-semibold">Delivery Details</div>
+                    <div class="small text-muted">Add each delivered item, then choose where it should go.</div>
+                </div>
+                <span class="badge bg-primary">Destination required per row</span>
+            </div>
             <div class="card-body">
                 <form method="POST" action="{{ route('deliveries.store') }}" id="delivery-form">
                     @csrf
@@ -55,19 +61,20 @@
 
                         {{-- Non-admin or Admin: branch is fixed to selected branch --}}
                         <input type="hidden" name="destination_branch_id" value="{{ $selectedBranchId ?? '' }}">
+                    </div>
 
                     {{-- Items Table --}}
-                    <div class="mt-4 d-flex justify-content-between align-items-center">
+                    <div class="mt-4 d-flex justify-content-between align-items-center border-top pt-4">
                         <h6 class="mb-0 fw-semibold">Delivery Items</h6>
                         <button type="button" class="btn btn-sm btn-light" id="add-row">
                             <i data-feather="plus" class="me-1"></i> Add Item
                         </button>
                     </div>
-                    @error('items') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                    @error('items') <div class="alert alert-danger py-2 mt-3 mb-0">{{ $message }}</div> @enderror
 
                     <div class="table-responsive mt-3">
-                        <table class="table table-bordered align-middle" id="items-table">
-                            <thead class="table-dark">
+                        <table class="table table-bordered align-middle delivery-items-table" id="items-table">
+                            <thead class="table-light">
                                 <tr>
                                     <th style="min-width:200px">Item Description</th>
                                     <th style="min-width:90px">Quantity</th>
@@ -137,6 +144,7 @@
                                     <tr>
                                         <th>Item ID</th>
                                         <th>Item Name</th>
+                                        <th>Unit</th>
                                         <th>Quantity</th>
                                         <th>Location</th>
                                         <th>Category</th>
@@ -166,14 +174,10 @@ document.addEventListener('DOMContentLoaded', function () {
     let rowCount  = 0;
     let activeRow = null;
 
-    const UNITS = [
-        'kg','g','lbs','oz','pcs','cans','bottles','boxes','bags',
-        'liters','ml','dozens','trays','packs','rolls','gals','cups','tbsp','tsp'
-    ];
+    const UNITS = @json($deliveryUnitOptions);
 
     const itemsData         = @json($itemsForModal);
     let selectedBranchId     = parseInt(@json($selectedBranchId ?? 0)) || 0;
-    const isAdmin            = @json($user->isAdmin());
     const transferSourceItemId = parseInt(@json(request('source_item_id'))) || 0;
     const transferQty = parseFloat(@json(request('quantity'))) || 0;
     const transferReason = @json(request('reason', ''));
@@ -183,7 +187,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // ── Row builder ───────────────────────────────────────────────────────────
     function unitOptions() {
-        return UNITS.map(u => `<option value="${u}">${u}</option>`).join('');
+        return '<option value="">Select Unit</option>'
+            + Object.entries(UNITS).map(([value, label]) => `<option value="${value}">${label}</option>`).join('');
     }
 
     function buildRow(index) {
@@ -199,7 +204,7 @@ document.addEventListener('DOMContentLoaded', function () {
                        class="form-control" step="0.01" min="0.01" placeholder="0.00" required>
             </td>
             <td>
-                <select name="items[${index}][unit]" class="form-select" required>
+                <select name="items[${index}][unit]" class="form-select row-unit" required>
                     ${unitOptions()}
                 </select>
             </td>
@@ -210,9 +215,15 @@ document.addEventListener('DOMContentLoaded', function () {
             <td>
                 <input type="hidden" name="items[${index}][item_id]" class="row-item-id" value="">
                 <input type="hidden" name="items[${index}][allocated_to]" class="row-allocated" value="">
-                <div class="d-flex align-items-center gap-2">
-                    <span class="dest-label badge bg-secondary">Not set</span>
-                    <button type="button" class="btn btn-sm btn-outline-primary btn-dest">Select</button>
+                <div class="destination-control">
+                    <button type="button" class="btn btn-sm btn-outline-primary btn-dest w-100">
+                        <i data-feather="map-pin"></i> Select Destination
+                    </button>
+                    <div class="dest-selection d-none">
+                        <span class="dest-label"></span>
+                        <button type="button" class="btn-clear-dest" aria-label="Clear destination">&times;</button>
+                    </div>
+                    <div class="destination-error small text-danger mt-1 d-none"></div>
                 </div>
             </td>
             <td>
@@ -261,7 +272,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const label = matched ? matched.name : ('#' + transferDestinationItemId);
                 if (badge) {
                     badge.textContent = `Inventory (${label})`;
-                    badge.className = 'dest-label badge bg-primary';
+                    showDestination(firstRow, 'inventory');
                 }
 
                 // If we can, auto-fill price: destination unit_price × qty
@@ -286,6 +297,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
+        const missingDescriptions = [];
         let hasError = false;
         rows.forEach((row, i) => {
             const alloc = row.querySelector('.row-allocated').value;
@@ -293,18 +305,20 @@ document.addEventListener('DOMContentLoaded', function () {
             
             if (!alloc) {
                 hasError = true;
-                row.style.border = '2px solid red';
+                missingDescriptions.push(row.querySelector('input[name$="[description]"]').value.trim() || `Item ${i + 1}`);
+                markDestinationError(row, 'Select a destination.');
             } else if (alloc === 'inventory' && !itemId) {
                 hasError = true;
-                row.style.border = '2px solid red';
+                missingDescriptions.push(row.querySelector('input[name$="[description]"]').value.trim() || `Item ${i + 1}`);
+                markDestinationError(row, 'Select an inventory item.');
             } else {
-                row.style.border = '';
+                markDestinationError(row, '');
             }
         });
 
         if (hasError) {
             e.preventDefault();
-            alert('Please select a valid destination for all items. If Inventory is selected, you must select an item.');
+            alert(`The following items do not have a destination selected: ${missingDescriptions.join(', ')}. Please select a destination before proceeding.`);
         }
     });
 
@@ -322,6 +336,12 @@ document.addEventListener('DOMContentLoaded', function () {
         if (destBtn) {
             activeRow = destBtn.closest('tr');
             openModal();
+            return;
+        }
+
+        const clearBtn = e.target.closest('.btn-clear-dest');
+        if (clearBtn) {
+            clearDestination(clearBtn.closest('tr'));
         }
     });
 
@@ -376,7 +396,7 @@ document.addEventListener('DOMContentLoaded', function () {
         activeRow.querySelector('input[name$="[allocated_to]"]').value = 'production';
         const badge = activeRow.querySelector('.dest-label');
         badge.textContent = 'Production';
-        badge.className = 'dest-label badge bg-warning text-white';
+        showDestination(activeRow, 'production');
         destModal.hide();
     });
 
@@ -413,6 +433,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 <tr>
                     <td class="text-muted small">#${item.id}</td>
                     <td>${esc(item.name)}</td>
+                    <td><span class="badge bg-light text-dark">${esc(item.unit)}</span></td>
                     <td>${item.quantity.toFixed(2)}</td>
                     <td>${esc(item.location)}</td>
                     <td>${esc(item.category)}</td>
@@ -424,7 +445,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         </button>
                     </td>
                 </tr>`).join('')
-            : `<tr><td colspan="6" class="text-center text-muted py-3">No items found.</td></tr>`;
+            : `<tr><td colspan="7" class="text-center text-muted py-3">No items found.</td></tr>`;
 
         noResultsMsg.style.display = (q || destBranchId) ? 'none' : 'block';
     }
@@ -435,6 +456,13 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!btn || !activeRow) return;
         pendingItemId   = btn.dataset.itemId;
         pendingItemName = btn.dataset.itemName;
+
+        const selectedItem = itemsData.find(item => String(item.id) === String(pendingItemId));
+        const deliveryUnit = activeRow.querySelector('.row-unit').value;
+        if (selectedItem && selectedItem.unit_key !== normalizeUnit(deliveryUnit)) {
+            alert(`Unit mismatch: the delivery item uses ${deliveryUnit}, but ${selectedItem.name} uses ${selectedItem.unit}. Select a matching inventory item or update the delivery unit.`);
+            return;
+        }
 
         activeRow.querySelector('input[name$="[item_id]"]').value      = pendingItemId;
         activeRow.querySelector('input[name$="[allocated_to]"]').value = 'inventory';
@@ -450,7 +478,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const badge = activeRow.querySelector('.dest-label');
         badge.textContent = `Inventory (${pendingItemName})`;
-        badge.className = 'dest-label badge bg-primary';
+        showDestination(activeRow, 'inventory');
 
         destModal.hide();
     });
@@ -460,6 +488,77 @@ document.addEventListener('DOMContentLoaded', function () {
         d.textContent = str;
         return d.innerHTML;
     }
+
+    function normalizeUnit(unit) {
+        const aliases = {
+            pc: 'pcs', piece: 'pcs', pieces: 'pcs',
+            boxes: 'box', packs: 'pack', bottles: 'bottle', cans: 'can',
+            rolls: 'roll', sets: 'set', pairs: 'pair', dozens: 'dozen',
+            trays: 'tray', tanks: 'tank', bags: 'bag', cups: 'cup',
+            liter: 'l', liters: 'l', litre: 'l', litres: 'l',
+            gallon: 'gal', gallons: 'gal', lb: 'lbs', pound: 'lbs', pounds: 'lbs'
+        };
+        const normalized = String(unit || '').trim().toLowerCase();
+        return aliases[normalized] || normalized;
+    }
+
+    function showDestination(row, type) {
+        row.querySelector('.btn-dest').classList.add('d-none');
+        row.querySelector('.dest-selection').classList.remove('d-none');
+        row.querySelector('.dest-selection').classList.toggle('destination-production', type === 'production');
+        markDestinationError(row, '');
+    }
+
+    function clearDestination(row) {
+        row.querySelector('.row-item-id').value = '';
+        row.querySelector('.row-allocated').value = '';
+        row.querySelector('.dest-label').textContent = '';
+        row.querySelector('.dest-selection').classList.add('d-none');
+        row.querySelector('.dest-selection').classList.remove('destination-production');
+        row.querySelector('.btn-dest').classList.remove('d-none');
+    }
+
+    function markDestinationError(row, message) {
+        const error = row.querySelector('.destination-error');
+        error.textContent = message;
+        error.classList.toggle('d-none', !message);
+        row.classList.toggle('table-danger', Boolean(message));
+    }
 });
 </script>
+@endpush
+
+@push('styles')
+<style>
+.delivery-items-table th { white-space: nowrap; }
+.delivery-items-table td { padding: .85rem; }
+.destination-control { min-width: 220px; }
+.destination-control svg { width: 14px; height: 14px; }
+.dest-selection {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .5rem;
+    padding: .45rem .55rem .45rem .75rem;
+    border: 1px solid rgba(0, 97, 242, .25);
+    border-radius: .5rem;
+    color: #0061f2;
+    background: rgba(0, 97, 242, .08);
+    font-size: .85rem;
+    font-weight: 600;
+}
+.dest-selection.destination-production {
+    color: #855400;
+    border-color: rgba(245, 158, 11, .35);
+    background: rgba(245, 158, 11, .12);
+}
+.btn-clear-dest {
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: inherit;
+    font-size: 1.25rem;
+    line-height: 1;
+}
+</style>
 @endpush

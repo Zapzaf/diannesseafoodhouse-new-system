@@ -45,32 +45,13 @@
                     </div>
                     <div class="col-md-4 mb-3">
                         <label class="form-label fw-semibold">Unit</label>
-                        @php
-                            $unitOptions = [
-                                'pcs',        // pieces (individual items)
-                                'kg',         // kilograms (weight)
-                                'g',          // grams (small weight)
-                                'l',          // liters (liquid)
-                                'ml',         // milliliters (small liquid)
-                                'gal',        // gallons
-                                'box',        // boxed items
-                                'pack',       // packs/bundles
-                                'bottle',     // bottled items
-                                'can',        // canned goods
-                                'roll',       // tissue, paper rolls
-                                'set',        // grouped items
-                                'pair',       // items in twos (e.g., slippers)
-                                'dozen',      // 12 pieces
-                                'tray'        // eggs, supplies, etc.
-                            ];
-                            $selectedUnit = (string) old('unit', $inventory->unit);
-                        @endphp
+                        @php($selectedUnit = (string) old('unit', $inventory->unit))
                         <select name="unit" class="form-select">
                             <option value="">Select Unit</option>
-                            @foreach($unitOptions as $unit)
-                            <option value="{{ $unit }}" {{ $selectedUnit === $unit ? 'selected' : '' }}>{{ strtolower($unit) }}</option>
+                            @foreach($unitOptions as $value => $label)
+                            <option value="{{ $value }}" {{ $selectedUnit === $value ? 'selected' : '' }}>{{ $label }}</option>
                             @endforeach
-                            @if($selectedUnit !== '' && !in_array($selectedUnit, $unitOptions, true))
+                            @if($selectedUnit !== '' && !array_key_exists($selectedUnit, $unitOptions))
                             <option value="{{ $selectedUnit }}" selected>{{ strtolower($selectedUnit) }} (Current)</option>
                             @endif
                         </select>

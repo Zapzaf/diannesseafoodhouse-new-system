@@ -80,32 +80,16 @@
                             <tbody>
                                 <tr>
                                     <td>
-                                        <select name="outputs[0][item_id]" class="form-select" required>
-                                            <option value="">Select item</option>
-                                            @foreach($items as $item)
-                                            <option value="{{ $item->id }}">#{{ $item->id }} - {{ $item->name }} ({{ $item->category?->location?->name ?? 'N/A' }} / {{ $item->category?->name ?? 'N/A' }})</option>
-                                            @endforeach
-                                        </select>
+                                        <div class="item-picker">
+                                            <input type="search" class="form-control item-picker-search" placeholder="Search item by name or ID" autocomplete="off" required>
+                                            <input type="hidden" name="outputs[0][item_id]" data-output-field="item_id">
+                                            <div class="item-picker-results d-none"></div>
+                                        </div>
                                     </td>
                                     <td><input type="number" step="0.01" min="0.01" name="outputs[0][quantity_produced]" class="form-control" required></td>
                                     <td>
-                                        <select name="outputs[0][unit]" class="form-select" required>
-                                            <option value="pcs">pcs</option>
-                                            <option value="kg">kg</option>
-                                            <option value="g">g</option>
-                                            <option value="lbs">lbs</option>
-                                            <option value="oz">oz</option>
-                                            <option value="liters">liters</option>
-                                            <option value="ml">ml</option>
-                                            <option value="boxes">boxes</option>
-                                            <option value="bags">bags</option>
-                                            <option value="packs">packs</option>
-                                            <option value="trays">trays</option>
-                                            <option value="rolls">rolls</option>
-                                            <option value="cans">cans</option>
-                                            <option value="bottles">bottles</option>
-                                            <option value="dozens">dozens</option>
-                                        </select>
+                                        <input type="text" class="form-control unit-display" value="Select an item" disabled>
+                                        <input type="hidden" name="outputs[0][unit]" data-output-field="unit">
                                     </td>
                                     <td class="table-actions-cell text-center"><button type="button" class="btn btn-sm btn-outline-danger remove-row">Remove</button></td>
                                 </tr>
@@ -131,6 +115,7 @@
                                     <th>Reason</th>
                                     <th>Convert To</th>
                                     <th>Converted Qty</th>
+                                    <th>Convert Unit</th>
                                     <th class="table-actions-head">Action</th>
                                 </tr>
                             </thead>
@@ -142,14 +127,14 @@
                                     <td><input type="number" step="0.01" min="0.01" name="wastage[0][quantity_lost]" class="form-control" data-field="quantity_lost"></td>
                                     <td><input type="text" name="wastage[0][reason]" class="form-control" data-field="reason"></td>
                                     <td>
-                                        <select name="wastage[0][convert_to_item_id]" class="form-select" data-field="convert_to_item_id">
-                                            <option value="">No conversion</option>
-                                            @foreach($items as $item)
-                                            <option value="{{ $item->id }}">#{{ $item->id }} - {{ $item->name }} ({{ $item->category?->location?->name ?? 'N/A' }} / {{ $item->category?->name ?? 'N/A' }})</option>
-                                            @endforeach
-                                        </select>
+                                        <div class="item-picker">
+                                            <input type="search" class="form-control item-picker-search" placeholder="Search item (optional)" autocomplete="off">
+                                            <input type="hidden" name="wastage[0][convert_to_item_id]" data-field="convert_to_item_id">
+                                            <div class="item-picker-results d-none"></div>
+                                        </div>
                                     </td>
                                     <td><input type="number" step="0.01" min="0.01" name="wastage[0][converted_quantity]" class="form-control" data-field="converted_quantity"></td>
+                                    <td><input type="text" class="form-control unit-display" value="No conversion" disabled></td>
                                     <td class="table-actions-cell text-center"><button type="button" class="btn btn-sm btn-outline-danger remove-row">Remove</button></td>
                                 </tr>
                             </tbody>
@@ -171,18 +156,7 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    const itemOptions = @json($items->map(fn ($item) => ['id' => $item->id, 'label' => '#' . $item->id . ' - ' . $item->name . ' (' . ($item->category?->location?->name ?? 'N/A') . ' / ' . ($item->category?->name ?? 'N/A') . ')'])->values());
-    const unitOptions = ['pcs','kg','g','lbs','oz','liters','ml','boxes','bags','packs','trays','rolls','cans','bottles','dozens'];
-
-    function selectOptions(includeBlankLabel = 'Select item') {
-        return [`<option value="">${includeBlankLabel}</option>`]
-            .concat(itemOptions.map(item => `<option value="${item.id}">${item.label}</option>`))
-            .join('');
-    }
-
-    function unitSelectOptions() {
-        return unitOptions.map(unit => `<option value="${unit}">${unit}</option>`).join('');
-    }
+    const itemOptions = @json($items->map(fn ($item) => ['id' => $item->id, 'unit' => $item->unit, 'label' => '#' . $item->id . ' - ' . $item->name . ' (' . ($item->category?->location?->name ?? 'N/A') . ' / ' . ($item->category?->name ?? 'N/A') . ')'])->values());
 
     function bindDynamicTable(tableId, addButtonId, rowFactory, inputKeys) {
         const tableBody = document.querySelector(`#${tableId} tbody`);
@@ -234,9 +208,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     bindDynamicTable('production-outputs-table', 'add-output-row', function () {
         return `
-            <td><select class="form-select" data-output-field="item_id" required>${selectOptions()}</select></td>
+            <td><div class="item-picker"><input type="search" class="form-control item-picker-search" placeholder="Search item by name or ID" autocomplete="off" required><input type="hidden" data-output-field="item_id"><div class="item-picker-results d-none"></div></div></td>
             <td><input type="number" step="0.01" min="0.01" class="form-control" data-output-field="quantity_produced" required></td>
-            <td><select class="form-select" data-output-field="unit" required>${unitSelectOptions()}</select></td>
+            <td><input type="text" class="form-control unit-display" value="Select an item" disabled><input type="hidden" data-output-field="unit"></td>
             <td class="table-actions-cell text-center"><button type="button" class="btn btn-sm btn-outline-danger remove-row">Remove</button></td>
         `;
     }, []);
@@ -246,11 +220,74 @@ document.addEventListener('DOMContentLoaded', function () {
             <td><input type="text" class="form-control" data-field="scrap_name" placeholder="e.g. fish bones, skin"></td>
             <td><input type="number" step="0.01" min="0.01" class="form-control" data-field="quantity_lost"></td>
             <td><input type="text" class="form-control" data-field="reason"></td>
-            <td><select class="form-select" data-field="convert_to_item_id">${selectOptions('No conversion')}</select></td>
+            <td><div class="item-picker"><input type="search" class="form-control item-picker-search" placeholder="Search item (optional)" autocomplete="off"><input type="hidden" data-field="convert_to_item_id"><div class="item-picker-results d-none"></div></div></td>
             <td><input type="number" step="0.01" min="0.01" class="form-control" data-field="converted_quantity"></td>
+            <td><input type="text" class="form-control unit-display" value="No conversion" disabled></td>
             <td class="table-actions-cell text-center"><button type="button" class="btn btn-sm btn-outline-danger remove-row">Remove</button></td>
         `;
     }, ['scrap_name', 'quantity_lost', 'reason', 'convert_to_item_id', 'converted_quantity']);
+
+    document.addEventListener('input', function (event) {
+        if (!event.target.classList.contains('item-picker-search')) return;
+        const row = event.target.closest('tr');
+        const hidden = row.querySelector('[data-output-field="item_id"], [data-field="convert_to_item_id"]');
+        hidden.value = '';
+        const unitDisplay = row.querySelector('.unit-display');
+        unitDisplay.value = hidden.hasAttribute('data-output-field') ? 'Select an item' : 'No conversion';
+        const unitHidden = row.querySelector('[data-output-field="unit"]');
+        if (unitHidden) unitHidden.value = '';
+        renderResults(event.target);
+    });
+
+    document.addEventListener('focusin', function (event) {
+        if (event.target.classList.contains('item-picker-search')) renderResults(event.target);
+    });
+
+    document.addEventListener('click', function (event) {
+        const option = event.target.closest('.item-picker-option');
+        if (option) {
+            const row = option.closest('tr');
+            const item = itemOptions.find(candidate => String(candidate.id) === option.dataset.itemId);
+            const hidden = row.querySelector('[data-output-field="item_id"], [data-field="convert_to_item_id"]');
+            row.querySelector('.item-picker-search').value = item.label;
+            hidden.value = item.id;
+            row.querySelector('.unit-display').value = item.unit;
+            const unitHidden = row.querySelector('[data-output-field="unit"]');
+            if (unitHidden) unitHidden.value = item.unit;
+            row.querySelector('.item-picker-results').classList.add('d-none');
+            return;
+        }
+
+        if (!event.target.closest('.item-picker')) {
+            document.querySelectorAll('.item-picker-results').forEach(results => results.classList.add('d-none'));
+        }
+    });
+
+    function renderResults(input) {
+        const query = input.value.trim().toLowerCase();
+        const results = input.closest('.item-picker').querySelector('.item-picker-results');
+        const matches = itemOptions.filter(item => item.label.toLowerCase().includes(query)).slice(0, 20);
+        results.innerHTML = matches.length
+            ? matches.map(item => `<button type="button" class="item-picker-option" data-item-id="${item.id}"><span>${escapeHtml(item.label)}</span><strong>${escapeHtml(item.unit)}</strong></button>`).join('')
+            : '<div class="p-3 text-muted small">No matching items.</div>';
+        results.classList.remove('d-none');
+    }
+
+    function escapeHtml(value) {
+        const div = document.createElement('div');
+        div.textContent = value;
+        return div.innerHTML;
+    }
 });
 </script>
+@endpush
+
+@push('styles')
+<style>
+.item-picker { position: relative; min-width: 280px; }
+.item-picker-results { position: absolute; z-index: 1050; top: calc(100% + .25rem); left: 0; right: 0; max-height: 280px; overflow-y: auto; border: 1px solid #d4dae3; border-radius: .5rem; background: #fff; box-shadow: 0 .5rem 1rem rgba(33, 40, 50, .12); }
+.item-picker-option { display: flex; width: 100%; justify-content: space-between; gap: 1rem; padding: .65rem .75rem; border: 0; border-bottom: 1px solid #edf0f4; background: #fff; text-align: left; font-size: .85rem; }
+.item-picker-option:hover { background: #f2f6fc; color: #0061f2; }
+.unit-display:disabled { background: #f2f6fc; color: #475569; font-weight: 600; }
+</style>
 @endpush

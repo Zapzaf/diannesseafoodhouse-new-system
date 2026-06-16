@@ -2,67 +2,56 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\WastageItem;
+use App\Models\ProductionOrder;
 use App\Models\WastageReport;
-use App\Services\InventoryService;
+use App\Services\WastageInventoryService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 
 class WastageReportController extends Controller
 {
-    public function __construct(private readonly InventoryService $inventoryService)
+    public function __construct(private readonly WastageInventoryService $wastageInventoryService)
     {
     }
 
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        return response()->json(WastageReport::with(['items.item', 'items.convertedItem'])->latest()->paginate((int) request('per_page', 20))->withQueryString());
+        return response()->json(
+            WastageReport::with(['items.item', 'items.convertedItem'])
+                ->when(! $request->user()->isAdmin(), fn ($query) => $query->where('branch_id', $request->user()->branch_id))
+                ->latest()
+                ->paginate((int) request('per_page', 20))
+                ->withQueryString()
+        );
     }
 
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(Request $request, string $id)
     {
         $validated = $request->validate([
-            'production_order_id' => ['required', 'exists:production_orders,id'],
-            'branch_id' => ['required', 'exists:branches,id'],
+            'production_order_id' => ['prohibited'],
+            'branch_id' => ['prohibited'],
             'items' => ['required', 'array', 'min:1'],
-            'items.*.item_id' => ['required', 'exists:items,id'],
+            'items.*.scrap_name' => ['nullable', 'string', 'max:255'],
             'items.*.quantity_lost' => ['required', 'numeric', 'gt:0'],
             'items.*.reason' => ['nullable', 'string', 'max:255'],
-            'items.*.convert_to_item_id' => ['nullable', 'exists:items,id'],
-            'items.*.converted_quantity' => ['nullable', 'numeric', 'gt:0'],
+            'items.*.convert_to_item_id' => ['nullable', 'exists:items,id', 'required_with:items.*.converted_quantity'],
+            'items.*.converted_quantity' => ['nullable', 'numeric', 'gt:0', 'required_with:items.*.convert_to_item_id'],
         ]);
 
-        $report = DB::transaction(function () use ($validated, $request): WastageReport {
-            $report = WastageReport::create([
-                'production_order_id' => $validated['production_order_id'],
-                'branch_id' => $validated['branch_id'],
-                'created_by' => $request->user()->id,
-            ]);
+        $production = ProductionOrder::query()->findOrFail($id);
 
-            foreach ($validated['items'] as $row) {
-                $wastageItem = WastageItem::create([
-                    'wastage_report_id' => $report->id,
-                    'item_id' => $row['item_id'],
-                    'quantity_lost' => $row['quantity_lost'],
-                    'reason' => $row['reason'] ?? null,
-                    'convert_to_item_id' => $row['convert_to_item_id'] ?? null,
-                    'converted_quantity' => $row['converted_quantity'] ?? null,
-                ]);
+        if (! $request->user()->isAdmin() && (int) $request->user()->branch_id !== (int) $production->branch_id) {
+            abort(403, 'This production order is outside your branch.');
+        }
 
-                $this->inventoryService->decrease($wastageItem->item, (float) $wastageItem->quantity_lost);
-
-                if ($wastageItem->convert_to_item_id && $wastageItem->converted_quantity) {
-                    $this->inventoryService->increase($wastageItem->convertedItem, (float) $wastageItem->converted_quantity);
-                }
-            }
-
-            return $report;
+        $report = DB::transaction(function () use ($validated, $request, $production): WastageReport {
+            return $this->wastageInventoryService->createFromProduction($production, $validated['items'], $request->user()->id);
         });
 
         return response()->json($report->load('items'), 201);
@@ -71,9 +60,14 @@ class WastageReportController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(string $id)
+    public function show(Request $request, string $id)
     {
-        return response()->json(WastageReport::with(['items.item', 'items.convertedItem'])->findOrFail($id));
+        $report = WastageReport::with(['items.item', 'items.convertedItem'])->findOrFail($id);
+        if (! $request->user()->isAdmin() && (int) $request->user()->branch_id !== (int) $report->branch_id) {
+            abort(403, 'This wastage report is outside your branch.');
+        }
+
+        return response()->json($report);
     }
 
     /**
@@ -87,9 +81,13 @@ class WastageReportController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id)
+    public function destroy(Request $request, string $id)
     {
-        WastageReport::findOrFail($id)->delete();
+        $report = WastageReport::findOrFail($id);
+        if (! $request->user()->isAdmin() && (int) $request->user()->branch_id !== (int) $report->branch_id) {
+            abort(403, 'This wastage report is outside your branch.');
+        }
+        $report->delete();
 
         return response()->json(status: 204);
     }

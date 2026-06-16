@@ -102,6 +102,7 @@ class DeliveryController extends Controller
         }
 
         DB::transaction(function () use ($delivery, $validated, $request): void {
+            $delivery->loadMissing('items.item', 'items.sourceItem');
             $allocMap = collect($validated['items'])->keyBy('delivery_item_id');
 
             foreach ($delivery->items as $item) {
@@ -126,7 +127,10 @@ class DeliveryController extends Controller
 
             if ($delivery->source_branch_id) {
                 foreach ($delivery->items as $item) {
-                    $this->inventoryService->decrease($item->item, (float) $item->quantity);
+                    $sourceItem = $item->sourceItem ?: $item->item;
+                    if ($sourceItem) {
+                        $this->inventoryService->decrease($sourceItem, (float) $item->quantity);
+                    }
                 }
             }
         });

@@ -865,6 +865,20 @@
                                 </nav>
                             </div>
 
+                            <!-- Waste Reports -->
+                            <a class="nav-link collapsed {{ request()->routeIs('waste-reports.*') ? 'active' : '' }}" href="#" data-bs-toggle="collapse"
+                               data-bs-target="#collapseWasteReports" aria-expanded="{{ request()->routeIs('waste-reports.*') ? 'true' : 'false' }}" aria-controls="collapseWasteReports">
+                                <div class="nav-link-icon"><i data-feather="alert-triangle"></i></div>
+                                Waste Reports
+                                <div class="sidenav-collapse-arrow"><i class="fas fa-angle-down"></i></div>
+                            </a>
+                            <div class="collapse {{ request()->routeIs('waste-reports.*') ? 'show' : '' }}" id="collapseWasteReports" data-bs-parent="#accordionSidenav">
+                                <nav class="sidenav-menu-nested nav">
+                                    <a class="nav-link {{ request()->routeIs('waste-reports.index') ? 'active' : '' }}" href="{{ route('waste-reports.index') }}">List Waste Reports</a>
+                                    <a class="nav-link {{ request()->routeIs('waste-reports.create') ? 'active' : '' }}" href="{{ route('waste-reports.create') }}">Create Waste Report</a>
+                                </nav>
+                            </div>
+
                             <!-- Delivery -->
                             <a class="nav-link collapsed {{ request()->routeIs('delivery.*') || request()->routeIs('deliveries.*') ? 'active' : '' }}" href="#" data-bs-toggle="collapse"
                                data-bs-target="#collapseDeliveries" aria-expanded="{{ request()->routeIs('delivery.*') || request()->routeIs('deliveries.*') ? 'true' : 'false' }}" aria-controls="collapseDeliveries">

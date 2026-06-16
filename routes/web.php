@@ -19,6 +19,7 @@ use App\Http\Controllers\ScrapController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\SupplierManagementController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\WasteReportController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -161,6 +162,13 @@ Route::middleware('auth')->group(function (): void {
 	// Scrap Materials routes (from nav)
 	Route::prefix('scrap')->name('scrap.')->group(function (): void {
 		Route::get('/', [ScrapController::class, 'index'])->name('index');
+	});
+
+	Route::prefix('waste-reports')->name('waste-reports.')->group(function (): void {
+		Route::get('/', [WasteReportController::class, 'index'])->name('index');
+		Route::get('/create', [WasteReportController::class, 'create'])->name('create');
+		Route::post('/', [WasteReportController::class, 'store'])->name('store');
+		Route::get('/{wasteReport}', [WasteReportController::class, 'show'])->name('show');
 	});
 
     Route::prefix('sales')->name('sales.')->group(function (): void {

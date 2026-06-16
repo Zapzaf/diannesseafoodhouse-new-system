@@ -2,12 +2,15 @@
 
 use App\Models\Branch;
 use App\Models\Category;
+use App\Models\Delivery;
+use App\Models\DeliveryItem;
 use App\Models\Item;
 use App\Models\Location;
 use App\Models\ProductionOrder;
 use App\Models\Supplier;
 use App\Models\Transfer;
 use App\Models\User;
+use App\Models\WastageReport;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
 
@@ -135,6 +138,74 @@ it('rejects a delivery inventory item from another branch', function () {
     $this->assertDatabaseCount('deliveries', 0);
 });
 
+it('reports delivery rows that do not have destinations', function () {
+    [$manager, $branch, , , , , $supplier] = makeDeliveryProductionContext();
+
+    $this->actingAs($manager)
+        ->post(route('deliveries.store'), [
+            'supplier_id' => $supplier->id,
+            'destination_branch_id' => $branch->id,
+            'items' => [
+                ['description' => 'Fresh tuna', 'quantity' => 2, 'unit' => 'kg'],
+                ['description' => 'Fresh salmon', 'quantity' => 1, 'unit' => 'kg'],
+            ],
+        ])
+        ->assertSessionHasErrors([
+            'items' => 'The following items do not have a destination selected: Fresh tuna, Fresh salmon. Please select a destination before proceeding.',
+        ]);
+
+    $this->assertDatabaseCount('deliveries', 0);
+});
+
+it('rejects a delivery inventory destination with a mismatched unit', function () {
+    [$manager, $branch, , $input, , , $supplier] = makeDeliveryProductionContext();
+
+    $this->actingAs($manager)
+        ->post(route('deliveries.store'), [
+            'supplier_id' => $supplier->id,
+            'destination_branch_id' => $branch->id,
+            'items' => [[
+                'description' => 'Fresh fish by piece',
+                'item_id' => $input->id,
+                'quantity' => 2,
+                'unit' => 'pcs',
+                'allocated_to' => 'inventory',
+            ]],
+        ])
+        ->assertSessionHasErrors('items');
+
+    $this->assertDatabaseCount('deliveries', 0);
+});
+
+it('rejects a pending delivery with a mismatched inventory unit during approval', function () {
+    [$manager, $branch, , $input] = makeDeliveryProductionContext();
+
+    $delivery = Delivery::create([
+        'reference_number' => 'DLV-MISMATCH',
+        'destination_branch_id' => $branch->id,
+        'status' => 'pending',
+        'created_by' => $manager->id,
+    ]);
+    $deliveryItem = DeliveryItem::create([
+        'delivery_id' => $delivery->id,
+        'item_id' => $input->id,
+        'description' => 'Fish by piece',
+        'quantity' => 2,
+        'unit' => 'pcs',
+        'allocated_to' => 'inventory',
+    ]);
+
+    $this->actingAs($manager)->post(route('deliveries.approve', $delivery), [
+        'items' => [[
+            'delivery_item_id' => $deliveryItem->id,
+            'allocated_to' => 'inventory',
+        ]],
+    ])->assertSessionHasErrors('items');
+
+    expect($delivery->fresh()->status)->toBe('pending')
+        ->and((float) $input->fresh()->quantity)->toBe(10.0);
+});
+
 it('deducts production inputs only once and logs the finished output', function () {
     [$manager, $branch, , $input, $output] = makeDeliveryProductionContext();
 
@@ -170,6 +241,32 @@ it('deducts production inputs only once and logs the finished output', function 
     ]);
 });
 
+it('uses item master units for production inputs and finished outputs', function () {
+    [$manager, $branch, , $input, $output] = makeDeliveryProductionContext();
+
+    $this->actingAs($manager)->post(route('productions.store'), [
+        'branch_id' => $branch->id,
+        'inputs' => [[
+            'item_id' => $input->id,
+            'quantity_used' => 1,
+            'unit' => 'pcs',
+        ]],
+    ])->assertRedirect(route('productions.index'));
+
+    $production = ProductionOrder::query()->firstOrFail();
+    expect($production->inputs()->firstOrFail()->unit)->toBe('kg');
+
+    $this->actingAs($manager)->post(route('productions.finish', $production), [
+        'outputs' => [[
+            'item_id' => $output->id,
+            'quantity_produced' => 1,
+            'unit' => 'pcs',
+        ]],
+    ])->assertRedirect(route('productions.show', $production));
+
+    expect($production->outputs()->firstOrFail()->unit)->toBe('kg');
+});
+
 it('rejects production outputs from another branch', function () {
     [$manager, $branch, , $input, , $foreignItem] = makeDeliveryProductionContext();
 
@@ -193,6 +290,30 @@ it('rejects production outputs from another branch', function () {
     ])->assertSessionHasErrors('outputs');
 
     expect($production->fresh()->status)->toBe('in_progress');
+});
+
+it('rejects standalone waste conversions to an item from another branch', function () {
+    [$manager, $branch, , $input, , $foreignItem] = makeDeliveryProductionContext();
+
+    $this->actingAs($manager)->post(route('productions.store'), [
+        'branch_id' => $branch->id,
+        'inputs' => [[
+            'item_id' => $input->id,
+            'quantity_used' => 1,
+        ]],
+    ]);
+
+    $production = ProductionOrder::query()->firstOrFail();
+    $this->actingAs($manager)->post(route('productions.wastage.store', $production), [
+        'items' => [[
+            'scrap_name' => 'Fish trim',
+            'quantity_lost' => 1,
+            'convert_to_item_id' => $foreignItem->id,
+            'converted_quantity' => 1,
+        ]],
+    ])->assertSessionHasErrors('items');
+
+    expect(WastageReport::query()->count())->toBe(0);
 });
 
 it('validates and completes an inventory branch transfer through delivery approval', function () {
@@ -232,6 +353,33 @@ it('rejects a transfer item that does not belong to the selected destination bra
     ])->assertSessionHasErrors('destination_item_id');
 
     $this->assertDatabaseCount('transfers', 0);
+});
+
+it('rejects a branch transfer when source and destination item units differ', function () {
+    [$manager, , $otherBranch, $input, , $destinationItem] = makeDeliveryProductionContext();
+    $destinationItem->update(['unit' => 'pcs']);
+
+    $this->actingAs($manager)->post(route('inventory.transfer', $input), [
+        'destination_branch_id' => $otherBranch->id,
+        'destination_item_id' => $destinationItem->id,
+        'quantity' => 2,
+    ])->assertSessionHasErrors('destination_item_id');
+
+    $this->assertDatabaseCount('transfers', 0);
+});
+
+it('allows equivalent piece and pcs units during a branch transfer', function () {
+    [$manager, , $otherBranch, $input, , $destinationItem] = makeDeliveryProductionContext();
+    $input->update(['unit' => 'piece']);
+    $destinationItem->update(['unit' => 'pcs']);
+
+    $this->actingAs($manager)->post(route('inventory.transfer', $input), [
+        'destination_branch_id' => $otherBranch->id,
+        'destination_item_id' => $destinationItem->id,
+        'quantity' => 2,
+    ])->assertRedirect(route('deliveries.index'));
+
+    $this->assertDatabaseCount('transfers', 1);
 });
 
 it('rejects a transfer quantity greater than available stock', function () {

@@ -13,19 +13,18 @@ use App\Models\ProductionOrder;
 use App\Models\Supplier;
 use App\Models\Transfer;
 use App\Services\InventoryService;
+use App\Support\InventoryUnit;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
-use Illuminate\Support\Arr;
 
 class DeliveryManagementController extends Controller
 {
-    public function __construct(private readonly InventoryService $inventoryService)
-    {
-    }
+    public function __construct(private readonly InventoryService $inventoryService) {}
 
     public function create(Request $request): View
     {
@@ -38,19 +37,22 @@ class DeliveryManagementController extends Controller
             ->get();
 
         return view('deliveries.create', [
-            'user'          => $user,
-            'branches'      => Branch::query()->where('is_active', true)->orderBy('name')->get(),
-            'suppliers'     => Supplier::query()->orderBy('name')->get(),
+            'user' => $user,
+            'branches' => Branch::query()->where('is_active', true)->orderBy('name')->get(),
+            'suppliers' => Supplier::query()->orderBy('name')->get(),
             'itemsForModal' => $items->map(fn (Item $i) => [
-                'id'          => $i->id,
-                'name'        => $i->name,
-                'quantity'    => (float) $i->quantity,
-                'unit_price'  => $i->unit_price ? (float) $i->unit_price : null,
-                'location'    => $i->category?->location?->name ?? 'N/A',
-                'category'    => $i->category?->name ?? 'N/A',
-                'branch_id'   => $i->branch_id,
+                'id' => $i->id,
+                'name' => $i->name,
+                'unit' => $i->unit,
+                'unit_key' => InventoryUnit::normalize($i->unit),
+                'quantity' => (float) $i->quantity,
+                'unit_price' => $i->unit_price ? (float) $i->unit_price : null,
+                'location' => $i->category?->location?->name ?? 'N/A',
+                'category' => $i->category?->name ?? 'N/A',
+                'branch_id' => $i->branch_id,
             ])->values(),
             'selectedBranchId' => $branchId,
+            'deliveryUnitOptions' => InventoryUnit::options(),
         ]);
     }
 
@@ -73,7 +75,7 @@ class DeliveryManagementController extends Controller
                         ->orWhere('source_branch_id', $branchId);
                 });
             })
-            ->when(request('search'), fn($q, $s) => $q->where('reference_number', 'like', "%$s%"))->latest()
+            ->when(request('search'), fn ($q, $s) => $q->where('reference_number', 'like', "%$s%"))->latest()
             ->paginate((int) request('per_page', 10))->withQueryString();
 
         return view('deliveries.index', [
@@ -112,11 +114,30 @@ class DeliveryManagementController extends Controller
             $validInventoryItems = Item::query()
                 ->whereIn('id', $inventoryItemIds)
                 ->where('branch_id', $validated['destination_branch_id'])
-                ->count();
+                ->get()
+                ->keyBy('id');
 
-            if ($validInventoryItems !== $inventoryItemIds->count()) {
+            if ($validInventoryItems->count() !== $inventoryItemIds->count()) {
                 throw ValidationException::withMessages([
                     'items' => 'Inventory destination items must belong to the delivery destination branch.',
+                ]);
+            }
+
+            $unitMismatches = collect($validated['items'])
+                ->where('allocated_to', 'inventory')
+                ->filter(function (array $row) use ($validInventoryItems): bool {
+                    $item = $validInventoryItems->get((int) ($row['item_id'] ?? 0));
+
+                    return $item && ! InventoryUnit::matches($row['unit'] ?? null, $item->unit);
+                })
+                ->map(fn (array $row): string => (string) $row['description'])
+                ->values();
+
+            if ($unitMismatches->isNotEmpty()) {
+                throw ValidationException::withMessages([
+                    'items' => 'The following inventory destinations have a unit mismatch: '
+                        .$unitMismatches->implode(', ')
+                        .'. The delivery unit must match the selected inventory item unit.',
                 ]);
             }
         }
@@ -127,41 +148,41 @@ class DeliveryManagementController extends Controller
             ? false
             : ($request->user()->isAdmin() || $request->user()->isBranchManager());
 
-        DB::transaction(function () use ($validated, $request, $isAutoApprove, $branchId): void {
+        DB::transaction(function () use ($validated, $request, $isAutoApprove): void {
             $transferSourceItemId = $request->integer('source_item_id') ?: null;
             $sourceItem = $transferSourceItemId ? Item::query()->find($transferSourceItemId) : null;
 
             $delivery = Delivery::create([
-                'reference_number'     => 'DLV-' . now()->format('YmdHis') . '-' . random_int(100, 999),
-                'supplier_id'          => $sourceItem ? null : ($validated['supplier_id'] ?? null),
-                'source_branch_id'     => $sourceItem ? (int) $sourceItem->branch_id : ($validated['source_branch_id'] ?? null),
-                'destination_branch_id'=> $validated['destination_branch_id'],
-                'status'               => $isAutoApprove ? 'received' : 'pending',
-                'created_by'           => $request->user()->id,
-                'approved_by'          => $isAutoApprove ? $request->user()->id : null,
-                'approved_at'          => $isAutoApprove ? now() : null,
+                'reference_number' => 'DLV-'.now()->format('YmdHis').'-'.random_int(100, 999),
+                'supplier_id' => $sourceItem ? null : ($validated['supplier_id'] ?? null),
+                'source_branch_id' => $sourceItem ? (int) $sourceItem->branch_id : ($validated['source_branch_id'] ?? null),
+                'destination_branch_id' => $validated['destination_branch_id'],
+                'status' => $isAutoApprove ? 'received' : 'pending',
+                'created_by' => $request->user()->id,
+                'approved_by' => $isAutoApprove ? $request->user()->id : null,
+                'approved_at' => $isAutoApprove ? now() : null,
             ]);
 
             foreach ($validated['items'] as $row) {
                 $deliveryItem = DeliveryItem::create([
-                    'delivery_id'  => $delivery->id,
-                    'item_id'      => !empty($row['item_id']) ? $row['item_id'] : null,
+                    'delivery_id' => $delivery->id,
+                    'item_id' => ! empty($row['item_id']) ? $row['item_id'] : null,
                     'source_item_id' => $sourceItem ? $sourceItem->id : null,
-                    'description'  => $row['description'],
-                    'quantity'     => $row['quantity'],
-                    'unit'         => $row['unit'],
-                    'price'        => $row['price'] ?? null,
+                    'description' => $row['description'],
+                    'quantity' => $row['quantity'],
+                    'unit' => $row['unit'],
+                    'price' => $row['price'] ?? null,
                     'allocated_to' => $row['allocated_to'],
                 ]);
 
-                if ($isAutoApprove && $row['allocated_to'] === 'inventory' && !empty($row['item_id'])) {
+                if ($isAutoApprove && $row['allocated_to'] === 'inventory' && ! empty($row['item_id'])) {
                     $linkedItem = Item::find($row['item_id']);
                     if ($linkedItem) {
                         $this->applyInventoryIncrease(
                             $linkedItem,
                             $deliveryItem,
                             $request->user()->id,
-                            'FROM DELIVERY: ' . $delivery->reference_number
+                            'FROM DELIVERY: '.$delivery->reference_number
                         );
                     }
                 }
@@ -178,7 +199,7 @@ class DeliveryManagementController extends Controller
                         $sourceItem,
                         'out',
                         (float) $delItem->quantity,
-                        'TO BRANCH TRANSFER: ' . $delivery->reference_number,
+                        'TO BRANCH TRANSFER: '.$delivery->reference_number,
                         $request->user()->id,
                         $beginning,
                         $sourceItem->unit_price ? (float) $sourceItem->unit_price : null,
@@ -274,7 +295,35 @@ class DeliveryManagementController extends Controller
             ]);
         }
 
+        $unitMismatches = $delivery->items
+            ->filter(function (DeliveryItem $item) use ($allocations): bool {
+                $allocation = $allocations->get($item->id);
+                $allocatedTo = $allocation['allocated_to'] ?? $item->allocated_to;
+
+                return $allocatedTo === 'inventory'
+                    && $item->item
+                    && ! InventoryUnit::matches($item->unit, $item->item->unit);
+            })
+            ->map(fn (DeliveryItem $item): string => $item->description ?: ($item->item?->name ?? "Delivery item #{$item->id}"))
+            ->values();
+
+        if ($unitMismatches->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'items' => 'The following inventory destinations have a unit mismatch: '
+                    .$unitMismatches->implode(', ')
+                    .'. The delivery unit must match the selected inventory item unit.',
+            ]);
+        }
+
         DB::transaction(function () use ($delivery, $validated, $request): void {
+            $delivery = Delivery::query()->lockForUpdate()->findOrFail($delivery->id);
+
+            if ($delivery->status === 'received') {
+                throw ValidationException::withMessages([
+                    'delivery' => 'Delivery already approved.',
+                ]);
+            }
+
             $delivery->loadMissing('items.item');
             $allocations = collect($validated['items'])->keyBy('delivery_item_id');
 
@@ -287,9 +336,10 @@ class DeliveryManagementController extends Controller
                             $item->item,
                             $item,
                             $request->user()->id,
-                            'FROM DELIVERY: ' . $delivery->reference_number
+                            'FROM DELIVERY: '.$delivery->reference_number
                         );
                     }
+
                     // production: no transaction log at this stage
                     continue;
                 }
@@ -302,7 +352,7 @@ class DeliveryManagementController extends Controller
                         $item->item,
                         $item,
                         $request->user()->id,
-                        'FROM DELIVERY: ' . $delivery->reference_number
+                        'FROM DELIVERY: '.$delivery->reference_number
                     );
                 }
                 // production: no transaction log at this stage
@@ -329,17 +379,18 @@ class DeliveryManagementController extends Controller
                         continue;
                     }
 
-                    $beginning = (float) $item->sourceItem->quantity;
-                    $this->inventoryService->decrease($item->sourceItem, (float) $item->quantity);
-                    $remaining = (float) $item->sourceItem->quantity;
+                    $sourceItem = Item::query()->lockForUpdate()->findOrFail($item->sourceItem->id);
+                    $beginning = (float) $sourceItem->quantity;
+                    $this->inventoryService->decrease($sourceItem, (float) $item->quantity);
+                    $remaining = (float) $sourceItem->quantity;
                     $this->recordInventoryTransaction(
-                        $item->sourceItem,
+                        $sourceItem,
                         'out',
                         (float) $item->quantity,
-                        'TO BRANCH TRANSFER: ' . $delivery->reference_number,
+                        'TO BRANCH TRANSFER: '.$delivery->reference_number,
                         $request->user()->id,
                         $beginning,
-                        $item->sourceItem->unit_price ? (float) $item->sourceItem->unit_price : null,
+                        $sourceItem->unit_price ? (float) $sourceItem->unit_price : null,
                         $remaining
                     );
                 }
@@ -371,7 +422,7 @@ class DeliveryManagementController extends Controller
                         ->orWhere('source_branch_id', $branchId);
                 });
             })
-            ->when(request('search'), fn($q, $s) => $q->where('reference_number', 'like', "%$s%"))->latest()
+            ->when(request('search'), fn ($q, $s) => $q->where('reference_number', 'like', "%$s%"))->latest()
             ->paginate((int) request('per_page', 10))->withQueryString();
 
         return view('deliveries.pending', [
@@ -402,10 +453,9 @@ class DeliveryManagementController extends Controller
         DeliveryItem $deliveryItem,
         ?int $actorId = null,
         ?string $reason = null,
-    ): void
-    {
-        $qty       = (float) $deliveryItem->quantity;
-        $price     = (float) ($deliveryItem->price ?? 0);
+    ): void {
+        $qty = (float) $deliveryItem->quantity;
+        $price = (float) ($deliveryItem->price ?? 0);
         $unitPrice = ($price > 0 && $qty > 0) ? $price / $qty : null;
 
         $beginning = (float) $linkedItem->quantity;
@@ -439,26 +489,25 @@ class DeliveryManagementController extends Controller
         ?float $beginningQuantity = null,
         ?float $transactionPrice = null,
         ?float $remainingQuantity = null,
-    ): void
-    {
+    ): void {
         InventoryTransaction::create([
-            'item_id'            => $item->id,
-            'branch_id'          => $item->branch_id,
-            'type'               => $type,
-            'quantity'           => $quantity,
+            'item_id' => $item->id,
+            'branch_id' => $item->branch_id,
+            'type' => $type,
+            'quantity' => $quantity,
             'beginning_quantity' => $beginningQuantity,
             'remaining_quantity' => $remainingQuantity,
-            'transaction_price'  => $transactionPrice,
-            'transaction_date'   => now(),
-            'reason'             => $reason,
-            'status'             => 'approved',
-            'created_by'         => $actorId,
+            'transaction_price' => $transactionPrice,
+            'transaction_date' => now(),
+            'reason' => $reason,
+            'status' => 'approved',
+            'created_by' => $actorId,
         ]);
     }
 
     private function createProductionOrderFromDelivery(Delivery $delivery, int $actorId): void
     {
-        $delivery->loadMissing('items');
+        $delivery->loadMissing('items.item');
 
         $productionItems = $delivery->items
             ->filter(fn (DeliveryItem $item): bool => $item->allocated_to === 'production');
@@ -483,9 +532,8 @@ class DeliveryManagementController extends Controller
                 'item_id' => $deliveryItem->item_id,
                 'delivery_item_id' => $deliveryItem->id,
                 'quantity_used' => $deliveryItem->quantity,
-                'unit' => $deliveryItem->unit,
+                'unit' => $deliveryItem->item?->unit ?? $deliveryItem->unit,
             ]);
         }
     }
 }
-

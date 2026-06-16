@@ -252,7 +252,7 @@ function showMenuFormAlert(messages = []) {
     }
 
     menuFormAlert.classList.remove('d-none');
-    menuFormAlert.innerHTML = `<strong>Please fix the following:</strong><ul class="mb-0 mt-2">${messages.map((message) => `<li>${message}</li>`).join('')}</ul>`;
+    menuFormAlert.innerHTML = `<strong>Please fix the following:</strong><ul class="mb-0 mt-2">${messages.map((message) => `<li>${escapeHtml(message)}</li>`).join('')}</ul>`;
 }
 
 function buildOptions(selectedId = '') {
@@ -262,7 +262,7 @@ function buildOptions(selectedId = '') {
     itemOptions.forEach((item) => {
         if (branchId && Number(item.branch_id) !== Number(branchId)) return;
         const selected = Number(item.id) === Number(selectedId) ? ' selected' : '';
-        options += `<option value="${item.id}"${selected} data-branch-id="${item.branch_id}">${item.label}</option>`;
+        options += `<option value="${Number(item.id)}"${selected} data-branch-id="${Number(item.branch_id)}">${escapeHtml(item.label)}</option>`;
     });
 
     return options;
@@ -488,5 +488,11 @@ document.getElementById('imageInput')?.addEventListener('change', function (even
         preview.style.display = 'none';
     }
 });
+
+function escapeHtml(value) {
+    const div = document.createElement('div');
+    div.textContent = value ?? '';
+    return div.innerHTML;
+}
 </script>
 @endpush

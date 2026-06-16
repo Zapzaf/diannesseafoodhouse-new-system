@@ -22,11 +22,11 @@ class StoreProductionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'branch_id'              => ['required', 'exists:branches,id'],
-            'inputs'                 => ['required', 'array', 'min:1'],
-            'inputs.*.item_id'       => ['required', 'exists:items,id'],
+            'branch_id' => ['required', 'exists:branches,id'],
+            'inputs' => ['required', 'array', 'min:1'],
+            'inputs.*.item_id' => ['required', 'exists:items,id'],
             'inputs.*.quantity_used' => ['required', 'numeric', 'gt:0'],
-            'inputs.*.unit'          => ['required', 'string', 'max:32'],
+            'inputs.*.unit' => ['nullable', 'string', 'max:32'],
         ];
     }
 }
