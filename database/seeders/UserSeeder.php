@@ -19,7 +19,7 @@ class UserSeeder extends Seeder
             ['email' => 'admin@diannesseafoodhouse.com'],
             [
                 'name' => 'System Admin',
-                'password' => Hash::make('Akosigian2025!'),
+                'password' => Hash::make('password'),
                 'role' => 'admin',
                 'branch_id' => null,
                 'phone' => '09170000001',
