@@ -4351,12 +4351,15 @@ th.table-sortable {
 /* Fix Datatable entries-per-page selector dropdown */
 .datatable-selector {
     width: auto !important;
-    min-width: 65px !important;
-    padding-top: 0.45rem !important;
-    padding-bottom: 0.45rem !important;
+    min-width: 80px !important;
+    height: auto !important;
+    padding-top: 0.4rem !important;
+    padding-bottom: 0.4rem !important;
     padding-left: 0.75rem !important;
     padding-right: 1.85rem !important;
     font-size: 0.85rem !important;
+    line-height: 1.5 !important;
     background-position: right 0.6rem center !important;
+    background-size: 11px 8px !important;
     display: inline-block !important;
 }

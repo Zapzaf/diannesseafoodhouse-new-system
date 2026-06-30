@@ -30,7 +30,7 @@
         
         <title>@yield('page_title', 'Dashboard - Dianne Seafood House')</title>
         <link href="https://cdn.jsdelivr.net/npm/simple-datatables@7.1.2/dist/style.min.css" rel="stylesheet" />
-        <link href="{{ asset('css/styles-old.css') }}" rel="stylesheet" />
+        <link href="{{ asset('css/styles-old.css') }}?v={{ filemtime(public_path('css/styles-old.css')) }}" rel="stylesheet" />
         <!-- Favicon and Icons -->
         <link rel="icon" type="image/x-icon" href="{{ asset('assets/icons/favicon.ico') }}" />
         <script data-search-pseudo-elements defer src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/js/all.min.js" crossorigin="anonymous"></script>
@@ -73,7 +73,7 @@
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
         
-        <link href="{{ asset('css/style.css') }}" rel="stylesheet" />
+        <link href="{{ asset('css/style.css') }}?v={{ filemtime(public_path('css/style.css')) }}" rel="stylesheet" />
         @stack('styles')
     </head>
     <body class="bg-body text-main">
