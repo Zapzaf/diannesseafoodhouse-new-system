@@ -16,10 +16,10 @@ class UserSeeder extends Seeder
         $southBranch = Branch::where('name', 'South Branch')->firstOrFail();
 
         $admin = User::updateOrCreate(
-            ['email' => 'admin@diannesseafood.local'],
+            ['email' => 'admin@diannesseafoodhouse.com'],
             [
                 'name' => 'System Admin',
-                'password' => Hash::make('password'),
+                'password' => Hash::make('Akosigian2025!'),
                 'role' => 'admin',
                 'branch_id' => null,
                 'phone' => '09170000001',
@@ -28,7 +28,7 @@ class UserSeeder extends Seeder
         );
 
         $mainManager = User::updateOrCreate(
-            ['email' => 'manager.main@diannesseafood.local'],
+            ['email' => 'manager.main@diannesseafoodhouse.com'],
             [
                 'name' => 'Main Branch Manager',
                 'password' => Hash::make('password'),
@@ -40,7 +40,7 @@ class UserSeeder extends Seeder
         );
 
         $northManager = User::updateOrCreate(
-            ['email' => 'manager.north@diannesseafood.local'],
+            ['email' => 'manager.north@diannesseafoodhouse.com'],
             [
                 'name' => 'North Branch Manager',
                 'password' => Hash::make('password'),
@@ -52,7 +52,7 @@ class UserSeeder extends Seeder
         );
 
         $southManager = User::updateOrCreate(
-            ['email' => 'manager.south@diannesseafood.local'],
+            ['email' => 'manager.south@diannesseafoodhouse.com'],
             [
                 'name' => 'South Branch Manager',
                 'password' => Hash::make('password'),
@@ -64,7 +64,7 @@ class UserSeeder extends Seeder
         );
 
         User::updateOrCreate(
-            ['email' => 'staff.main@diannesseafood.local'],
+            ['email' => 'staff.main@diannesseafoodhouse.com'],
             [
                 'name' => 'Main Branch Staff',
                 'password' => Hash::make('password'),
