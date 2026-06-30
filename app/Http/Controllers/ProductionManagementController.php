@@ -173,18 +173,9 @@ class ProductionManagementController extends Controller
         }
 
         $production->load(['branch', 'creator', 'inputs.item', 'inputs.deliveryItem.item', 'inputs.deliveryItem.sourceItem', 'inputs.deliveryItem.delivery.supplier', 'outputs.item', 'wastageReports.items.item', 'wastageReports.items.convertedItem']);
-        $scrapLostUnit = $production->inputs
-            ->map(fn ($input) => $input->item?->unit
-                ?? $input->deliveryItem?->item?->unit
-                ?? $input->deliveryItem?->sourceItem?->unit
-                ?? $input->unit)
-            ->filter()
-            ->first();
-
         return view('productions.show', [
             'production' => $production,
             'items' => Item::query()->with(['category.location'])->where('branch_id', $production->branch_id)->orderBy('name')->get(),
-            'scrapLostUnit' => $scrapLostUnit,
         ]);
     }
 
@@ -290,11 +281,11 @@ class ProductionManagementController extends Controller
             }
 
             $wastageRows = collect($validated['wastage'] ?? [])
-                ->filter(fn (array $row): bool => ! empty($row['quantity_lost']))
+                ->filter(fn (array $row): bool => ! empty($row['convert_to_item_id']) || ! empty($row['converted_quantity']))
                 ->values();
 
             if ($wastageRows->isNotEmpty()) {
-                $this->wastageInventoryService->createFromProduction($production, $wastageRows, $request->user()->id, 'wastage');
+                $this->wastageInventoryService->createConversionsFromProduction($production, $wastageRows, $request->user()->id, 'wastage');
             }
 
             $production->update([
@@ -397,13 +388,17 @@ class ProductionManagementController extends Controller
             'outputs.*.quantity_produced' => ['required', 'numeric', 'gt:0'],
             'outputs.*.unit' => ['nullable', 'string', 'max:32'],
             'wastage' => ['nullable', 'array'],
-            ...$this->productionWastageRules('wastage'),
+            'wastage.*.convert_to_item_id' => ['nullable', 'exists:items,id', 'required_with:wastage.*.converted_quantity'],
+            'wastage.*.converted_quantity' => ['nullable', 'numeric', 'gt:0', 'required_with:wastage.*.convert_to_item_id'],
         ];
     }
 
     private function finishProductionMessages(): array
     {
-        return $this->productionWastageMessages('wastage');
+        return [
+            'wastage.*.convert_to_item_id.required_with' => 'Convert To is required for every scrap conversion row.',
+            'wastage.*.converted_quantity.required_with' => 'Convert Qty is required for every scrap conversion row.',
+        ];
     }
 
     private function productionWastageRules(string $prefix, bool $requireRows = false): array

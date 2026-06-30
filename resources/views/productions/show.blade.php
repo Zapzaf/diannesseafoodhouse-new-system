@@ -118,8 +118,6 @@
                     <div class="table-responsive production-form-table-wrap">
                         <table class="table align-middle production-form-table production-waste-table" id="wastage-items-table" data-no-table-enhance="1">
                             <colgroup>
-                                <col class="production-col-lost">
-                                <col class="production-col-lost-unit">
                                 <col class="production-col-convert">
                                 <col class="production-col-converted">
                                 <col class="production-col-convert-unit">
@@ -127,8 +125,6 @@
                             </colgroup>
                             <thead>
                                 <tr>
-                                    <th>Qty Lost</th>
-                                    <th>Qty Lost Unit</th>
                                     <th>Convert To</th>
                                     <th>Convert Qty</th>
                                     <th>Convert Unit</th>
@@ -137,11 +133,6 @@
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td><input type="number" step="0.01" min="0.01" name="wastage[0][quantity_lost]" class="form-control" data-field="quantity_lost"></td>
-                                    <td>
-                                        <input type="text" class="form-control unit-display" value="{{ $scrapLostUnit ?? 'Select source' }}" data-wastage-unit-display="lost" disabled>
-                                        <input type="hidden" name="wastage[0][quantity_lost_unit]" value="{{ $scrapLostUnit }}" data-field="quantity_lost_unit">
-                                    </td>
                                     <td>
                                         <div class="item-picker">
                                             <input type="search" class="form-control item-picker-search" placeholder="Search item (optional)" autocomplete="off">
@@ -172,7 +163,6 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const itemOptions = @json($items->map(fn ($item) => ['id' => $item->id, 'unit' => $item->unit, 'label' => '#' . $item->id . ' - ' . $item->name . ' (' . ($item->category?->location?->name ?? 'N/A') . ' / ' . ($item->category?->name ?? 'N/A') . ')'])->values());
-    const scrapLostUnit = @json($scrapLostUnit ?? '');
     let activePickerInput = null;
 
     function bindDynamicTable(tableId, addButtonId, rowFactory, inputKeys) {
@@ -239,14 +229,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
     bindDynamicTable('wastage-items-table', 'add-wastage-row', function () {
         return `
-            <td><input type="number" step="0.01" min="0.01" class="form-control" data-field="quantity_lost"></td>
-            <td><input type="text" class="form-control unit-display" value="${escapeHtml(scrapLostUnit || 'Select source')}" data-wastage-unit-display="lost" disabled><input type="hidden" value="${escapeHtml(scrapLostUnit)}" data-field="quantity_lost_unit"></td>
             <td><div class="item-picker"><input type="search" class="form-control item-picker-search" placeholder="Search item (optional)" autocomplete="off"><input type="hidden" data-field="convert_to_item_id"><div class="item-picker-results d-none"></div></div></td>
             <td><input type="number" step="0.01" min="0.01" class="form-control" data-field="converted_quantity"></td>
             <td><input type="text" class="form-control unit-display" value="Select Convert To" data-wastage-unit-display="convert" disabled></td>
             <td class="table-actions-cell text-center"><button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Remove"><i data-lucide="trash-2"></i></button></td>
         `;
-    }, ['quantity_lost', 'quantity_lost_unit', 'convert_to_item_id', 'converted_quantity']);
+    }, ['convert_to_item_id', 'converted_quantity']);
 
     document.addEventListener('input', function (event) {
         if (!event.target.classList.contains('item-picker-search')) return;
@@ -381,7 +369,7 @@ document.addEventListener('DOMContentLoaded', function () {
 }
 
 .production-waste-table {
-    min-width: 960px;
+    min-width: 700px;
 }
 
 .production-form-table thead th {
@@ -420,9 +408,7 @@ document.addEventListener('DOMContentLoaded', function () {
 .production-col-qty { width: 29%; }
 .production-col-unit { width: 29%; }
 .production-col-action { width: 96px; }
-.production-col-lost { width: 160px; }
-.production-col-lost-unit { width: 180px; }
-.production-col-convert { width: 280px; }
+.production-col-convert { width: 340px; }
 .production-col-converted { width: 160px; }
 .production-col-convert-unit { width: 170px; }
 

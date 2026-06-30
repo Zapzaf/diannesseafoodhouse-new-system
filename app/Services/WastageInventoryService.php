@@ -58,6 +58,49 @@ class WastageInventoryService
         return $report;
     }
 
+    public function createConversionsFromProduction(ProductionOrder $production, iterable $rows, int $creatorId, string $errorKey = 'items'): ?WastageReport
+    {
+        $rows = collect($rows)
+            ->filter(fn (array $row): bool => ! empty($row['convert_to_item_id'])
+                && isset($row['converted_quantity'])
+                && (float) $row['converted_quantity'] > 0)
+            ->values();
+
+        if ($rows->isEmpty()) {
+            return null;
+        }
+
+        $this->ensureConvertedItemsBelongToProductionBranch($production, $rows, $errorKey);
+
+        $report = WastageReport::create([
+            'production_order_id' => $production->id,
+            'branch_id' => $production->branch_id,
+            'created_by' => $creatorId,
+        ]);
+
+        foreach ($rows as $row) {
+            $convertedItem = Item::query()
+                ->whereKey((int) $row['convert_to_item_id'])
+                ->where('branch_id', $production->branch_id)
+                ->firstOrFail();
+
+            $wastageItem = WastageItem::create([
+                'wastage_report_id' => $report->id,
+                'item_id' => null,
+                'scrap_name' => null,
+                'quantity_lost' => $row['converted_quantity'],
+                'quantity_lost_unit' => $convertedItem->unit,
+                'reason' => null,
+                'convert_to_item_id' => $convertedItem->id,
+                'converted_quantity' => $row['converted_quantity'],
+            ]);
+
+            $this->addConvertedInventory($wastageItem, $production, $creatorId);
+        }
+
+        return $report;
+    }
+
     public function ensureConvertedItemsBelongToProductionBranch(ProductionOrder $production, iterable $rows, string $errorKey = 'items'): void
     {
         $convertedItemIds = collect($rows)

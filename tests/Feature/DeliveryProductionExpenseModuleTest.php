@@ -549,8 +549,6 @@ it('finishes production with scrap conversion when the input comes from a delive
             'unit' => 'kg',
         ]],
         'wastage' => [[
-            'quantity_lost' => 1,
-            'quantity_lost_unit' => 'kg',
             'convert_to_item_id' => $output->id,
             'converted_quantity' => 0.5,
         ]],
@@ -558,18 +556,17 @@ it('finishes production with scrap conversion when the input comes from a delive
 
     expect($production->fresh()->status)->toBe('finished')
         ->and(WastageReport::query()->count())->toBe(1)
-        ->and((float) $input->fresh()->quantity)->toBe(9.0)
+        ->and((float) $input->fresh()->quantity)->toBe(10.0)
         ->and((float) $output->fresh()->quantity)->toBe(1.5);
 
     $this->assertDatabaseHas('wastage_items', [
-        'item_id' => $input->id,
-        'quantity_lost_unit' => 'kg',
+        'item_id' => null,
         'convert_to_item_id' => $output->id,
         'converted_quantity' => 0.5,
     ]);
 });
 
-it('rejects production scrap when qty lost unit does not match the input unit', function () {
+it('rejects production scrap conversion without convert qty', function () {
     [$manager, $branch, , $input, $output] = makeDeliveryProductionContext();
 
     $this->actingAs($manager)->post(route('productions.store'), [
@@ -590,19 +587,16 @@ it('rejects production scrap when qty lost unit does not match the input unit', 
             'unit' => 'kg',
         ]],
         'wastage' => [[
-            'quantity_lost' => 1,
-            'quantity_lost_unit' => 'pcs',
             'convert_to_item_id' => $output->id,
-            'converted_quantity' => 0.5,
         ]],
-    ])->assertSessionHasErrors('wastage');
+    ])->assertSessionHasErrors('wastage.0.converted_quantity');
 
     expect($production->fresh()->status)->toBe('in_progress')
         ->and(WastageReport::query()->count())->toBe(0)
         ->and((float) $output->fresh()->quantity)->toBe(0.0);
 });
 
-it('rejects production scrap rows without conversion details', function () {
+it('rejects production scrap conversion without convert to item', function () {
     [$manager, $branch, , $input, $output] = makeDeliveryProductionContext();
 
     $this->actingAs($manager)->post(route('productions.store'), [
@@ -623,8 +617,7 @@ it('rejects production scrap rows without conversion details', function () {
             'unit' => 'kg',
         ]],
         'wastage' => [[
-            'quantity_lost' => 1,
-            'quantity_lost_unit' => 'kg',
+            'converted_quantity' => 0.5,
         ]],
     ])->assertSessionHasErrors('wastage.0.convert_to_item_id');
 
