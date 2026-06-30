@@ -4347,3 +4347,16 @@ th.table-sortable {
 #globalSearchSuggestions .dropdown-item:focus .text-muted {
     color: var(--primary-color) !important;
 }
+
+/* Fix Datatable entries-per-page selector dropdown */
+.datatable-selector {
+    width: auto !important;
+    min-width: 65px !important;
+    padding-top: 0.45rem !important;
+    padding-bottom: 0.45rem !important;
+    padding-left: 0.75rem !important;
+    padding-right: 1.85rem !important;
+    font-size: 0.85rem !important;
+    background-position: right 0.6rem center !important;
+    display: inline-block !important;
+}
