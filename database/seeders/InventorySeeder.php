@@ -17,7 +17,7 @@ class InventorySeeder extends Seeder
      */
     public function run(): void
     {
-        $branch = Branch::query()->where('name', 'Main Branch')->firstOrFail();
+        $branch = Branch::query()->where('name', 'Carcar Branch')->firstOrFail();
         $creator = User::query()->where('role', 'admin')->firstOrFail();
         $items = json_decode(
             file_get_contents(database_path('seeders/data/inventory-from-excel.json')),

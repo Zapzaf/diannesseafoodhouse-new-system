@@ -82,10 +82,8 @@
             <nav class="sidebar d-flex flex-column" id="sidebar">
                 <div class="sidebar-header d-flex align-items-center justify-content-between">
                     <div class="d-flex align-items-center gap-2">
-                        <div class="icon-circle bg-white text-dark d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-                            <i data-lucide="home" style="color: #f07c59; width: 18px; height: 18px;"></i>
-                        </div>
-                        <span class="fs-5 fw-bold text-white">Dianne Seafood</span>
+                        <img src="{{ asset('assets/icons/apple-touch-icon.png') }}" alt="Logo" class="rounded" style="width: 32px; height: 32px; object-fit: contain;">
+                        <span class="fs-5 fw-bold text-white">Dianne's Seafood House</span>
                     </div>
                     <button class="btn btn-sm d-lg-none text-white border-0" id="sidebarClose">
                         <i data-lucide="x" style="width: 20px; height: 20px;"></i>
@@ -99,23 +97,48 @@
                         : asset('assets/img/illustrations/profiles/profile-1.png');
                 @endphp
 
-                <!-- Branch Selector -->
+                <!-- Branch Selector (Mobile dropdown) -->
                 @if($authUser && $authUser->isAdmin())
-                <div class="branch-select-wrapper mb-3">
-                    <i data-lucide="map-pin" style="width: 18px; height: 18px;"></i>
-                    @php
-                        $branches = \App\Models\Branch::where('is_active', true)->get();
-                        $selectedBranchId = session('selected_branch_id');
-                    @endphp
-                    <form action="{{ route('branch.select') }}" method="POST" id="branchSelectForm" class="w-100 m-0">
-                        @csrf
-                        <select class="branch-select-input" name="branch_id" onchange="document.getElementById('branchSelectForm').submit()">
-                            <option value="" {{ empty($selectedBranchId) ? 'selected' : '' }}>All Branches</option>
-                            @foreach($branches as $br)
-                                <option value="{{ $br->id }}" {{ (string) $selectedBranchId === (string) $br->id ? 'selected' : '' }}>{{ $br->name }}</option>
-                            @endforeach
-                        </select>
-                    </form>
+                @php
+                    $branches = \App\Models\Branch::where('is_active', true)->get();
+                    $selectedBranchId = session('selected_branch_id');
+                    $selectedBranchName = 'All Branches';
+                    if (!empty($selectedBranchId)) {
+                        $selectedBranch = $branches->firstWhere('id', $selectedBranchId);
+                        if ($selectedBranch) {
+                            $selectedBranchName = $selectedBranch->name;
+                        }
+                    }
+                @endphp
+                <div class="dropdown d-lg-none mx-3 mb-3">
+                    <button class="btn btn-primary dropdown-toggle d-flex align-items-center justify-content-between w-100 py-2.5 px-3 fw-semibold text-white" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="border-radius: 8px;">
+                        <span class="d-flex align-items-center gap-2">
+                            <i data-lucide="git-branch" style="width: 16px; height: 16px;"></i>
+                            <span>{{ $selectedBranchName }}</span>
+                        </span>
+                    </button>
+                    <ul class="dropdown-menu p-2 border-0 shadow-lg mt-2 w-100" style="border-radius: 12px; min-width: 180px;">
+                        <li>
+                            <form action="{{ route('branch.select') }}" method="POST" class="m-0">
+                                @csrf
+                                <input type="hidden" name="branch_id" value="">
+                                <button type="submit" class="dropdown-item py-2 rounded-3 border-0 w-100 text-start {{ empty($selectedBranchId) ? 'active' : '' }}">
+                                    All Branches
+                                </button>
+                            </form>
+                        </li>
+                        @foreach($branches as $br)
+                        <li>
+                            <form action="{{ route('branch.select') }}" method="POST" class="m-0">
+                                @csrf
+                                <input type="hidden" name="branch_id" value="{{ $br->id }}">
+                                <button type="submit" class="dropdown-item py-2 rounded-3 border-0 w-100 text-start {{ (string) $selectedBranchId === (string) $br->id ? 'active' : '' }}">
+                                    {{ $br->name }}
+                                </button>
+                            </form>
+                        </li>
+                        @endforeach
+                    </ul>
                 </div>
                 @endif
 
@@ -125,7 +148,7 @@
                     <div class="sidenav-menu-heading text-uppercase px-3 py-2 small fw-bold text-white-50" style="font-size: 0.7rem; letter-spacing: 0.08em; opacity: 0.7;">Core</div>
                     <li class="nav-item">
                         <a href="{{ route('dashboard') }}" class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
-                            <i data-lucide="activity"></i>
+                            <i data-lucide="layout-grid"></i>
                             <span>Dashboard</span>
                         </a>
                     </li>
@@ -496,7 +519,7 @@
                                 <i data-lucide="menu" style="width: 20px; height: 20px;"></i>
                             </button>
                             
-                            <div class="position-relative d-none d-md-block" style="max-width: 320px; width: 100%;">
+                            <div class="position-relative flex-grow-1" style="max-width: 320px; width: 100%;">
                                 <span class="position-absolute top-50 start-0 translate-middle-y ps-3 text-muted">
                                     <i data-lucide="search" style="width: 18px; height: 18px;"></i>
                                 </span>
@@ -504,8 +527,51 @@
                             </div>
                         </div>
 
-                        <!-- Right: Theme Switch, User Dropdown -->
+                        <!-- Right: Branch Selector, Theme Switch, User Dropdown -->
                         <div class="d-flex align-items-center gap-3">
+                            <!-- Branch Selector (Admin only) -->
+                            @if($authUser && $authUser->isAdmin())
+                            @php
+                                $branches = \App\Models\Branch::where('is_active', true)->get();
+                                $selectedBranchId = session('selected_branch_id');
+                                $selectedBranchName = 'All Branches';
+                                if (!empty($selectedBranchId)) {
+                                    $selectedBranch = $branches->firstWhere('id', $selectedBranchId);
+                                    if ($selectedBranch) {
+                                        $selectedBranchName = $selectedBranch->name;
+                                    }
+                                }
+                            @endphp
+                            <div class="dropdown d-none d-lg-block">
+                                <button class="btn btn-primary dropdown-toggle d-flex align-items-center gap-2 py-2 px-3 fw-semibold text-white" type="button" data-bs-toggle="dropdown" aria-expanded="false" style="border-radius: 8px;">
+                                    <i data-lucide="git-branch" style="width: 16px; height: 16px;"></i>
+                                    <span>{{ $selectedBranchName }}</span>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end p-2 border-0 shadow-lg mt-2" style="border-radius: 12px; min-width: 180px;">
+                                    <li>
+                                        <form action="{{ route('branch.select') }}" method="POST" class="m-0">
+                                            @csrf
+                                            <input type="hidden" name="branch_id" value="">
+                                            <button type="submit" class="dropdown-item py-2 rounded-3 border-0 w-100 text-start {{ empty($selectedBranchId) ? 'active' : '' }}">
+                                                All Branches
+                                            </button>
+                                        </form>
+                                    </li>
+                                    @foreach($branches as $br)
+                                    <li>
+                                        <form action="{{ route('branch.select') }}" method="POST" class="m-0">
+                                            @csrf
+                                            <input type="hidden" name="branch_id" value="{{ $br->id }}">
+                                            <button type="submit" class="dropdown-item py-2 rounded-3 border-0 w-100 text-start {{ (string) $selectedBranchId === (string) $br->id ? 'active' : '' }}">
+                                                {{ $br->name }}
+                                            </button>
+                                        </form>
+                                    </li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                            @endif
+
                             <!-- Theme Toggle -->
                             <div class="theme-switch-label" id="themeToggler" title="Toggle Light/Dark Theme">
                                 <i class="theme-icon-dark" data-lucide="moon" style="width: 20px; height: 20px;"></i>
@@ -516,6 +582,7 @@
                             <div class="dropdown">
                                 <button class="btn p-0 border-0 d-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                     <img src="{{ $profilePhotoUrl }}" alt="Avatar" class="rounded-circle" style="width: 36px; height: 36px; object-fit: cover;">
+                                    <span class="d-none d-sm-inline fw-semibold text-main">{{ $authUser ? $authUser->name : 'Guest' }}</span>
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end p-2 border-0 shadow-lg mt-2" style="border-radius: 12px;">
                                     <li class="px-3 py-2 border-bottom">
@@ -547,12 +614,12 @@
                     @yield('content')
                 </main>
 
-                <!-- Sticky Footer -->
-                <footer class="py-3 px-4 border-top mt-auto bg-body" style="border-color: var(--border-color) !important;">
+                <!-- Footer -->
+                <footer class="app-footer py-3 px-4 border-top bg-body" style="border-color: var(--border-color) !important;">
                     <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">
-                        <span class="small text-muted">&copy; {{ date('Y') }} Dianne Seafood House. All rights reserved.</span>
+                        <span class="small text-muted">&copy; {{ date('Y') }} Dianne's Seafood House. All rights reserved.</span>
                         <div class="d-flex gap-3">
-                            <span class="small text-muted">Inventory Management System</span>
+                            <span class="small text-muted">Powered by <span class="app-footer-brand">Zapzaf Studios</span></span>
                         </div>
                     </div>
                 </footer>

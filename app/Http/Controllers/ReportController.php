@@ -2,12 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\DeliveryReportExport;
 use App\Models\Branch;
 use App\Models\Delivery;
+use App\Models\DeliveryItem;
 use App\Models\InventoryTransaction;
 use App\Models\Item;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ReportController extends Controller
 {
@@ -82,52 +86,46 @@ class ReportController extends Controller
         $dateFrom = $request->input('date_from', now()->startOfMonth()->toDateString());
         $dateTo = $request->input('date_to', now()->toDateString());
         $status = $request->input('status', '');
-        $user = $request->user();
 
-        $deliveries = Delivery::query()
-            ->with(['supplier', 'sourceBranch', 'destinationBranch', 'creator', 'approver', 'items'])
-            ->when(! $user->isAdmin(), fn ($q) => $q->where(fn ($inner) => $inner
-                ->where('destination_branch_id', $user->branch_id)
-                ->orWhere('source_branch_id', $user->branch_id)
-            ))
-            ->when($branchId, fn ($q, $id) => $q->where(fn ($inner) => $inner
-                ->where('destination_branch_id', $id)
-                ->orWhere('source_branch_id', $id)
-            ))
-            ->when($status, fn ($q, $s) => $q->where('status', $s))
-            ->whereDate('created_at', '>=', $dateFrom)
-            ->whereDate('created_at', '<=', $dateTo)
-            ->latest()
+        $deliveryItemsQuery = $this->deliveryReportItemQuery($request, $branchId, $dateFrom, $dateTo, $status);
+        $deliveryItems = (clone $deliveryItemsQuery)
             ->paginate((int) request('per_page', 20))->withQueryString();
 
-        $pendingCount = Delivery::query()
-            ->when(! $user->isAdmin(), fn ($q) => $q->where(fn ($inner) => $inner
-                ->where('destination_branch_id', $user->branch_id)
-                ->orWhere('source_branch_id', $user->branch_id)
-            ))
-            ->when($branchId, fn ($q, $id) => $q->where(fn ($inner) => $inner
-                ->where('destination_branch_id', $id)
-                ->orWhere('source_branch_id', $id)
-            ))
+        $totalDeliveryCost = (clone $deliveryItemsQuery)->sum('delivery_items.price');
+
+        $deliveryCountQuery = $this->deliveryReportDeliveryQuery($request, $branchId, $dateFrom, $dateTo);
+
+        $pendingCount = (clone $deliveryCountQuery)
             ->where('status', 'pending')
             ->count();
 
-        $receivedCount = Delivery::query()
-            ->when(! $user->isAdmin(), fn ($q) => $q->where(fn ($inner) => $inner
-                ->where('destination_branch_id', $user->branch_id)
-                ->orWhere('source_branch_id', $user->branch_id)
-            ))
-            ->when($branchId, fn ($q, $id) => $q->where(fn ($inner) => $inner
-                ->where('destination_branch_id', $id)
-                ->orWhere('source_branch_id', $id)
-            ))
+        $receivedCount = (clone $deliveryCountQuery)
             ->where('status', 'received')
             ->count();
 
-        return view('reports.delivery', compact('deliveries', 'pendingCount', 'receivedCount', 'dateFrom', 'dateTo', 'status') + [
+        return view('reports.delivery', compact('deliveryItems', 'pendingCount', 'receivedCount', 'totalDeliveryCost', 'dateFrom', 'dateTo', 'status') + [
             'branches' => Branch::query()->where('is_active', true)->orderBy('name')->get(),
             'selectedBranchId' => $branchId,
         ]);
+    }
+
+    public function exportDelivery(Request $request)
+    {
+        $branchId = $this->resolveBranchId($request);
+        $dateFrom = $request->input('date_from', now()->startOfMonth()->toDateString());
+        $dateTo = $request->input('date_to', now()->toDateString());
+        $status = $request->input('status', '');
+
+        $deliveryItemsQuery = $this->deliveryReportItemQuery($request, $branchId, $dateFrom, $dateTo, $status);
+        $deliveryItems = (clone $deliveryItemsQuery)->get();
+        $totalDeliveryCost = (clone $deliveryItemsQuery)->sum('delivery_items.price');
+
+        $filename = 'delivery-report-'.$dateFrom.'-to-'.$dateTo.'.xlsx';
+
+        return Excel::download(
+            new DeliveryReportExport($deliveryItems, (float) $totalDeliveryCost),
+            $filename
+        );
     }
 
     public function costing(Request $request): View
@@ -194,6 +192,46 @@ class ReportController extends Controller
         }
 
         return $user->branch_id ? (int) $user->branch_id : null;
+    }
+
+    private function deliveryReportItemQuery(Request $request, ?int $branchId, string $dateFrom, string $dateTo, string $status = ''): Builder
+    {
+        return DeliveryItem::query()
+            ->select('delivery_items.*')
+            ->join('deliveries', 'delivery_items.delivery_id', '=', 'deliveries.id')
+            ->with([
+                'item',
+                'sourceItem',
+                'delivery.supplier',
+                'delivery.sourceBranch',
+                'delivery.destinationBranch',
+                'delivery.creator',
+                'delivery.approver',
+            ])
+            ->when(! $request->user()->isAdmin(), fn (Builder $query) => $this->scopeDeliveryRowsToBranch($query, (int) $request->user()->branch_id))
+            ->when($branchId, fn (Builder $query, int $id) => $this->scopeDeliveryRowsToBranch($query, $id))
+            ->when($status, fn (Builder $query, string $selectedStatus) => $query->where('deliveries.status', $selectedStatus))
+            ->whereDate('deliveries.created_at', '>=', $dateFrom)
+            ->whereDate('deliveries.created_at', '<=', $dateTo)
+            ->orderByDesc('deliveries.created_at')
+            ->orderBy('delivery_items.id');
+    }
+
+    private function deliveryReportDeliveryQuery(Request $request, ?int $branchId, string $dateFrom, string $dateTo): Builder
+    {
+        return Delivery::query()
+            ->when(! $request->user()->isAdmin(), fn (Builder $query) => $this->scopeDeliveryRowsToBranch($query, (int) $request->user()->branch_id))
+            ->when($branchId, fn (Builder $query, int $id) => $this->scopeDeliveryRowsToBranch($query, $id))
+            ->whereDate('created_at', '>=', $dateFrom)
+            ->whereDate('created_at', '<=', $dateTo);
+    }
+
+    private function scopeDeliveryRowsToBranch(Builder $query, int $branchId): Builder
+    {
+        return $query->where(fn (Builder $inner) => $inner
+            ->where('deliveries.destination_branch_id', $branchId)
+            ->orWhere('deliveries.source_branch_id', $branchId)
+        );
     }
 }
 

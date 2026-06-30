@@ -262,6 +262,7 @@ Route::middleware('auth')->group(function (): void {
 		Route::get('/inventory', [ReportController::class, 'inventory'])->name('inventory.index');
 		Route::get('/transactions', [ReportController::class, 'transaction'])->name('transaction.index');
 		Route::get('/deliveries', [ReportController::class, 'delivery'])->name('delivery.index');
+		Route::get('/deliveries/export', [ReportController::class, 'exportDelivery'])->name('delivery.export');
 		Route::get('/costing', [CostingReportController::class, 'index'])->name('costing.index');
 		Route::get('/costing/create', [CostingReportController::class, 'create'])->name('costing.create');
 		Route::post('/costing', [CostingReportController::class, 'store'])->name('costing.store');

@@ -16,8 +16,10 @@ use App\Models\Transfer;
 use App\Models\User;
 use App\Models\VatablePurchase;
 use App\Models\WastageReport;
+use App\Exports\DeliveryReportExport;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
+use Maatwebsite\Excel\Facades\Excel;
 
 uses(RefreshDatabase::class);
 
@@ -174,6 +176,106 @@ it('reports delivery rows that do not have destinations', function () {
         ]);
 
     $this->assertDatabaseCount('deliveries', 0);
+});
+
+it('shows delivery report as item level rows with total delivery cost', function () {
+    [$manager, $branch, , $input, , , $supplier] = makeDeliveryProductionContext();
+
+    $delivery = Delivery::create([
+        'reference_number' => 'DEL-001',
+        'delivery_date' => now()->toDateString(),
+        'supplier_id' => $supplier->id,
+        'destination_branch_id' => $branch->id,
+        'status' => 'received',
+        'approved_by' => $manager->id,
+        'approved_at' => now(),
+        'created_by' => $manager->id,
+    ]);
+
+    DeliveryItem::create([
+        'delivery_id' => $delivery->id,
+        'item_id' => $input->id,
+        'description' => 'Item A',
+        'quantity' => 2,
+        'unit' => 'kg',
+        'price' => 500,
+        'allocated_to' => 'inventory',
+    ]);
+
+    DeliveryItem::create([
+        'delivery_id' => $delivery->id,
+        'item_id' => $input->id,
+        'description' => 'Item B',
+        'quantity' => 1,
+        'unit' => 'kg',
+        'price' => 250,
+        'allocated_to' => 'inventory',
+    ]);
+
+    $response = $this->actingAs($manager)
+        ->get(route('reports.delivery.index'))
+        ->assertOk()
+        ->assertSee('Delivery Reference')
+        ->assertSee('Total Delivery Cost')
+        ->assertSee('₱750.00')
+        ->assertSee('Item A')
+        ->assertSee('Item B')
+        ->assertDontSee('<th>#</th>', false)
+        ->assertDontSee('item(s)');
+
+    expect(substr_count($response->getContent(), 'DEL-001'))->toBe(2);
+});
+
+it('exports delivery report as item level rows', function () {
+    [$manager, $branch, , $input, , , $supplier] = makeDeliveryProductionContext();
+    $date = now()->toDateString();
+
+    $delivery = Delivery::create([
+        'reference_number' => 'DEL-EXPORT',
+        'delivery_date' => $date,
+        'supplier_id' => $supplier->id,
+        'destination_branch_id' => $branch->id,
+        'status' => 'received',
+        'created_by' => $manager->id,
+    ]);
+
+    DeliveryItem::create([
+        'delivery_id' => $delivery->id,
+        'item_id' => $input->id,
+        'description' => 'Exported Item A',
+        'quantity' => 2,
+        'unit' => 'kg',
+        'price' => 500,
+        'allocated_to' => 'inventory',
+    ]);
+
+    DeliveryItem::create([
+        'delivery_id' => $delivery->id,
+        'item_id' => $input->id,
+        'description' => 'Exported Item B',
+        'quantity' => 1,
+        'unit' => 'kg',
+        'price' => 250,
+        'allocated_to' => 'inventory',
+    ]);
+
+    Excel::fake();
+
+    $this->actingAs($manager)
+        ->get(route('reports.delivery.export', ['date_from' => $date, 'date_to' => $date]))
+        ->assertOk();
+
+    Excel::assertDownloaded("delivery-report-{$date}-to-{$date}.xlsx", function (DeliveryReportExport $export) {
+        $rows = $export->collection();
+
+        return $rows->count() === 3
+            && $rows[0][0] === 'DEL-EXPORT'
+            && $rows[0][4] === 'Exported Item A'
+            && $rows[1][0] === 'DEL-EXPORT'
+            && $rows[1][4] === 'Exported Item B'
+            && $rows[2][4] === 'TOTAL DELIVERY COST'
+            && (float) $rows[2][7] === 750.0;
+    });
 });
 
 it('rejects a delivery inventory destination with a mismatched unit', function () {

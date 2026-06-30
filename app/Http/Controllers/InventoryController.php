@@ -261,11 +261,14 @@ class InventoryController extends Controller
         $validated = $request->validate([
             'quantity' => InventoryQuantity::validationRules($inventory->unit),
             'reason' => ['nullable', 'string', 'max:255'],
+            'custom_reason' => ['nullable', 'required_if:reason,Others', 'string', 'max:255'],
             'transaction_date' => ['nullable', 'date'],
         ], InventoryQuantity::validationMessages($inventory->unit));
 
         $quantity = (float) $validated['quantity'];
-        DB::transaction(function () use ($inventory, $quantity, $validated, $request): void {
+        $reason = $this->manualAdjustmentReason($validated, 'Manual stock-in');
+
+        DB::transaction(function () use ($inventory, $quantity, $validated, $reason, $request): void {
             $inventory = Item::query()->lockForUpdate()->findOrFail($inventory->id);
             $beginning = (float) $inventory->quantity;
             $this->inventoryService->increase($inventory, $quantity);
@@ -280,7 +283,7 @@ class InventoryController extends Controller
                 'remaining_quantity' => $remaining,
                 'transaction_price' => $inventory->unit_price ? (float) $inventory->unit_price : null,
                 'transaction_date' => $validated['transaction_date'] ?? now(),
-                'reason' => $validated['reason'] ?? 'Manual stock-in',
+                'reason' => $reason,
                 'status' => 'approved',
                 'notes' => 'Manual stock adjustment.',
                 'created_by' => $request->user()?->id,
@@ -297,11 +300,14 @@ class InventoryController extends Controller
         $validated = $request->validate([
             'quantity' => [...InventoryQuantity::validationRules($inventory->unit), 'max:'.(float) $inventory->quantity],
             'reason' => ['required', 'string', 'max:255'],
+            'custom_reason' => ['nullable', 'required_if:reason,Others', 'string', 'max:255'],
             'transaction_date' => ['nullable', 'date'],
         ], InventoryQuantity::validationMessages($inventory->unit));
 
         $quantity = (float) $validated['quantity'];
-        DB::transaction(function () use ($inventory, $quantity, $validated, $request): void {
+        $reason = $this->manualAdjustmentReason($validated);
+
+        DB::transaction(function () use ($inventory, $quantity, $validated, $reason, $request): void {
             $inventory = Item::query()->lockForUpdate()->findOrFail($inventory->id);
 
             if ((float) $inventory->quantity < $quantity) {
@@ -326,7 +332,7 @@ class InventoryController extends Controller
                 'remaining_quantity' => $remaining,
                 'transaction_price' => $totalPrice,
                 'transaction_date' => $validated['transaction_date'] ?? now(),
-                'reason' => $validated['reason'],
+                'reason' => $reason,
                 'status' => 'approved',
                 'notes' => 'Manual stock adjustment.',
                 'created_by' => $request->user()?->id,
@@ -334,6 +340,19 @@ class InventoryController extends Controller
         });
 
         return redirect()->route('inventory.index')->with('success', 'Stock deducted and transaction logged successfully.');
+    }
+
+    private function manualAdjustmentReason(array $validated, ?string $default = null): ?string
+    {
+        $reason = trim((string) ($validated['reason'] ?? ''));
+
+        if ($reason === 'Others') {
+            $customReason = trim((string) ($validated['custom_reason'] ?? ''));
+
+            return $customReason !== '' ? $customReason : $default;
+        }
+
+        return $reason !== '' ? $reason : $default;
     }
 
     public function transactions(Request $request)

@@ -4,11 +4,8 @@
 
 @section('content')
     <x-page-header title="All Location Categories" subtitle="Tree structure: Location &gt; Category" icon="folder">
-        <a href="{{ route('categories.locations.create') }}" class="btn btn-outline-primary">
+        <a href="{{ route('categories.locations.create') }}" class="btn btn-primary">
             <i data-lucide="map-pin" class="me-1"></i> Create Location
-        </a>
-        <a href="{{ route('categories.items.create') }}" class="btn btn-primary">
-            <i data-lucide="folder-plus" class="me-1"></i> Create Category
         </a>
     </x-page-header>
 

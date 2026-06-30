@@ -4,10 +4,10 @@
 
 @section('content')
     <x-page-header title="Inventory" subtitle="Track stock levels, suppliers, and replenishment activity" icon="package">
-        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#exportInventoryModal">
+        <button type="button" class="btn btn-success text-white" data-bs-toggle="modal" data-bs-target="#exportInventoryModal">
             <i class="me-1" data-lucide="download"></i> Export Excel
         </button>
-        <a class="btn btn-outline-primary" href="{{ route('inventory.transactions') }}">
+        <a class="btn btn-light text-primary" href="{{ route('inventory.transactions') }}">
             <i class="me-1" data-lucide="list"></i> Transactions
         </a>
         <a class="btn btn-primary" href="{{ route('inventory.create') }}">
@@ -111,8 +111,17 @@
                         <input type="datetime-local" name="transaction_date" class="form-control" value="{{ now()->format('Y-m-d\TH:i') }}">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">Reason</label>
-                        <input type="text" name="reason" class="form-control" placeholder="Purchase order or stock replenishment note">
+                        <label class="form-label fw-semibold" for="stockInReasonSelect">Reason</label>
+                        <select name="reason" id="stockInReasonSelect" class="form-select" required>
+                            <option value="">Select reason</option>
+                            <option value="Sales">Sales</option>
+                            <option value="Withdrawal">Withdrawal</option>
+                            <option value="Others">Others</option>
+                        </select>
+                    </div>
+                    <div class="mb-3 d-none" id="stockInCustomReasonWrapper">
+                        <label class="form-label fw-semibold" for="stockInCustomReason">Other Reason</label>
+                        <input type="text" name="custom_reason" id="stockInCustomReason" class="form-control" maxlength="255" placeholder="Enter reason">
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -179,8 +188,17 @@
                         <input type="datetime-local" name="transaction_date" class="form-control" value="{{ now()->format('Y-m-d\TH:i') }}">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">Reason</label>
-                        <input type="text" name="reason" class="form-control" placeholder="Damage, usage, manual adjustment" required>
+                        <label class="form-label fw-semibold" for="deductReasonSelect">Reason</label>
+                        <select name="reason" id="deductReasonSelect" class="form-select" required>
+                            <option value="">Select reason</option>
+                            <option value="Sales">Sales</option>
+                            <option value="Withdrawal">Withdrawal</option>
+                            <option value="Others">Others</option>
+                        </select>
+                    </div>
+                    <div class="mb-3 d-none" id="deductCustomReasonWrapper">
+                        <label class="form-label fw-semibold" for="deductCustomReason">Other Reason</label>
+                        <input type="text" name="custom_reason" id="deductCustomReason" class="form-control" maxlength="255" placeholder="Enter reason">
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -272,6 +290,7 @@ function showStockIn(id, name, unit, allowsDecimals) {
     document.getElementById('modalItemName').textContent = name;
     document.getElementById('stockInForm').action = '{{ url('/inventory') }}/' + id + '/stock-in';
     configureQuantityInput('stockInQuantity', 'stockInQuantityHelp', unit, allowsDecimals);
+    resetReasonDropdown('stockInReasonSelect', 'stockInCustomReason', 'stockInCustomReasonWrapper');
     new bootstrap.Modal(document.getElementById('stockInModal')).show();
 }
 
@@ -280,6 +299,7 @@ function showDeductStock(id, name, remainingStock, unit, allowsDecimals) {
     document.getElementById('deductRemainingStock').textContent = remainingStock;
     document.getElementById('deductStockForm').action = '{{ url('/inventory') }}/' + id + '/deduct';
     configureQuantityInput('deductQuantity', 'deductQuantityHelp', unit, allowsDecimals, remainingStock);
+    resetReasonDropdown('deductReasonSelect', 'deductCustomReason', 'deductCustomReasonWrapper');
     new bootstrap.Modal(document.getElementById('deductStockModal')).show();
 }
 
@@ -316,6 +336,25 @@ function showTransfer(id, name, remainingStock, sourceBranchName, sourceBranchId
 
     new bootstrap.Modal(document.getElementById('transferModal')).show();
 }
+
+function resetReasonDropdown(selectId, inputId, wrapperId) {
+    const select = document.getElementById(selectId);
+    const input = document.getElementById(inputId);
+    const wrapper = document.getElementById(wrapperId);
+
+    if (select) {
+        select.value = '';
+    }
+
+    if (input) {
+        input.value = '';
+        input.required = false;
+    }
+
+    if (wrapper) {
+        wrapper.classList.add('d-none');
+    }
+}
 </script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
@@ -329,6 +368,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const branchSelect = document.getElementById('transferDestinationBranch');
     const itemSelect = document.getElementById('transferDestinationItem');
     const help = document.getElementById('transferItemHelp');
+
+    setupReasonDropdown('stockInReasonSelect', 'stockInCustomReason', 'stockInCustomReasonWrapper');
+    setupReasonDropdown('deductReasonSelect', 'deductCustomReason', 'deductCustomReasonWrapper');
 
     if (!branchSelect || !itemSelect) return;
 
@@ -361,6 +403,29 @@ document.addEventListener('DOMContentLoaded', function () {
         const d = document.createElement('div');
         d.textContent = str;
         return d.innerHTML;
+    }
+
+    function setupReasonDropdown(selectId, inputId, wrapperId) {
+        const select = document.getElementById(selectId);
+        const input = document.getElementById(inputId);
+        const wrapper = document.getElementById(wrapperId);
+
+        if (!select || !input || !wrapper) {
+            return;
+        }
+
+        const toggleCustomReason = () => {
+            const isOthers = select.value === 'Others';
+            wrapper.classList.toggle('d-none', !isOthers);
+            input.required = isOthers;
+
+            if (!isOthers) {
+                input.value = '';
+            }
+        };
+
+        select.addEventListener('change', toggleCustomReason);
+        toggleCustomReason();
     }
 });
 </script>

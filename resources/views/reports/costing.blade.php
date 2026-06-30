@@ -59,8 +59,8 @@
         <div class="col-xl-3 col-md-6">
             <div class="card border-0 shadow-sm">
                 <div class="card-body d-flex align-items-center gap-3">
-                    <div class="rounded-circle bg-primary bg-opacity-10 p-3">
-                        <i data-lucide="file-text" class="text-white" style="width:24px;height:24px;"></i>
+                    <div class="rounded-circle p-3" style="background-color: rgba(240, 124, 89, 0.1) !important;">
+                        <i data-lucide="file-text" class="text-primary" style="width:24px;height:24px;"></i>
                     </div>
                     <div>
                         <div class="text-muted small">Reports Shown</div>

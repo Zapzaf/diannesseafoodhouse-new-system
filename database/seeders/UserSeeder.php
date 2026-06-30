@@ -11,9 +11,8 @@ class UserSeeder extends Seeder
 {
     public function run(): void
     {
-        $mainBranch = Branch::where('name', 'Main Branch')->firstOrFail();
-        $northBranch = Branch::where('name', 'North Branch')->firstOrFail();
-        $southBranch = Branch::where('name', 'South Branch')->firstOrFail();
+        $carcarBranch = Branch::where('name', 'Carcar Branch')->firstOrFail();
+        $mandaueBranch = Branch::where('name', 'Mandaue Branch')->firstOrFail();
 
         $admin = User::updateOrCreate(
             ['email' => 'admin@diannesseafoodhouse.com'],
@@ -27,81 +26,56 @@ class UserSeeder extends Seeder
             ]
         );
 
-        $mainManager = User::updateOrCreate(
-            ['email' => 'manager.main@diannesseafoodhouse.com'],
+        $carcarManager = User::updateOrCreate(
+            ['email' => 'manager.carcar@diannesseafoodhouse.com'],
             [
-                'name' => 'Main Branch Manager',
+                'name' => 'Carcar Branch Manager',
                 'password' => Hash::make('password'),
                 'role' => 'branch_manager',
-                'branch_id' => $mainBranch->id,
+                'branch_id' => $carcarBranch->id,
                 'phone' => '09170000011',
                 'email_verified_at' => now(),
             ]
         );
 
-        $northManager = User::updateOrCreate(
-            ['email' => 'manager.north@diannesseafoodhouse.com'],
+        $mandaueManager = User::updateOrCreate(
+            ['email' => 'manager.mandaue@diannesseafoodhouse.com'],
             [
-                'name' => 'North Branch Manager',
+                'name' => 'Mandaue Branch Manager',
                 'password' => Hash::make('password'),
                 'role' => 'branch_manager',
-                'branch_id' => $northBranch->id,
+                'branch_id' => $mandaueBranch->id,
                 'phone' => '09170000012',
                 'email_verified_at' => now(),
             ]
         );
 
-        $southManager = User::updateOrCreate(
-            ['email' => 'manager.south@diannesseafoodhouse.com'],
-            [
-                'name' => 'South Branch Manager',
-                'password' => Hash::make('password'),
-                'role' => 'branch_manager',
-                'branch_id' => $southBranch->id,
-                'phone' => '09170000013',
-                'email_verified_at' => now(),
-            ]
-        );
-
         User::updateOrCreate(
-            ['email' => 'staff.main@diannesseafoodhouse.com'],
+            ['email' => 'staff.carcar@diannesseafoodhouse.com'],
             [
-                'name' => 'Main Branch Staff',
+                'name' => 'Carcar Branch Staff',
                 'password' => Hash::make('password'),
                 'role' => 'regular_user',
-                'branch_id' => $mainBranch->id,
+                'branch_id' => $carcarBranch->id,
                 'phone' => '09170000101',
                 'email_verified_at' => now(),
             ]
         );
 
         User::updateOrCreate(
-            ['email' => 'staff.north@diannesseafood.local'],
+            ['email' => 'staff.mandaue@diannesseafoodhouse.com'],
             [
-                'name' => 'North Branch Staff',
+                'name' => 'Mandaue Branch Staff',
                 'password' => Hash::make('password'),
                 'role' => 'regular_user',
-                'branch_id' => $northBranch->id,
+                'branch_id' => $mandaueBranch->id,
                 'phone' => '09170000102',
                 'email_verified_at' => now(),
             ]
         );
 
-        User::updateOrCreate(
-            ['email' => 'staff.south@diannesseafood.local'],
-            [
-                'name' => 'South Branch Staff',
-                'password' => Hash::make('password'),
-                'role' => 'regular_user',
-                'branch_id' => $southBranch->id,
-                'phone' => '09170000103',
-                'email_verified_at' => now(),
-            ]
-        );
-
-        $mainBranch->update(['manager_id' => $mainManager->id]);
-        $northBranch->update(['manager_id' => $northManager->id]);
-        $southBranch->update(['manager_id' => $southManager->id]);
+        $carcarBranch->update(['manager_id' => $carcarManager->id]);
+        $mandaueBranch->update(['manager_id' => $mandaueManager->id]);
 
         // Keep a fallback test user for simple local login checks.
         User::updateOrCreate(
@@ -110,7 +84,7 @@ class UserSeeder extends Seeder
                 'name' => 'Test User',
                 'password' => Hash::make('password'),
                 'role' => 'regular_user',
-                'branch_id' => $mainBranch->id,
+                'branch_id' => $carcarBranch->id,
                 'phone' => '09170000999',
                 'email_verified_at' => now(),
             ]

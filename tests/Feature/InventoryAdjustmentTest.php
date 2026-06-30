@@ -134,6 +134,57 @@ it('accepts ajax-style inventory item deletes from the table action button', fun
     $this->assertSoftDeleted('items', ['id' => $item->id]);
 });
 
+it('shows reason dropdowns for quick inventory adjustments', function () {
+    inventoryAdjustmentItem($this, 'Quick Action Shrimp', 'pcs');
+
+    $this->actingAs($this->user)
+        ->get(route('inventory.index'))
+        ->assertOk()
+        ->assertSee('id="stockInReasonSelect"', false)
+        ->assertSee('id="deductReasonSelect"', false)
+        ->assertSee('<option value="Sales">Sales</option>', false)
+        ->assertSee('<option value="Withdrawal">Withdrawal</option>', false)
+        ->assertSee('<option value="Others">Others</option>', false)
+        ->assertSee('name="custom_reason"', false);
+});
+
+it('uses the custom others reason for quick inventory adjustments', function () {
+    $item = inventoryAdjustmentItem($this, 'Custom Reason Shrimp', 'kg');
+
+    $this->actingAs($this->user)
+        ->post("/inventory/{$item->id}/stock-in", [
+            'quantity' => '1',
+            'reason' => 'Others',
+            'custom_reason' => 'Supplier count correction',
+        ])
+        ->assertRedirect(route('inventory.index'));
+
+    $this->actingAs($this->user)
+        ->post("/inventory/{$item->id}/deduct", [
+            'quantity' => '1',
+            'reason' => 'Others',
+            'custom_reason' => 'Staff meal usage',
+        ])
+        ->assertRedirect(route('inventory.index'));
+
+    expect(InventoryTransaction::query()->pluck('reason')->all())
+        ->toContain('Supplier count correction')
+        ->toContain('Staff meal usage');
+});
+
+it('requires a custom reason when quick adjustment reason is others', function () {
+    $item = inventoryAdjustmentItem($this, 'Missing Custom Reason Shrimp', 'pcs');
+
+    $this->actingAs($this->user)
+        ->post("/inventory/{$item->id}/deduct", [
+            'quantity' => '1',
+            'reason' => 'Others',
+        ])
+        ->assertSessionHasErrors('custom_reason');
+
+    expect(InventoryTransaction::query()->count())->toBe(0);
+});
+
 it('allows decimal stock additions for measurable units', function () {
     $item = inventoryAdjustmentItem($this, 'Cooking Oil', 'liters');
 

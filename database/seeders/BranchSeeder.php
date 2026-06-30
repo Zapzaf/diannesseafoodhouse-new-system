@@ -10,25 +10,17 @@ class BranchSeeder extends Seeder
     public function run(): void
     {
         Branch::updateOrCreate(
-            ['name' => 'Main Branch'],
+            ['name' => 'Carcar Branch'],
             [
-                'address' => 'Dianne\'s Seafood House - Main Branch',
+                'address' => 'General Luna St., Poblacion 3, Carcar City, Cebu',
                 'is_active' => true,
             ]
         );
 
         Branch::updateOrCreate(
-            ['name' => 'North Branch'],
+            ['name' => 'Mandaue Branch'],
             [
-                'address' => 'Dianne\'s Seafood House - North Branch',
-                'is_active' => true,
-            ]
-        );
-
-        Branch::updateOrCreate(
-            ['name' => 'South Branch'],
-            [
-                'address' => 'Dianne\'s Seafood House - South Branch',
+                'address' => 'C.M.Cabahug, Cambaro, Mandaue, 6014 Cebu',
                 'is_active' => true,
             ]
         );

@@ -62,10 +62,10 @@
     --text-table-header: var(--text-muted);
 
     /* Button Colors - Dark Mode Override */
-    --btn-light-bg: #1e293b;
-    --btn-light-hover: #334155;
+    --btn-light-bg: #2d3748;
+    --btn-light-hover: #4a5568;
     --btn-light-text: #f8fafc;
-    --btn-light-border: #334155;
+    --btn-light-border: #4a5568;
 }
 
 /* Dark Mode Global Overrides */
@@ -216,6 +216,45 @@
     color: var(--text-main) !important;
 }
 
+/* Dark Mode overrides for Branch Settings stats cards */
+[data-bs-theme="dark"] .bg-light .bg-white {
+    background-color: var(--bg-card) !important;
+    border-color: var(--border-color) !important;
+}
+
+/* Ensure border utility classes adapt in dark mode */
+[data-bs-theme="dark"] .border {
+    border-color: var(--border-color) !important;
+}
+
+/* Ensure checkbox switches work correctly in dark mode */
+[data-bs-theme="dark"] .form-check-input:checked {
+    background-color: var(--primary-color) !important;
+    border-color: var(--primary-color) !important;
+}
+
+/* Alert light adjustment in dark mode */
+[data-bs-theme="dark"] .alert-light {
+    background-color: var(--bg-card) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-main) !important;
+}
+
+/* Ensure list-group-items adapt beautifully in dark mode */
+[data-bs-theme="dark"] .list-group-item {
+    background-color: transparent !important;
+    color: var(--text-main) !important;
+    border-color: var(--border-color) !important;
+}
+
+[data-bs-theme="dark"] .list-group-item-action:hover,
+[data-bs-theme="dark"] .list-group-item-action:focus {
+    background-color: rgba(255, 255, 255, 0.04) !important;
+    color: var(--text-main) !important;
+}
+
+
+
 /* Uniform Stroke for Modern Icons */
 svg.lucide,
 [data-bs-theme="dark"] svg.lucide {
@@ -307,6 +346,29 @@ body {
     background-color: var(--primary-color) !important;
     border-color: var(--primary-color) !important;
     color: #ffffff !important;
+}
+
+.btn-light {
+    background-color: var(--btn-light-bg) !important;
+    border-color: var(--btn-light-border) !important;
+    color: var(--btn-light-text) !important;
+}
+.btn-light:hover, .btn-light:focus, .btn-light:active {
+    background-color: var(--btn-light-hover) !important;
+    border-color: var(--btn-light-hover) !important;
+    color: var(--btn-light-text) !important;
+}
+
+/* Make btn-light with text-primary look solid with an orange tint in dark mode */
+[data-bs-theme="dark"] .btn-light.text-primary {
+    background-color: rgba(240, 124, 89, 0.15) !important;
+    border-color: rgba(240, 124, 89, 0.3) !important;
+    color: var(--primary-color) !important;
+}
+[data-bs-theme="dark"] .btn-light.text-primary:hover,
+[data-bs-theme="dark"] .btn-light.text-primary:focus {
+    background-color: rgba(240, 124, 89, 0.25) !important;
+    border-color: rgba(240, 124, 89, 0.45) !important;
 }
 .form-control:focus, .form-select:focus {
     border-color: var(--primary-color);
@@ -2355,6 +2417,24 @@ a:focus {
     background-color: var(--border-color) !important;
 }
 
+.page-header .page-header-actions .btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.45rem !important;
+    min-height: 2.85rem;
+    padding: 0.65rem 1.15rem !important;
+    line-height: 1 !important;
+    white-space: nowrap;
+}
+
+.page-header .page-header-actions .btn i,
+.page-header .page-header-actions .btn svg,
+.page-header .page-header-actions .btn .lucide {
+    flex: 0 0 auto;
+    margin: 0 !important;
+}
+
 .production-item-summary {
     display: flex;
     flex-direction: column;
@@ -3395,6 +3475,25 @@ body.bg-body.text-main {
     overflow-x: hidden;
 }
 
+.main-content > main.flex-grow-1 {
+    flex-grow: 1 !important;
+}
+
+.main-content > .app-footer {
+    flex: 0 0 auto;
+    position: static !important;
+    margin-top: 0;
+}
+
+.app-footer-brand {
+    color: var(--primary-color) !important;
+    font-weight: 800;
+}
+
+[data-bs-theme="dark"] .app-footer-brand {
+    color: #86efac !important;
+}
+
 .main-content .container,
 .main-content .container-sm,
 .main-content .container-md,
@@ -3409,26 +3508,31 @@ body.bg-body.text-main {
     html,
     body.bg-body.text-main,
     .wrapper,
-    .sidebar,
     .main-content {
-        height: 100dvh;
+        height: auto;
+        min-height: 100dvh;
     }
 
-    body.bg-body.text-main,
+    body.bg-body.text-main {
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+
     .wrapper {
-        overflow: hidden;
+        overflow: visible;
+        overflow-x: clip;
     }
 
     .sidebar {
-        position: relative;
+        position: sticky;
+        height: 100dvh;
         inset: auto;
+        top: 0;
         transform: none !important;
     }
 
     .main-content {
-        overflow-x: hidden;
-        overflow-y: auto;
-        overscroll-behavior: contain;
+        overflow: visible;
     }
 }
 
@@ -3970,11 +4074,12 @@ th.table-sortable {
 }
 
 .table-sort-label {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    max-width: calc(100% - 1.9rem);
-    text-align: center;
+    display: inline-block;
+    vertical-align: middle;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    max-width: calc(100% - 1.6rem);
 }
 
 .card-footer:has(.pagination),
