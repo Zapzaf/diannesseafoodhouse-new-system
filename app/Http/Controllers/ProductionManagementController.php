@@ -195,19 +195,10 @@ class ProductionManagementController extends Controller
             abort(403, 'This production order is outside your active branch.');
         }
 
-        $validated = $request->validate([
-            'outputs' => ['required', 'array', 'min:1'],
-            'outputs.*.item_id' => ['required', 'exists:items,id'],
-            'outputs.*.quantity_produced' => ['required', 'numeric', 'gt:0'],
-            'outputs.*.unit' => ['nullable', 'string', 'max:32'],
-            'wastage' => ['nullable', 'array'],
-            'wastage.*.scrap_name' => ['nullable', 'string', 'max:255'],
-            'wastage.*.quantity_lost' => ['nullable', 'numeric', 'gt:0'],
-            'wastage.*.quantity_lost_unit' => ['required_with:wastage.*.quantity_lost', 'string', 'max:32'],
-            'wastage.*.reason' => ['nullable', 'string', 'max:255'],
-            'wastage.*.convert_to_item_id' => ['nullable', 'exists:items,id', 'required_with:wastage.*.converted_quantity'],
-            'wastage.*.converted_quantity' => ['nullable', 'numeric', 'gt:0', 'required_with:wastage.*.convert_to_item_id'],
-        ]);
+        $validated = $request->validate(
+            $this->finishProductionRules(),
+            $this->finishProductionMessages()
+        );
 
         if ($production->status === 'finished') {
             return redirect()->route('productions.show', $production)->with('error', 'Production order already finished.');
@@ -322,15 +313,10 @@ class ProductionManagementController extends Controller
             abort(403, 'This production order is outside your active branch.');
         }
 
-        $validated = $request->validate([
-            'items' => ['required', 'array', 'min:1'],
-            'items.*.scrap_name' => ['nullable', 'string', 'max:255'],
-            'items.*.quantity_lost' => ['required', 'numeric', 'gt:0'],
-            'items.*.quantity_lost_unit' => ['required_with:items.*.quantity_lost', 'string', 'max:32'],
-            'items.*.reason' => ['nullable', 'string', 'max:255'],
-            'items.*.convert_to_item_id' => ['nullable', 'exists:items,id', 'required_with:items.*.converted_quantity'],
-            'items.*.converted_quantity' => ['nullable', 'numeric', 'gt:0', 'required_with:items.*.convert_to_item_id'],
-        ]);
+        $validated = $request->validate(
+            $this->productionWastageRules('items', true),
+            $this->productionWastageMessages('items')
+        );
 
         $convertedItemIds = collect($validated['items'])
             ->pluck('convert_to_item_id')
@@ -401,5 +387,49 @@ class ProductionManagementController extends Controller
         }
 
         return $user->branch_id ? (int) $user->branch_id : null;
+    }
+
+    private function finishProductionRules(): array
+    {
+        return [
+            'outputs' => ['required', 'array', 'min:1'],
+            'outputs.*.item_id' => ['required', 'exists:items,id'],
+            'outputs.*.quantity_produced' => ['required', 'numeric', 'gt:0'],
+            'outputs.*.unit' => ['nullable', 'string', 'max:32'],
+            'wastage' => ['nullable', 'array'],
+            ...$this->productionWastageRules('wastage'),
+        ];
+    }
+
+    private function finishProductionMessages(): array
+    {
+        return $this->productionWastageMessages('wastage');
+    }
+
+    private function productionWastageRules(string $prefix, bool $requireRows = false): array
+    {
+        $base = [
+            $prefix => [$requireRows ? 'required' : 'nullable', 'array', 'min:1'],
+            "{$prefix}.*.quantity_lost" => ['nullable', 'numeric', 'gt:0', "required_with:{$prefix}.*.convert_to_item_id,{$prefix}.*.converted_quantity"],
+            "{$prefix}.*.quantity_lost_unit" => ["required_with:{$prefix}.*.quantity_lost", 'string', 'max:32'],
+            "{$prefix}.*.convert_to_item_id" => ['nullable', 'exists:items,id', "required_with:{$prefix}.*.quantity_lost,{$prefix}.*.converted_quantity"],
+            "{$prefix}.*.converted_quantity" => ['nullable', 'numeric', 'gt:0', "required_with:{$prefix}.*.quantity_lost,{$prefix}.*.convert_to_item_id"],
+        ];
+
+        if ($prefix === 'items') {
+            $base["{$prefix}.*.scrap_name"] = ['nullable', 'string', 'max:255'];
+            $base["{$prefix}.*.reason"] = ['nullable', 'string', 'max:255'];
+        }
+
+        return $base;
+    }
+
+    private function productionWastageMessages(string $prefix): array
+    {
+        return [
+            "{$prefix}.*.quantity_lost.required_with" => 'Qty Lost is required for every scrap conversion row.',
+            "{$prefix}.*.convert_to_item_id.required_with" => 'Convert To is required for every scrap conversion row.',
+            "{$prefix}.*.converted_quantity.required_with" => 'Convert Qty is required for every scrap conversion row.',
+        ];
     }
 }
