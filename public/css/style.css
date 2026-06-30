@@ -4321,3 +4321,29 @@ th.table-sortable {
     display: block !important;
     flex: 0 0 auto !important;
 }
+
+/* Global Search Auto-Suggestions */
+#globalSearchSuggestions {
+    background-color: var(--bg-card) !important;
+    border: 1px solid var(--border-color) !important;
+}
+#globalSearchSuggestions .dropdown-header {
+    background-color: rgba(240, 124, 89, 0.05) !important;
+    color: var(--primary-color) !important;
+    border-bottom: 1px solid var(--border-color);
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+}
+#globalSearchSuggestions .dropdown-item {
+    color: var(--text-main) !important;
+}
+#globalSearchSuggestions .dropdown-item:hover,
+#globalSearchSuggestions .dropdown-item:focus {
+    background-color: rgba(240, 124, 89, 0.08) !important;
+    color: var(--primary-color) !important;
+    outline: none;
+}
+#globalSearchSuggestions .dropdown-item:hover .text-muted,
+#globalSearchSuggestions .dropdown-item:focus .text-muted {
+    color: var(--primary-color) !important;
+}

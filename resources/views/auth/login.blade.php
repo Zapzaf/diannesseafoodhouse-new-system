@@ -3,7 +3,13 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Login</title>
+    <meta name="theme-color" content="#f07c59">
+    <title>Login - Dianne Seafood House</title>
+    <link rel="icon" type="image/x-icon" href="{{ asset('assets/icons/favicon.ico') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('assets/icons/favicon-32x32.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('assets/icons/favicon-16x16.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('assets/icons/apple-touch-icon.png') }}">
+    <link rel="manifest" href="{{ asset('assets/icons/site.webmanifest') }}">
     <link href="{{ asset('css/styles-old.css') }}" rel="stylesheet" />
     <link href="{{ asset('css/style.css') }}" rel="stylesheet" />
 </head>

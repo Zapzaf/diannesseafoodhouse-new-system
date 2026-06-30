@@ -292,4 +292,100 @@ Route::middleware('auth')->group(function (): void {
         // Show must be last (wildcard)
         Route::get('/{monthYear}', [\App\Http\Controllers\ExpenseController::class, 'show'])->name('show');
     });
+
+	Route::get('/global-search-suggestions', function (Request $request) {
+		$query = trim($request->query('q'));
+		if (empty($query) || strlen($query) < 2) {
+			return response()->json([]);
+		}
+
+		$results = [];
+
+		// 1. Static navigation links matching
+		$navLinks = [
+			['title' => 'Dashboard', 'url' => route('dashboard'), 'category' => 'Navigation', 'icon' => 'layout-grid'],
+			['title' => 'All Items (Inventory)', 'url' => route('items.index'), 'category' => 'Navigation', 'icon' => 'package'],
+			['title' => 'Add New Item', 'url' => route('items.create'), 'category' => 'Navigation', 'icon' => 'plus'],
+			['title' => 'Low Stock Alerts', 'url' => route('items.low-stock'), 'category' => 'Navigation', 'icon' => 'alert-triangle'],
+			['title' => 'All Locations', 'url' => route('categories.all'), 'category' => 'Navigation', 'icon' => 'folder'],
+			['title' => 'All Transactions', 'url' => route('transactions.index'), 'category' => 'Navigation', 'icon' => 'list'],
+			['title' => 'New Transaction', 'url' => route('transactions.create'), 'category' => 'Navigation', 'icon' => 'plus'],
+			['title' => 'Pending Approval', 'url' => route('transactions.pending'), 'category' => 'Navigation', 'icon' => 'clock'],
+			['title' => 'All Menu Items', 'url' => route('menus.index'), 'category' => 'Navigation', 'icon' => 'coffee'],
+			['title' => 'Add New Menu Item', 'url' => route('menus.create'), 'category' => 'Navigation', 'icon' => 'plus'],
+			['title' => 'Menu Categories', 'url' => route('menu-categories.index'), 'category' => 'Navigation', 'icon' => 'tag'],
+			['title' => 'All Orders', 'url' => route('menu-orders.index'), 'category' => 'Navigation', 'icon' => 'shopping-bag'],
+			['title' => 'New Order', 'url' => route('menu-orders.create'), 'category' => 'Navigation', 'icon' => 'plus'],
+			['title' => 'All Tables', 'url' => route('tables.index'), 'category' => 'Navigation', 'icon' => 'grid'],
+			['title' => 'Payments', 'url' => route('payments.index'), 'category' => 'Navigation', 'icon' => 'credit-card'],
+			['title' => 'Users', 'url' => route('users.index'), 'category' => 'Navigation', 'icon' => 'users'],
+			['title' => 'Settings', 'url' => route('settings.show'), 'category' => 'Navigation', 'icon' => 'settings'],
+		];
+
+		foreach ($navLinks as $link) {
+			if (stripos($link['title'], $query) !== false) {
+				$results[] = $link;
+			}
+		}
+
+		// 2. Database Inventory Items
+		$items = \App\Models\Item::where('name', 'like', "%{$query}%")
+			->orWhere('sku', 'like', "%{$query}%")
+			->limit(5)
+			->get();
+
+		foreach ($items as $item) {
+			$results[] = [
+				'title' => $item->name . ($item->sku ? " ({$item->sku})" : ""),
+				'url' => route('inventory.edit', $item->id),
+				'category' => 'Inventory Items',
+				'icon' => 'package'
+			];
+		}
+
+		// 3. Database Menu Items
+		$menuItems = \App\Models\Menu::where('name', 'like', "%{$query}%")
+			->limit(5)
+			->get();
+
+		foreach ($menuItems as $m) {
+			$results[] = [
+				'title' => $m->name,
+				'url' => route('menus.edit', $m->id),
+				'category' => 'Menu Items',
+				'icon' => 'coffee'
+			];
+		}
+
+		// 4. Dining Tables
+		$tables = \App\Models\DiningTable::where('table_number', 'like', "%{$query}%")
+			->limit(3)
+			->get();
+
+		foreach ($tables as $t) {
+			$results[] = [
+				'title' => "Table " . $t->table_number,
+				'url' => route('tables.index'),
+				'category' => 'Tables',
+				'icon' => 'grid'
+			];
+		}
+
+		// 5. Users
+		$users = \App\Models\User::where('name', 'like', "%{$query}%")
+			->orWhere('email', 'like', "%{$query}%")
+			->limit(3)
+			->get();
+
+		foreach ($users as $u) {
+			$results[] = [
+				'title' => $u->name . " ({$u->email})",
+				'url' => route('users.edit', $u->id),
+				'category' => 'Users',
+				'icon' => 'user'
+			];
+		}
+
+		return response()->json($results);
+	})->name('global-search.suggestions');
 });

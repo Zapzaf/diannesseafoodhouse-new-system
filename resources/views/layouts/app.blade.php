@@ -519,11 +519,12 @@
                                 <i data-lucide="menu" style="width: 20px; height: 20px;"></i>
                             </button>
                             
-                            <div class="position-relative flex-grow-1" style="max-width: 320px; width: 100%;">
+                            <div class="position-relative flex-grow-1" style="max-width: 320px; width: 100%; z-index: 1050;">
                                 <span class="position-absolute top-50 start-0 translate-middle-y ps-3 text-muted">
                                     <i data-lucide="search" style="width: 18px; height: 18px;"></i>
                                 </span>
-                                <input type="text" class="form-control ps-5 py-2 border-0 bg-light" id="globalSearch" placeholder="Search inventory, categories...">
+                                <input type="text" class="form-control ps-5 py-2 border-0 bg-light" id="globalSearch" placeholder="Search inventory, categories..." autocomplete="off">
+                                <div id="globalSearchSuggestions" class="dropdown-menu w-100 p-0 border-0 shadow-lg mt-2 overflow-hidden" style="border-radius: 12px; max-height: 350px; overflow-y: auto;"></div>
                             </div>
                         </div>
 
@@ -676,6 +677,121 @@
                         updateToggleIcons(newTheme);
                         
                         window.dispatchEvent(new CustomEvent('theme-changed', { detail: newTheme }));
+                    });
+                }
+
+                // Global Search Suggestions Logic
+                const searchInput = document.getElementById('globalSearch');
+                const suggestionsContainer = document.getElementById('globalSearchSuggestions');
+                
+                if (searchInput && suggestionsContainer) {
+                    let debounceTimer = null;
+                    
+                    searchInput.addEventListener('input', () => {
+                        const query = searchInput.value.trim();
+                        clearTimeout(debounceTimer);
+                        
+                        if (query.length < 2) {
+                            suggestionsContainer.classList.remove('show');
+                            suggestionsContainer.innerHTML = '';
+                            return;
+                        }
+                        
+                        debounceTimer = setTimeout(() => {
+                            fetch(`/global-search-suggestions?q=${encodeURIComponent(query)}`)
+                                .then(response => response.json())
+                                .then(data => {
+                                    suggestionsContainer.innerHTML = '';
+                                    if (data.length === 0) {
+                                        const noResults = document.createElement('div');
+                                        noResults.className = 'text-muted small p-3 text-center';
+                                        noResults.innerText = 'No suggestions found';
+                                        suggestionsContainer.appendChild(noResults);
+                                        suggestionsContainer.classList.add('show');
+                                        return;
+                                    }
+                                    
+                                    // Group results by category
+                                    const groups = {};
+                                    data.forEach(item => {
+                                        if (!groups[item.category]) {
+                                            groups[item.category] = [];
+                                        }
+                                        groups[item.category].push(item);
+                                    });
+                                    
+                                    // Render grouped items
+                                    for (const [category, items] of Object.entries(groups)) {
+                                        const header = document.createElement('div');
+                                        header.className = 'dropdown-header py-2 text-uppercase fw-bold text-muted small';
+                                        header.innerText = category;
+                                        suggestionsContainer.appendChild(header);
+                                        
+                                        items.forEach(item => {
+                                            const link = document.createElement('a');
+                                            link.href = item.url;
+                                            link.className = 'dropdown-item d-flex align-items-center gap-2 py-2 px-3 text-wrap';
+                                            link.style.transition = 'background-color 0.15s ease';
+                                            
+                                            const iconSpan = document.createElement('span');
+                                            iconSpan.className = 'text-muted d-flex align-items-center';
+                                            iconSpan.innerHTML = `<i data-lucide="${item.icon || 'arrow-right'}" style="width: 15px; height: 15px;"></i>`;
+                                            
+                                            const titleSpan = document.createElement('span');
+                                            titleSpan.className = 'small fw-medium';
+                                            titleSpan.innerText = item.title;
+                                            
+                                            link.appendChild(iconSpan);
+                                            link.appendChild(titleSpan);
+                                            
+                                            suggestionsContainer.appendChild(link);
+                                        });
+                                    }
+                                    
+                                    suggestionsContainer.classList.add('show');
+                                    
+                                    // Render lucide icons
+                                    if (typeof lucide !== 'undefined' && lucide.createIcons) {
+                                        lucide.createIcons();
+                                    }
+                                })
+                                .catch(err => console.error('Error fetching suggestions:', err));
+                        }, 250);
+                    });
+                    
+                    // Hide suggestions when clicking outside
+                    document.addEventListener('click', (e) => {
+                        if (!searchInput.contains(e.target) && !suggestionsContainer.contains(e.target)) {
+                            suggestionsContainer.classList.remove('show');
+                        }
+                    });
+                    
+                    // Show suggestions again on focus if there is value
+                    searchInput.addEventListener('focus', () => {
+                        if (searchInput.value.trim().length >= 2) {
+                            suggestionsContainer.classList.add('show');
+                        }
+                    });
+
+                    // Add keyboard navigation support (Up/Down arrow & Enter)
+                    searchInput.addEventListener('keydown', (e) => {
+                        const items = Array.from(suggestionsContainer.querySelectorAll('a.dropdown-item'));
+                        if (items.length === 0) return;
+                        
+                        const activeIndex = items.findIndex(item => item === document.activeElement);
+                        
+                        if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            const nextIndex = (activeIndex + 1) % items.length;
+                            items[nextIndex].focus();
+                        } else if (e.key === 'ArrowUp') {
+                            e.preventDefault();
+                            const prevIndex = (activeIndex - 1 + items.length) % items.length;
+                            items[prevIndex].focus();
+                        } else if (e.key === 'Escape') {
+                            suggestionsContainer.classList.remove('show');
+                            searchInput.focus();
+                        }
                     });
                 }
             });

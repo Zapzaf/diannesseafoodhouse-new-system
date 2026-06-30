@@ -168,7 +168,7 @@ class ItemsCategorySheet implements FromArray, WithStyles
                     $item->supplier_name ?? '',
                     $status,
                     '',
-                    $item->notes ?? '',
+                    '',
                 ];
 
                 for ($col = 1; $col <= 13; $col++) {
