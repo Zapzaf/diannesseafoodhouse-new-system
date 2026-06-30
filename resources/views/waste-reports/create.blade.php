@@ -16,22 +16,24 @@
     $itemOptionsById = collect($itemOptions)->keyBy('id');
 @endphp
 
-<main>
     <x-page-header title="Create Waste Report" subtitle="Deduct unusable inventory due to spoilage, expiration, odors, or damage" icon="alert-triangle">
         <a href="{{ route('waste-reports.index') }}" class="btn btn-light text-primary">
-            <i data-feather="arrow-left" class="me-1"></i> Back
+            <i data-lucide="arrow-left" class="me-1"></i> Back
         </a>
     </x-page-header>
 
-    <div class="container-xl px-4 mt-n10">
+    <div class="container-xl px-4">
         @include('layouts.alerts')
 
         <form method="POST" action="{{ route('waste-reports.store') }}">
             @csrf
 
-            <div class="card shadow-sm mb-4">
-                <div class="card-header fw-semibold">Report Details</div>
-                <div class="card-body">
+            <div class="card p-4 shadow-sm mb-4">
+                <div class="card-body p-0">
+                    <h5 class="fw-bold mb-4 d-flex align-items-center gap-2 text-primary">
+                        <i data-lucide="file-text" style="width: 20px; height: 20px;"></i>
+                        <span>Report Details</span>
+                    </h5>
                     <div class="row g-3">
                         <div class="col-md-4">
                             <label class="form-label">Branch <span class="text-danger">*</span></label>
@@ -68,21 +70,24 @@
                 </div>
             </div>
 
-            <div class="card shadow-sm">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <div class="fw-semibold">Wasted Items</div>
-                    <button type="button" class="btn btn-sm btn-light" id="add-waste-row">
-                        <i data-feather="plus"></i> Add Item
-                    </button>
-                </div>
-                <div class="card-body">
+            <div class="card p-4 shadow-sm">
+                <div class="card-body p-0">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h5 class="fw-bold mb-0 d-flex align-items-center gap-2 text-primary">
+                            <i data-lucide="trash-2" style="width: 20px; height: 20px;"></i>
+                            <span>Wasted Items</span>
+                        </h5>
+                        <button type="button" class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" id="add-waste-row">
+                            <i data-lucide="plus" style="width: 14px; height: 14px;"></i> Add Item
+                        </button>
+                    </div>
                     @error('items')
                         <div class="alert alert-danger">{{ $message }}</div>
                     @enderror
 
                     <div class="table-responsive">
-                        <table class="table table-bordered align-middle" id="waste-items-table">
-                            <thead class="table-dark">
+                        <table class="table table-hover align-middle" id="waste-items-table">
+                            <thead>
                                 <tr>
                                     <th>Item</th>
                                     <th>Available</th>
@@ -135,7 +140,7 @@
                                             @enderror
                                         </td>
                                         <td class="table-actions-cell text-center">
-                                            <button type="button" class="btn btn-sm btn-outline-danger remove-row">Remove</button>
+                                            <button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Remove"><i data-lucide="trash-2"></i></button>
                                         </td>
                                     </tr>
                                 @endforeach
@@ -143,15 +148,17 @@
                         </table>
                     </div>
 
-                    <div class="d-flex justify-content-end gap-2">
-                        <a href="{{ route('waste-reports.index') }}" class="btn btn-outline-secondary">Cancel</a>
-                        <button type="submit" class="btn btn-danger">Save Waste Report</button>
+                    <div class="mt-4 d-flex justify-content-end gap-3">
+                        <a href="{{ route('waste-reports.index') }}" class="btn btn-outline-secondary px-4">Cancel</a>
+                        <button type="submit" class="btn btn-danger px-4 d-flex align-items-center gap-2">
+                            <i data-lucide="alert-triangle" style="width: 18px; height: 18px;"></i>
+                            <span>Save Waste Report</span>
+                        </button>
                     </div>
                 </div>
             </div>
         </form>
     </div>
-</main>
 @endsection
 
 @push('scripts')
@@ -162,6 +169,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const tableBody = document.querySelector('#waste-items-table tbody');
     const addButton = document.getElementById('add-waste-row');
     const branchField = document.getElementById('branch-id');
+    let activePickerInput = null;
 
     function branchId() {
         return branchField?.value || '';
@@ -190,7 +198,7 @@ document.addEventListener('DOMContentLoaded', function () {
             <td><input type="text" class="form-control unit-display" value="Select item" disabled></td>
             <td><select class="form-select" data-field="reason" required><option value="">Select Reason</option>${reasonOptions()}</select></td>
             <td><input type="text" class="form-control" data-field="notes" placeholder="Optional"></td>
-            <td class="table-actions-cell text-center"><button type="button" class="btn btn-sm btn-outline-danger remove-row">Remove</button></td>
+            <td class="table-actions-cell text-center"><button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Remove"><i data-lucide="trash-2"></i></button></td>
         `;
     }
 
@@ -199,10 +207,14 @@ document.addEventListener('DOMContentLoaded', function () {
         row.innerHTML = rowTemplate();
         tableBody.appendChild(row);
         reindexRows();
+        if (typeof window.refreshLucideIcons === 'function') {
+            window.refreshLucideIcons();
+        }
     });
 
     tableBody?.addEventListener('click', function (event) {
-        if (!event.target.classList.contains('remove-row')) {
+        const removeButton = event.target.closest('.remove-row');
+        if (!removeButton) {
             return;
         }
 
@@ -210,7 +222,8 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
 
-        event.target.closest('tr').remove();
+        hideAllPickerResults();
+        removeButton.closest('tr').remove();
         reindexRows();
     });
 
@@ -245,14 +258,17 @@ document.addEventListener('DOMContentLoaded', function () {
             row.querySelector('[data-field="item_id"]').value = item.id;
             row.querySelector('.available-display').value = Number(item.quantity).toFixed(2);
             row.querySelector('.unit-display').value = item.unit || '';
-            row.querySelector('.item-picker-results').classList.add('d-none');
+            hideAllPickerResults();
             return;
         }
 
         if (!event.target.closest('.item-picker')) {
-            document.querySelectorAll('.item-picker-results').forEach((results) => results.classList.add('d-none'));
+            hideAllPickerResults();
         }
     });
+
+    window.addEventListener('resize', repositionActivePicker);
+    window.addEventListener('scroll', repositionActivePicker, true);
 
     function renderResults(input) {
         const results = input.closest('.item-picker').querySelector('.item-picker-results');
@@ -272,10 +288,62 @@ document.addEventListener('DOMContentLoaded', function () {
         results.innerHTML = matches.length
             ? matches.map((item) => `<button type="button" class="item-picker-option" data-item-id="${item.id}"><span>${escapeHtml(item.label)}</span><strong>${escapeHtml(item.unit || '')}</strong></button>`).join('')
             : '<div class="p-3 text-muted small">No matching items in this branch.</div>';
+        activePickerInput = input;
+        positionPickerResults(input);
         results.classList.remove('d-none');
     }
 
+    function positionPickerResults(input) {
+        const results = input.closest('.item-picker')?.querySelector('.item-picker-results');
+        if (!results) {
+            return;
+        }
+
+        const rect = input.getBoundingClientRect();
+        const gap = 6;
+        const viewportPadding = 12;
+        const preferredHeight = 280;
+        const availableBelow = window.innerHeight - rect.bottom - gap - viewportPadding;
+        const availableAbove = rect.top - gap - viewportPadding;
+        const openAbove = availableBelow < 160 && availableAbove > availableBelow;
+        const maxHeight = Math.max(140, Math.min(preferredHeight, openAbove ? availableAbove : availableBelow));
+        const width = Math.min(rect.width, window.innerWidth - (viewportPadding * 2));
+        const left = Math.min(Math.max(rect.left, viewportPadding), window.innerWidth - width - viewportPadding);
+
+        results.style.width = `${width}px`;
+        results.style.left = `${left}px`;
+        results.style.maxHeight = `${maxHeight}px`;
+
+        if (openAbove) {
+            results.style.top = 'auto';
+            results.style.bottom = `${window.innerHeight - rect.top + gap}px`;
+        } else {
+            results.style.top = `${rect.bottom + gap}px`;
+            results.style.bottom = 'auto';
+        }
+    }
+
+    function repositionActivePicker() {
+        if (!activePickerInput || !document.body.contains(activePickerInput)) {
+            activePickerInput = null;
+            return;
+        }
+
+        const results = activePickerInput.closest('.item-picker')?.querySelector('.item-picker-results');
+        if (!results || results.classList.contains('d-none')) {
+            return;
+        }
+
+        positionPickerResults(activePickerInput);
+    }
+
+    function hideAllPickerResults() {
+        document.querySelectorAll('.item-picker-results').forEach((results) => results.classList.add('d-none'));
+        activePickerInput = null;
+    }
+
     function clearItemSelections() {
+        hideAllPickerResults();
         tableBody.querySelectorAll('tr').forEach((row) => {
             row.querySelector('.item-picker-search').value = '';
             row.querySelector('[data-field="item_id"]').value = '';
@@ -299,17 +367,14 @@ document.addEventListener('DOMContentLoaded', function () {
 <style>
 .item-picker { position: relative; min-width: 320px; }
 .item-picker-results {
-    position: absolute;
-    z-index: 1050;
-    top: calc(100% + .25rem);
-    left: 0;
-    right: 0;
+    position: fixed;
+    z-index: 2055;
     max-height: 280px;
     overflow-y: auto;
-    border: 1px solid #d4dae3;
+    border: 1px solid var(--border-color);
     border-radius: .5rem;
-    background: #fff;
-    box-shadow: 0 .5rem 1rem rgba(33, 40, 50, .12);
+    background: var(--bg-card);
+    box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .15);
 }
 .item-picker-option {
     display: flex;
@@ -318,13 +383,32 @@ document.addEventListener('DOMContentLoaded', function () {
     gap: 1rem;
     padding: .7rem .8rem;
     border: 0;
-    border-bottom: 1px solid #edf0f4;
-    background: #fff;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-card);
+    color: var(--text-main);
     text-align: left;
     font-size: .85rem;
 }
-.item-picker-option:hover { background: #f2f6fc; color: #0061f2; }
+.item-picker-option:hover { background: rgba(var(--primary-color-rgb), 0.08); color: var(--primary-color); }
+.item-picker-option span {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    overflow-wrap: normal;
+    word-break: normal;
+}
+.item-picker-option strong {
+    display: inline-flex;
+    flex: 0 0 auto;
+    min-width: max-content;
+    white-space: nowrap;
+    overflow-wrap: normal;
+    word-break: keep-all;
+    text-align: right;
+}
 .available-display:disabled,
-.unit-display:disabled { background: #f2f6fc; color: #475569; font-weight: 600; }
+.unit-display:disabled { background: var(--bg-body) !important; color: var(--text-muted) !important; font-weight: 600; border-color: var(--border-color) !important; }
 </style>
 @endpush

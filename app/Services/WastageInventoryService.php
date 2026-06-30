@@ -7,6 +7,7 @@ use App\Models\Item;
 use App\Models\ProductionOrder;
 use App\Models\WastageItem;
 use App\Models\WastageReport;
+use App\Support\InventoryUnit;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
@@ -27,6 +28,7 @@ class WastageInventoryService
         $this->ensureConvertedItemsBelongToProductionBranch($production, $rows, $errorKey);
 
         $sourceItem = $this->resolveProductionSourceItem($production, $errorKey);
+        $this->ensureQuantityLostUnitsMatchSource($rows, $sourceItem, $errorKey);
 
         $report = WastageReport::create([
             'production_order_id' => $production->id,
@@ -40,6 +42,7 @@ class WastageInventoryService
                 'item_id' => $sourceItem->id,
                 'scrap_name' => $row['scrap_name'] ?? null,
                 'quantity_lost' => $row['quantity_lost'],
+                'quantity_lost_unit' => $row['quantity_lost_unit'] ?? $sourceItem->unit,
                 'reason' => $row['reason'] ?? null,
                 'convert_to_item_id' => $row['convert_to_item_id'] ?? null,
                 'converted_quantity' => $row['converted_quantity'] ?? null,
@@ -99,9 +102,23 @@ class WastageInventoryService
             ->firstOrFail();
     }
 
+    private function ensureQuantityLostUnitsMatchSource(Collection $rows, Item $sourceItem, string $errorKey): void
+    {
+        $mismatchedRows = $rows
+            ->filter(fn (array $row): bool => ! empty($row['quantity_lost_unit'])
+                && ! InventoryUnit::matches($row['quantity_lost_unit'], $sourceItem->unit))
+            ->values();
+
+        if ($mismatchedRows->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                $errorKey => "Qty Lost Unit must match the production input unit ({$sourceItem->unit}).",
+            ]);
+        }
+    }
+
     private function productionSourceItems(ProductionOrder $production): Collection
     {
-        $production->loadMissing(['inputs.item', 'inputs.deliveryItem.item']);
+        $production->loadMissing(['inputs.item', 'inputs.deliveryItem.item', 'inputs.deliveryItem.sourceItem']);
 
         return $production->inputs
             ->map(function ($input): ?Item {
@@ -109,7 +126,7 @@ class WastageInventoryService
                     return $input->item;
                 }
 
-                return $input->deliveryItem?->item;
+                return $input->deliveryItem?->item ?? $input->deliveryItem?->sourceItem;
             })
             ->filter(fn (?Item $item): bool => $item instanceof Item && $item->id !== null)
             ->unique('id')

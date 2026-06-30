@@ -1,18 +1,16 @@
 @extends('layouts.app')
 @section('page_title', 'Expenses')
 @section('content')
-<main>
-
 <x-page-header title="Expenses" subtitle="Monthly expense and sales summary by branch" icon="trending-down">
     {{-- Jump to month --}}
     <form method="GET" id="goToMonthForm" class="d-inline-flex align-items-center gap-2">
         <input type="month" id="goToMonthInput" class="form-control form-control-md" style="width:160px;" required>
         <button type="submit" class="btn btn-success btn-md">
-            <i data-feather="arrow-right" class="me-1"></i> Go to Month
+            <i data-lucide="arrow-right" class="me-1"></i> Go to Month
         </button>
     </form>
     <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#importModal">
-        <i data-feather="upload" class="me-1"></i> Import
+        <i data-lucide="upload" class="me-1"></i> Import
     </button>
 </x-page-header>
 <script>
@@ -23,13 +21,13 @@ document.getElementById('goToMonthForm').addEventListener('submit', function(e) 
 });
 </script>
 
-<div class="container-xl px-4 mt-n10">
+<div class="container-xl px-4">
     @include('layouts.alerts')
 
     {{-- Months summary table --}}
     <div class="card shadow-sm">
         <div class="card-header fw-semibold">
-            <i data-feather="calendar" class="me-1" style="width:16px;height:16px;"></i> Imported Months
+            <i data-lucide="calendar" class="me-1" style="width:16px;height:16px;"></i> Imported Months
         </div>
         <div class="card-body">
             <div class="table-responsive">
@@ -60,11 +58,11 @@ document.getElementById('goToMonthForm').addEventListener('submit', function(e) 
                             <td class="text-end">₱{{ number_format((float) $month->total_disbursements, 2) }}</td>
                             <td class="text-center">
                                 <a href="{{ route('expenses.show', $month->month_year) }}" class="btn btn-sm btn-outline-primary">
-                                    <i data-feather="eye" style="width:14px;height:14px;"></i> View
+                                    <i data-lucide="eye" style="width:14px;height:14px;"></i> View
                                 </a>
                                 <a href="{{ route('expenses.export', $month->month_year) }}{{ $selectedBranchId ? '?branch_id='.$selectedBranchId : '' }}"
                                    class="btn btn-sm btn-outline-success">
-                                    <i data-feather="download" style="width:14px;height:14px;"></i> Export
+                                    <i data-lucide="download" style="width:14px;height:14px;"></i> Export
                                 </a>
                             </td>
                         </tr>
@@ -90,7 +88,7 @@ document.getElementById('goToMonthForm').addEventListener('submit', function(e) 
                 @csrf
                 <div class="modal-header">
                     <h5 class="modal-title">
-                        <i data-feather="upload" class="me-1"></i> Import Expense File
+                        <i data-lucide="upload" class="me-1"></i> Import Expense File
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
@@ -122,12 +120,11 @@ document.getElementById('goToMonthForm').addEventListener('submit', function(e) 
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary">
-                        <i data-feather="upload" class="me-1"></i> Import
+                        <i data-lucide="upload" class="me-1"></i> Import
                     </button>
                 </div>
             </form>
         </div>
     </div>
 </div>
-</main>
 @endsection

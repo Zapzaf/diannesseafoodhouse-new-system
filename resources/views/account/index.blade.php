@@ -1,11 +1,10 @@
 @extends('layouts.app')
 @section('page_title', 'My Account')
 @section('content')
-<main>
     <x-page-header title="My Account" subtitle="Manage your profile, credentials, and assigned branch" icon="settings">
     </x-page-header>
 
-<div class="container-xl px-4 mt-n10">
+<div class="container-xl px-4">
     @include('layouts.alerts')
     <div class="row g-4">
         <div class="col-md-8">
@@ -73,7 +72,6 @@
         </div>
     </div>
 </div>
-</main>
 
 <div class="modal fade" id="profileCropModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-centered">

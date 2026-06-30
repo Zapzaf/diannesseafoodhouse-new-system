@@ -50,7 +50,7 @@ class InventoryTransaction extends Model
 
     public function inventory(): BelongsTo
     {
-        return $this->belongsTo(Item::class, 'item_id');
+        return $this->belongsTo(Item::class, 'item_id')->withTrashed();
     }
 
     public function branch(): BelongsTo

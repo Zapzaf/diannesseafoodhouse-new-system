@@ -1,16 +1,15 @@
 @extends('layouts.app')
 @section('page_title', 'Scrap Materials - Dianne Seafood House')
 @section('content')
-<main>
 <x-page-header title="Scrap Materials" subtitle="Wastage reports from production — losses and conversions" icon="trash-2">
 </x-page-header>
 
-<div class="container-xl px-4 mt-n10">
+<div class="container-xl px-4">
     @include('layouts.alerts')
 
     <div class="card shadow-sm">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <div><i data-feather="trash-2" class="me-1"></i> Wastage Reports</div>
+            <div><i data-lucide="trash-2" class="me-1"></i> Wastage Reports</div>
         </div>
         <div class="card-body">
             <div class="table-responsive">
@@ -80,7 +79,7 @@
                                                     @foreach($report->items as $wi)
                                                     <tr>
                                                         <td>{{ $wi->item?->name ?? '—' }}</td>
-                                                        <td>{{ number_format($wi->quantity_lost, 2) }} {{ $wi->item?->unit }}</td>
+                                                        <td>{{ number_format($wi->quantity_lost, 2) }} {{ $wi->quantity_lost_unit ?? $wi->item?->unit }}</td>
                                                         <td class="text-muted small">{{ $wi->reason ?? '—' }}</td>
                                                         <td>{{ $wi->convertedItem?->name ?? '—' }}</td>
                                                         <td>
@@ -116,5 +115,4 @@
         @endif
     </div>
 </div>
-</main>
 @endsection

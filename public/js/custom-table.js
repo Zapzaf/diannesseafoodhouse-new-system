@@ -523,9 +523,9 @@ class CustomDataTable {
             this.updateTableInfo();
         }
         
-        // Initialize Feather icons for the newly rendered content
-        if (typeof feather !== 'undefined') {
-            feather.replace();
+        // Initialize Lucide icons for the newly rendered content
+        if (typeof window.refreshLucideIcons === 'function') {
+            window.refreshLucideIcons();
         }
         
         // NEW: Add event listeners to row checkboxes only if enabled
@@ -545,7 +545,7 @@ class CustomDataTable {
             this.tbody.querySelectorAll('.table-row').forEach(row => {
                 row.addEventListener('click', (e) => {
                     // Don't trigger if clicking on checkbox or action buttons
-                    if (e.target.closest('.select-row, .action-btns')) {
+                    if (e.target.closest('.select-row, .action-btns, .app-action-group, .inventory-action-group, .table-actions-cell, a.btn, button.btn, form')) {
                         return;
                     }
                     const rowId = row.dataset.rowId;
@@ -631,7 +631,7 @@ class CustomDataTable {
             }
 
             const cls = action.class || 'btn-secondary';
-            const icon = action.icon ? `<i data-feather="${action.icon}"></i>` : '';
+            const icon = action.icon ? `<i data-lucide="${action.icon}"></i>` : '';
             const title = action.title || action.label || '';
             let id = (row[this.primaryKey] !== undefined && row[this.primaryKey] !== null) ? row[this.primaryKey] : 
                        ((row[action.key || this.primaryKey] !== undefined && row[action.key || this.primaryKey] !== null) ? row[action.key || this.primaryKey] : 

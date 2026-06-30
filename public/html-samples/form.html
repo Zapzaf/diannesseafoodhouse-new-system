@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Add or edit items in the inventory. Features image drag-and-drop, automated SKU generation, and field validation.">
+    <title>Manage Item - Invento Inventory System</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-body text-main">
+
+    <div class="wrapper">
+        <!-- Sidebar Navigation (Consistent with Dashboard) -->
+        <nav class="sidebar d-flex flex-column" id="sidebar">
+            <div class="sidebar-header d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="icon-circle bg-white text-dark d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; border-radius: 6px;">
+                        <i data-lucide="package" style="color: #f07c59; width: 18px; height: 18px;"></i>
+                    </div>
+                    <span class="fs-5 fw-bold text-white">Invento</span>
+                </div>
+                <button class="btn btn-sm d-lg-none text-white border-0" id="sidebarClose">
+                    <i data-lucide="x" style="width: 20px; height: 20px;"></i>
+                </button>
+            </div>
+
+            <!-- Branch Selector -->
+            <div class="branch-select-wrapper">
+                <i data-lucide="building-2" style="width: 18px; height: 18px;"></i>
+                <select class="branch-select-input" id="branchSelector">
+                    <option value="all">All Branches</option>
+                    <option value="1">New York Hub</option>
+                    <option value="2">Los Angeles Hub</option>
+                    <option value="3">Chicago Warehouse</option>
+                </select>
+            </div>
+
+            <!-- Navigation Links -->
+            <ul class="nav nav-pills flex-column mb-auto mt-2 px-2">
+                <li class="nav-item">
+                    <a href="dashboard.html" class="nav-link">
+                        <i data-lucide="layout-dashboard"></i>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="inventory.html" class="nav-link">
+                        <i data-lucide="boxes"></i>
+                        <span>Inventory</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="sales.html" class="nav-link">
+                        <i data-lucide="shopping-cart"></i>
+                        <span>Sales</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="production.html" class="nav-link">
+                        <i data-lucide="factory"></i>
+                        <span>Production</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="delivery.html" class="nav-link">
+                        <i data-lucide="truck"></i>
+                        <span>Delivery</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="form.html" class="nav-link active">
+                        <i data-lucide="plus-circle"></i>
+                        <span>Add New Item</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link disabled opacity-50">
+                        <i data-lucide="bar-chart-3"></i>
+                        <span>Analytics</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="#" class="nav-link disabled opacity-50">
+                        <i data-lucide="settings"></i>
+                        <span>Settings</span>
+                    </a>
+                </li>
+            </ul>
+
+            <!-- Sidebar Footer User Profile -->
+            <div class="sidebar-footer">
+                <div class="d-flex align-items-center gap-3 p-2 rounded hover-bg-sidebar">
+                    <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=80&h=80&q=80" alt="Avatar" class="rounded-circle" style="width: 38px; height: 38px; object-fit: cover;">
+                    <div class="overflow-hidden">
+                        <h6 class="mb-0 text-white text-truncate small">Sarah Jenkins</h6>
+                        <span class="text-white-50 text-truncate d-block" style="font-size: 0.75rem;">Inventory Manager</span>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <div class="main-content">
+            <!-- Glassmorphic Header -->
+            <header class="glass-header py-3 px-4">
+                <div class="d-flex align-items-center justify-content-between">
+                    <!-- Left: Search and Sidebar Toggler -->
+                    <div class="d-flex align-items-center gap-3 flex-grow-1 me-3">
+                        <button class="btn btn-outline-secondary d-lg-none py-1.5 px-2 border-opacity-10" id="sidebarToggle">
+                            <i data-lucide="menu" style="width: 20px; height: 20px;"></i>
+                        </button>
+                        
+                        <div class="position-relative d-none d-md-block" style="max-width: 320px; width: 100%;">
+                            <span class="position-absolute top-50 start-0 translate-middle-y ps-3 text-muted">
+                                <i data-lucide="search" style="width: 18px; height: 18px;"></i>
+                            </span>
+                            <input type="text" class="form-control ps-5 py-2 border-0 bg-light" placeholder="Search inventory, SKU, category...">
+                        </div>
+                    </div>
+
+                    <!-- Right: Actions, Theme, Profile Dropdown -->
+                    <div class="d-flex align-items-center gap-3">
+                        <!-- Theme Toggle -->
+                        <div class="theme-switch-label" id="themeToggler" title="Toggle Light/Dark Theme">
+                            <i data-lucide="moon" class="theme-icon-dark" style="width: 20px; height: 20px;"></i>
+                            <i data-lucide="sun" class="theme-icon-light d-none" style="width: 20px; height: 20px;"></i>
+                        </div>
+
+                        <!-- Notifications Dropdown -->
+                        <div class="dropdown">
+                            <button class="btn btn-light btn-icon-relative p-2 rounded-circle border-0" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i data-lucide="bell" style="width: 20px; height: 20px;"></i>
+                                <span class="nav-icon-badge"></span>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end p-2 border-0 shadow-lg mt-2" style="width: 320px; border-radius: 12px;">
+                                <li class="px-3 py-2 border-bottom d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0 fw-bold">Notifications</h6>
+                                    <span class="badge bg-danger-subtle text-danger small">2 New</span>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item d-flex gap-3 py-2.5 rounded-3 align-items-start border-0" href="#">
+                                        <div class="icon-circle icon-danger flex-shrink-0" style="width: 32px; height: 32px; border-radius: 6px;">
+                                            <i data-lucide="alert-circle" style="width: 16px; height: 16px;"></i>
+                                        </div>
+                                        <div>
+                                            <p class="mb-0 fw-semibold small">Stock Out Alert: Intel Core i9</p>
+                                            <small class="text-muted" style="font-size: 0.7rem;">5 minutes ago</small>
+                                        </div>
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item d-flex gap-3 py-2.5 rounded-3 align-items-start border-0" href="#">
+                                        <div class="icon-circle icon-warning flex-shrink-0" style="width: 32px; height: 32px; border-radius: 6px;">
+                                            <i data-lucide="alert-triangle" style="width: 16px; height: 16px;"></i>
+                                        </div>
+                                        <div>
+                                            <p class="mb-0 fw-semibold small">Low Stock: MX Master 3S</p>
+                                            <small class="text-muted" style="font-size: 0.7rem;">1 hour ago</small>
+                                        </div>
+                                    </a>
+                                </li>
+                                <li class="px-3 py-2 border-top text-center">
+                                    <a href="#" class="small text-decoration-none" style="color: var(--primary-color);">View all notifications</a>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <!-- User Profile Dropdown -->
+                        <div class="dropdown">
+                            <button class="btn p-0 border-0 d-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=80&h=80&q=80" alt="Avatar" class="rounded-circle" style="width: 36px; height: 36px; object-fit: cover;">
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end p-2 border-0 shadow-lg mt-2" style="border-radius: 12px;">
+                                <li class="px-3 py-2 border-bottom">
+                                    <p class="mb-0 fw-bold">Sarah Jenkins</p>
+                                    <small class="text-muted">sarah.j@invento.com</small>
+                                </li>
+                                <li><a class="dropdown-item d-flex gap-2 align-items-center py-2 mt-1 rounded-3 border-0" href="#"><i data-lucide="user" style="width: 16px;"></i>My Profile</a></li>
+                                <li><a class="dropdown-item d-flex gap-2 align-items-center py-2 rounded-3 border-0" href="#"><i data-lucide="settings" style="width: 16px;"></i>Settings</a></li>
+                                <li><hr class="dropdown-divider opacity-10"></li>
+                                <li><a class="dropdown-item d-flex gap-2 align-items-center py-2 text-danger rounded-3 border-0" href="index.html"><i data-lucide="log-out" style="width: 16px;"></i>Sign Out</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Main Form Content -->
+            <main class="flex-grow-1 p-4">
+                <!-- Breadcrumbs & Title -->
+                <div class="mb-4">
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb mb-1">
+                            <li class="breadcrumb-item"><a href="dashboard.html" class="text-decoration-none text-muted">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="inventory.html" class="text-decoration-none text-muted">Inventory</a></li>
+                            <li class="breadcrumb-item active" aria-current="page">Add New Item</li>
+                        </ol>
+                    </nav>
+                    <h4 class="fw-bold mb-0">Add New Item</h4>
+                    <p class="text-muted mb-0 small">Create a new inventory item and assign stock details.</p>
+                </div>
+
+                <form id="itemForm" class="needs-validation" novalidate>
+                    <div class="row g-4">
+                        <!-- Left Column: Item Credentials -->
+                        <div class="col-lg-8">
+                            <div class="card p-4">
+                                <h5 class="fw-bold mb-4 d-flex align-items-center gap-2">
+                                    <i data-lucide="file-text" style="color: var(--primary-color); width: 20px; height: 20px;"></i>
+                                    <span>Item Details</span>
+                                </h5>
+
+                                <div class="row g-3">
+                                    <!-- Item Name -->
+                                    <div class="col-md-12">
+                                        <label for="itemName" class="form-label small fw-semibold">Item Name <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" id="itemName" placeholder="e.g. Wireless Noise Cancelling Headphones" required>
+                                        <div class="invalid-feedback">Please enter the item name.</div>
+                                    </div>
+
+                                    <!-- SKU Code -->
+                                    <div class="col-md-6">
+                                        <label for="sku" class="form-label small fw-semibold">SKU Code <span class="text-danger">*</span></label>
+                                        <div class="input-group">
+                                            <input type="text" class="form-control" id="sku" placeholder="SKU-XXXXX" required>
+                                            <button class="btn btn-outline-primary" type="button" id="generateSKU">Generate</button>
+                                            <div class="invalid-feedback">Please enter or generate a SKU.</div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Category Selection -->
+                                    <div class="col-md-6">
+                                        <label for="category" class="form-label small fw-semibold">Category <span class="text-danger">*</span></label>
+                                        <select class="form-select" id="category" required>
+                                            <option value="" selected disabled>Select Category</option>
+                                            <option value="1">Electronics</option>
+                                            <option value="2">Furniture</option>
+                                            <option value="3">Apparel</option>
+                                            <option value="4">Food & Beverage</option>
+                                            <option value="5">Others</option>
+                                        </select>
+                                        <div class="invalid-feedback">Please select a category.</div>
+                                    </div>
+
+                                    <!-- Branch Selection -->
+                                    <div class="col-md-6">
+                                        <label for="branch_id" class="form-label small fw-semibold">Branch Location <span class="text-danger">*</span></label>
+                                        <select class="form-select" id="branch_id" required>
+                                            <option value="" selected disabled>Select Branch</option>
+                                            <option value="1">New York Hub (1)</option>
+                                            <option value="2">Los Angeles Hub (2)</option>
+                                            <option value="3">Chicago Warehouse (3)</option>
+                                        </select>
+                                        <div class="invalid-feedback">Please select a branch location.</div>
+                                    </div>
+
+                                    <!-- Unit of Measure -->
+                                    <div class="col-md-6">
+                                        <label for="unit" class="form-label small fw-semibold">Unit of Measure <span class="text-danger">*</span></label>
+                                        <select class="form-select" id="unit" required>
+                                            <option value="" selected disabled>Select Unit</option>
+                                            <option value="pcs">Pieces (pcs)</option>
+                                            <option value="kg">Kilograms (kg)</option>
+                                            <option value="bags">Bags (bags)</option>
+                                            <option value="liters">Liters (liters)</option>
+                                            <option value="boxes">Boxes (boxes)</option>
+                                            <option value="pairs">Pairs (pairs)</option>
+                                        </select>
+                                        <div class="invalid-feedback">Please select a unit of measure.</div>
+                                    </div>
+
+                                    <!-- Pricing and Levels Header -->
+                                    <div class="col-12 mt-4">
+                                        <hr class="opacity-10 my-3">
+                                        <h5 class="fw-bold mb-3 d-flex align-items-center gap-2">
+                                            <i data-lucide="bar-chart-2" style="color: var(--primary-color); width: 20px; height: 20px;"></i>
+                                            <span>Pricing & Inventory levels</span>
+                                        </h5>
+                                    </div>
+
+                                    <!-- Stock Quantity -->
+                                    <div class="col-md-4">
+                                        <label for="quantity" class="form-label small fw-semibold">Starting Stock <span class="text-danger">*</span></label>
+                                        <input type="number" class="form-control" id="quantity" placeholder="0.00" step="0.01" min="0" required>
+                                        <div class="invalid-feedback">Please specify stock quantity.</div>
+                                    </div>
+
+                                    <!-- Unit Price -->
+                                    <div class="col-md-4">
+                                        <label for="unit_price" class="form-label small fw-semibold">Unit Price ($) <span class="text-danger">*</span></label>
+                                        <div class="input-group">
+                                            <span class="input-group-text bg-transparent border-end-0 text-muted">$</span>
+                                            <input type="number" class="form-control border-start-0 ps-1" id="unit_price" name="unit_price" placeholder="0.0000" step="0.0001" min="0.0001" required>
+                                            <div class="invalid-feedback">Please specify a price.</div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Low Stock Threshold -->
+                                    <div class="col-md-4">
+                                        <label for="low_stock_threshold" class="form-label small fw-semibold">Low Stock Threshold <span class="text-danger">*</span></label>
+                                        <input type="number" class="form-control" id="low_stock_threshold" name="low_stock_threshold" placeholder="e.g. 10.00" step="0.01" min="0" required>
+                                        <div class="invalid-feedback">Specify low-stock threshold.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Column: Media & Description -->
+                        <div class="col-lg-4">
+                            <!-- Image Upload Zone -->
+                            <div class="card p-4 mb-4">
+                                <h5 class="fw-bold mb-3 d-flex align-items-center gap-2">
+                                    <i data-lucide="image" style="color: var(--primary-color); width: 20px; height: 20px;"></i>
+                                    <span>Product Image</span>
+                                </h5>
+                                <div class="upload-zone" id="dropzone">
+                                    <input type="file" id="fileInput" class="d-none" accept="image/*">
+                                    <div class="upload-zone-icon">
+                                        <i data-lucide="upload-cloud" style="width: 48px; height: 48px; stroke-width: 1.5;"></i>
+                                    </div>
+                                    <h6 class="fw-bold text-main mb-1">Drag & Drop Image</h6>
+                                    <p class="text-muted small mb-3">or click to browse from device</p>
+                                    <span class="badge bg-light text-muted border border-opacity-10 py-1.5 px-2.5 rounded-3" style="font-size: 0.75rem;">PNG, JPG up to 5MB</span>
+                                    
+                                    <!-- Image Preview Thumbnail -->
+                                    <div id="imagePreviewContainer" class="mt-3 d-none">
+                                        <div class="position-relative d-inline-block">
+                                            <img id="imagePreview" src="#" alt="Preview" class="img-thumbnail rounded-3" style="max-height: 120px; object-fit: contain;">
+                                            <button type="button" class="btn btn-danger btn-sm p-1 rounded-circle position-absolute top-0 start-100 translate-middle" id="removeImageBtn">
+                                                <i data-lucide="x" style="width: 14px; height: 14px;"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Item Notes -->
+                            <div class="card p-4">
+                                <h5 class="fw-bold mb-3 d-flex align-items-center gap-2">
+                                    <i data-lucide="align-left" style="color: var(--primary-color); width: 20px; height: 20px;"></i>
+                                    <span>Notes</span>
+                                </h5>
+                                <label for="notes" class="form-label d-none">Item Notes</label>
+                                <textarea class="form-control" id="notes" rows="5" placeholder="Provide extra notes, specs, dimensions, warranty details, etc."></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bottom CTA Buttons -->
+                    <div class="d-flex justify-content-end gap-3 mt-4">
+                        <a href="dashboard.html" class="btn btn-outline-secondary border-opacity-10 px-4 py-2">Cancel</a>
+                        <button type="submit" class="btn btn-primary px-4 py-2 d-flex align-items-center gap-2">
+                            <i data-lucide="save" style="width: 18px; height: 18px;"></i>
+                            <span>Save Item</span>
+                        </button>
+                    </div>
+                </form>
+            </main>
+
+            <!-- Sticky footer -->
+            <footer class="py-3 px-4 border-top mt-auto bg-body" style="border-color: var(--border-color) !important;">
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-2">
+                    <span class="small text-muted">&copy; 2026 Invento. Designed with Bootstrap 5 and Lucide Icons.</span>
+                    <div class="d-flex gap-3">
+                        <a href="#" class="text-muted text-decoration-none small">Support</a>
+                        <a href="#" class="text-muted text-decoration-none small">API Docs</a>
+                    </div>
+                </div>
+            </footer>
+        </div>
+    </div>
+
+    <!-- Success Toast Notification -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div id="successToast" class="toast align-items-center text-bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true" style="border-radius: 12px;">
+            <div class="d-flex">
+                <div class="toast-body d-flex align-items-center gap-2">
+                    <i data-lucide="check-circle" style="width: 18px; height: 18px;"></i>
+                    <span>Item has been added to inventory successfully!</span>
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Bootstrap Bundle JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+
+    <script>
+        // Initialize Lucide Icons
+        lucide.createIcons();
+
+        // Responsive Sidebar toggle
+        const sidebar = document.getElementById('sidebar');
+        const sidebarToggle = document.getElementById('sidebarToggle');
+        const sidebarClose = document.getElementById('sidebarClose');
+
+        if(sidebarToggle) {
+            sidebarToggle.addEventListener('click', () => {
+                sidebar.classList.toggle('active');
+            });
+        }
+        if(sidebarClose) {
+            sidebarClose.addEventListener('click', () => {
+                sidebar.classList.remove('active');
+            });
+        }
+
+        // Theme Toggle Logic
+        const htmlElement = document.documentElement;
+        const themeToggler = document.querySelector('#themeToggler');
+        const sunIcon = document.querySelector('.theme-icon-light');
+        const moonIcon = document.querySelector('.theme-icon-dark');
+
+        // Check stored theme or default to system preference
+        const currentTheme = localStorage.getItem('theme') || 'light';
+        setTheme(currentTheme);
+
+        themeToggler.addEventListener('click', () => {
+            const newTheme = htmlElement.getAttribute('data-bs-theme') === 'dark' ? 'light' : 'dark';
+            setTheme(newTheme);
+        });
+
+        function setTheme(theme) {
+            htmlElement.setAttribute('data-bs-theme', theme);
+            localStorage.setItem('theme', theme);
+
+            if (theme === 'dark') {
+                sunIcon.classList.remove('d-none');
+                moonIcon.classList.add('d-none');
+            } else {
+                sunIcon.classList.add('d-none');
+                moonIcon.classList.remove('d-none');
+            }
+        }
+
+        // SKU Auto-generator Logic
+        const generateButton = document.getElementById('generateSKU');
+        const skuInput = document.getElementById('sku');
+
+        generateButton.addEventListener('click', () => {
+            const randomNum = Math.floor(10000 + Math.random() * 90000);
+            skuInput.value = 'SKU-' + randomNum;
+            skuInput.classList.remove('is-invalid');
+        });
+
+        // Drag & Drop Image Zone Logic
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('fileInput');
+        const previewContainer = document.getElementById('imagePreviewContainer');
+        const previewImage = document.getElementById('imagePreview');
+        const removeImageBtn = document.getElementById('removeImageBtn');
+
+        // Trigger file browser on click
+        dropzone.addEventListener('click', (e) => {
+            if (e.target.closest('#removeImageBtn') || e.target.closest('#imagePreviewContainer')) return;
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', () => {
+            handleFiles(fileInput.files);
+        });
+
+        // Drag events styling
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropzone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropzone.classList.add('dragover');
+            }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropzone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropzone.classList.remove('dragover');
+            }, false);
+        });
+
+        // Drop files
+        dropzone.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles(files);
+        }, false);
+
+        function handleFiles(files) {
+            if (files.length > 0) {
+                const file = files[0];
+                if (file.type.startsWith('image/')) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        previewImage.src = e.target.result;
+                        previewContainer.classList.remove('d-none');
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    alert('Please upload an image file (PNG or JPG).');
+                }
+            }
+        }
+
+        // Remove Preview Image
+        removeImageBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            previewImage.src = '#';
+            previewContainer.classList.add('d-none');
+            fileInput.value = ''; // Reset file input
+        });
+
+        // Client-side Form Validation & Toast Notification
+        (() => {
+            'use strict'
+            const form = document.querySelector('#itemForm');
+            const successToast = document.getElementById('successToast');
+            const bootstrapToast = new bootstrap.Toast(successToast);
+
+            form.addEventListener('submit', event => {
+                event.preventDefault();
+                event.stopPropagation();
+                
+                if (form.checkValidity()) {
+                    // Show success toast
+                    bootstrapToast.show();
+                    // Mock redirect after 1.5 seconds back to inventory page
+                    setTimeout(() => {
+                        window.location.href = 'inventory.html';
+                    }, 1500);
+                }
+                form.classList.add('was-validated');
+            }, false);
+        })();
+    </script>
+</body>
+</html>

@@ -31,33 +31,22 @@
 @endsection
 
 @section('content')
-<main>
-    <header class="page-header page-header-dark bg-gradient-primary-to-secondary pb-10">
-        <div class="container-xl px-4">
-            <div class="page-header-content pt-4">
-                <div class="row align-items-center justify-content-between">
-                    <div class="col-auto mt-4">
-                        <h1 class="page-header-title">
-                            <div class="page-header-icon"><i data-feather="shopping-bag"></i></div>
-                            {{ $isEdit ? 'Edit Menu Order' : 'New Menu Order' }}
-                        </h1>
-                        <div class="page-header-subtitle">{{ $isEdit ? 'Update this menu order' : 'Create a food order' }}</div>
-                    </div>
-                    <div class="col-auto mt-4">
-                        <a class="btn btn-light text-primary" href="{{ route('menu-orders.index') }}">
-                            <i class="me-1" data-feather="arrow-left"></i> Back to Orders
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </header>
+    <x-page-header :title="$isEdit ? 'Edit Menu Order' : 'New Menu Order'" :subtitle="$isEdit ? 'Update this menu order' : 'Create a food order'" icon="shopping-bag">
+        <a class="btn btn-primary" href="{{ route('menu-orders.index') }}">
+            <i class="me-1" data-lucide="arrow-left"></i> Back to Orders
+        </a>
+    </x-page-header>
 
-    <div class="container-xl px-4 mt-n10">
+    <div class="container-xl px-4 menu-order-workspace menu-order-builder">
         @include('layouts.alerts')
 
-        <div class="card mb-4">
-            <div class="card-header"><i class="me-1" data-feather="edit-3"></i> Order Details</div>
+        <div class="card mb-4 menu-order-builder-card">
+            <div class="card-header menu-order-builder-header">
+                <div>
+                    <span><i data-lucide="edit-3"></i></span>
+                    <strong>Order Details</strong>
+                </div>
+            </div>
             <div class="card-body">
                 <form action="{{ $isEdit ? route('menu-orders.update', $order) : route('menu-orders.store') }}" method="POST" id="menuOrderForm">
                     @csrf
@@ -65,7 +54,7 @@
                     @method('PUT')
                     @endif
 
-                    <div class="row">
+                    <div class="row g-3 menu-order-meta-grid">
                         @php
                             $hasGlobalBranch = !empty(session('selected_branch_id'));
                             $finalBranchId = old('branch_id', $order->branch_id ?? session('selected_branch_id') ?? $selectedBranchId);
@@ -116,15 +105,13 @@
                     </div>
 
                     <div id="formValidationAlert" class="alert alert-danger d-none mb-4"></div>
-                    <div class="alert alert-light border d-flex align-items-start gap-3 mb-4">
-                        <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center flex-shrink-0" style="width: 32px; height: 32px;">
-                            <i data-feather="shield" style="width:16px;height:16px;"></i>
+                    <div class="menu-order-notice mb-4">
+                        <div>
+                            <i data-lucide="shield"></i>
                         </div>
                         <div>
-                            <div class="fw-semibold">Order protection is enabled</div>
-                            <div class="small text-muted mb-0">
-                                The system checks branch rules, validates ingredient availability, and records stock deductions only after the full order passes validation.
-                            </div>
+                            <div class="fw-semibold">Inventory validation enabled</div>
+                            <div class="small text-muted mb-0">Branch rules and ingredient availability are checked before saving.</div>
                         </div>
                     </div>
 
@@ -137,14 +124,14 @@
                         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
                             <div class="small text-muted">Build the order first. Ingredient availability is validated again before saving.</div>
                             <button type="button" class="btn btn-primary text-white" data-bs-toggle="modal" data-bs-target="#addMenuModal">
-                                <i data-feather="plus-circle" class="me-1"></i> Add Menu
+                                <i data-lucide="plus-circle" class="me-1"></i> Add Menu
                             </button>
                         </div>
 
                         {{-- Order item list (table) --}}
                         <div class="table-responsive">
-                            <table class="table table-sm table-bordered align-middle mb-0" id="orderItemsTable">
-                                <thead class="table-light">
+                            <table class="table table-sm table-bordered align-middle mb-0 menu-order-items-table" id="orderItemsTable">
+                                <thead>
                                     <tr>
                                         <th style="width:60px;">Image</th>
                                         <th>Item</th>
@@ -210,12 +197,12 @@
                         </div>
                     </fieldset>
 
-                    <fieldset class="border rounded p-3 mb-3 menu-order-section">
+                    <fieldset class="border rounded p-3 mb-3 menu-order-section menu-order-charges-section">
                         <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-0">Additional Charges</legend>
                         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
                             <div class="small text-muted">Add any fixed fees or percentage-based charges. Percentage charges are computed from the current menu subtotal.</div>
                             <button type="button" class="btn btn-outline-primary btn-sm" id="addAdditionalChargeBtn">
-                                <i data-feather="plus" class="me-1"></i> Add Charge
+                                <i data-lucide="plus" class="me-1"></i> Add Charge
                             </button>
                         </div>
 
@@ -246,7 +233,7 @@
                                     </div>
                                     <div class="col-lg-1 d-grid">
                                         <button type="button" class="btn btn-outline-danger remove-additional-charge" title="Remove charge">
-                                            <i data-feather="trash-2" class = "text-white"></i>
+                                            <i data-lucide="trash-2"></i>
                                         </button>
                                     </div>
                                 </div>
@@ -294,9 +281,9 @@
                         </div>
 
                         <div class="col-xl-4">
-                    <fieldset class="border rounded p-3 mb-3 menu-order-section menu-order-sticky" id="billingPreviewSection">
+                    <fieldset class="border rounded p-3 mb-3 menu-order-section" id="billingPreviewSection">
                         <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-0">Billing Preview</legend>
-                        <table class="table table-sm mb-0">
+                        <table class="billing-preview-table">
                             <tbody>
                                 <tr><td>Menu Subtotal</td><td class="text-end" id="previewSubtotal">&#x20B1;0.00</td></tr>
                                 <tr id="previewAdditionalRow"><td>Additional Charges</td><td class="text-end" id="previewAdditional">&#x20B1;0.00</td></tr>
@@ -312,7 +299,7 @@
                         </table>
                     </fieldset>
 
-                    <div class="card border-0 shadow-sm mb-3">
+                    <div class="card border-0 shadow-sm mb-3 menu-order-side-card">
                         <div class="card-header fw-semibold">Inventory Check</div>
                         <div class="card-body">
                             <div class="small text-muted mb-3">The required ingredients below are calculated from the current order and selected branch.</div>
@@ -321,14 +308,14 @@
                         </div>
                     </div>
 
-                    <div class="card border-0 shadow-sm">
+                    <div class="card border-0 shadow-sm menu-order-side-card">
                         <div class="card-body">
                             <div class="d-grid gap-2">
                                 <button type="submit" class="btn btn-primary text-white" id="menuOrderSubmitBtn">
-                                    <i class="me-1" data-feather="save"></i> {{ $isEdit ? 'Update Menu Order' : 'Save Menu Order' }}
+                                    <i class="me-1" data-lucide="save"></i> {{ $isEdit ? 'Update Menu Order' : 'Save Menu Order' }}
                                 </button>
                                 <a href="{{ route('menu-orders.index') }}" class="btn btn-secondary text-white">
-                                    <i class="me-1" data-feather="x"></i> Cancel
+                                    <i class="me-1" data-lucide="x"></i> Cancel
                                 </a>
                             </div>
                         </div>
@@ -339,28 +326,27 @@
             </div>
         </div>
     </div>
-</main>
 
 {{-- ===================== ADD MENU MODAL ===================== --}}
-<div class="modal fade" id="addMenuModal" tabindex="-1" aria-labelledby="addMenuModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl">
+<div class="modal fade menu-order-modal" id="addMenuModal" tabindex="-1" aria-labelledby="addMenuModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="addMenuModalLabel"><i data-feather="plus-circle" class="me-1"></i> Add Menu Items</h5>
+                <h5 class="modal-title" id="addMenuModalLabel"><i data-lucide="plus-circle" class="me-1"></i> Add Menu Items</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-0">
-                <div class="p-3 border-bottom bg-light sticky-top" style="z-index: 10;">
+                <div class="menu-order-modal-toolbar">
                     <div class="row">
                         <div class="col-12 col-md-8 col-lg-6 mx-auto">
-                            <div class="input-group input-group-lg shadow-sm rounded-pill overflow-hidden">
-                                <span class="input-group-text bg-white border-end-0 pe-1 text-muted"><i data-feather="search"></i></span>
-                                <input type="text" id="modalSearch" class="form-control border-start-0 ps-2" placeholder="Search menu items by name..." style="box-shadow: none;">
+                            <div class="input-group input-group-lg menu-order-modal-search">
+                                <span class="input-group-text"><i data-lucide="search"></i></span>
+                                <input type="text" id="modalSearch" class="form-control" placeholder="Search menu items by name...">
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="p-3 p-md-4" id="modalMenuGrid" style="max-height: 60vh; overflow-y: auto;">
+                <div class="p-3 p-md-4 menu-order-modal-grid" id="modalMenuGrid">
                     <div class="row g-3">
                         @foreach($menus as $menu)
                         <div class="col-6 col-md-4 col-lg-3">
@@ -370,20 +356,20 @@
                                  data-menu-branch="{{ $menu->branch_id }}"
                                  data-menu-image="{{ $menu->image ? asset('storage/' . $menu->image) : '' }}">
                                 
-                                <div class="position-relative menu-card-img-wrapper" style="cursor: pointer; height: 140px; background: #f1f5f9; border-radius: 0.5rem 0.5rem 0 0; overflow: hidden; display: flex; align-items: center; justify-content: center;" title="Click to add to order">
+                                <div class="position-relative menu-card-img-wrapper" title="Click to add to order">
                                     @if($menu->image)
                                     <img src="{{ asset('storage/' . $menu->image) }}" style="width: 100%; height: 100%; object-fit: cover;">
                                     @else
                                     <div class="text-center text-muted">
-                                        <i data-feather="image" style="width:32px; height:32px; opacity: 0.5; margin-bottom: 0.5rem;"></i>
+                                        <i data-lucide="image" style="width:32px; height:32px; opacity: 0.5; margin-bottom: 0.5rem;"></i>
                                         <div class="small fw-medium">No Image</div>
                                     </div>
                                     @endif
-                                    <div class="position-absolute top-0 start-0 w-100 h-100 opacity-0 hover-overlay" style="transition: opacity 0.2s;"></div>
+                                    <div class="position-absolute top-0 start-0 w-100 h-100 opacity-0 hover-overlay"></div>
                                 </div>
 
                                 <div class="card-body p-3 d-flex flex-column">
-                                    <div class="fw-bold text-dark text-truncate mb-1" title="{{ $menu->name }}" style="font-size: 0.95rem;">{{ $menu->name }}</div>
+                                    <div class="fw-bold text-dark text-truncate mb-1 menu-modal-name" title="{{ $menu->name }}">{{ $menu->name }}</div>
                                     <div class="text-primary fw-bold mb-2">&#x20B1;{{ number_format((float) $menu->selling_price, 2) }}</div>
                                     
                                     <div class="mb-3">
@@ -396,9 +382,9 @@
 
                                     <div class="mt-auto">
                                         <div class="input-group input-group-sm">
-                                            <button class="btn btn-outline-secondary px-2 btn-qty-minus" type="button"><i data-feather="minus" style="width:14px; height:14px;"></i></button>
-                                            <input type="number" class="form-control modal-item-qty text-center fw-bold" value="0" min="0" max="999" style="font-size: 1rem;">
-                                            <button class="btn btn-outline-primary px-2 btn-qty-plus" type="button"><i data-feather="plus" style="width:14px; height:14px;"></i></button>
+                                            <button class="btn btn-outline-secondary px-2 btn-qty-minus" type="button"><i data-lucide="minus" style="width:14px; height:14px;"></i></button>
+                                            <input type="number" class="form-control modal-item-qty text-center fw-bold" value="0" min="0" max="999">
+                                            <button class="btn btn-outline-primary px-2 btn-qty-plus" type="button"><i data-lucide="plus" style="width:14px; height:14px;"></i></button>
                                         </div>
                                     </div>
                                 </div>
@@ -409,116 +395,20 @@
                 </div>
                 <div class="px-3 pb-3">
                     <div id="modalError" class="alert alert-danger d-none mb-0">
-                        <i data-feather="alert-circle" class="me-2" style="width: 16px; height: 16px;"></i>Please enter a quantity of at least 1 for the selected items.
+                        <i data-lucide="alert-circle" class="me-2" style="width: 16px; height: 16px;"></i>Please enter a quantity of at least 1 for the selected items.
                     </div>
                 </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary text-light" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-primary" id="addSelectedItemsBtn">
-                    <i data-feather="check-circle" class="me-1"></i> Add to Order
+                    <i data-lucide="check-circle" class="me-1"></i> Add to Order
                 </button>
             </div>
         </div>
     </div>
 </div>
 @endsection
-
-@push('styles')
-<style>
-.menu-order-section {
-    background: #fff;
-    border-color: #dbe4f0 !important;
-}
-
-.menu-order-section legend {
-    color: #0f172a;
-}
-
-.menu-order-sticky {
-    position: sticky;
-    top: 1.5rem;
-}
-
-.menu-modal-card {
-    transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
-    border: 1px solid transparent !important;
-}
-
-.menu-modal-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08) !important;
-    border-color: rgba(162, 44, 41, 0.2) !important;
-}
-
-.menu-modal-card.border-primary {
-    border-color: #a22c29 !important;
-}
-
-.menu-modal-card .hover-overlay {
-    background: rgba(162, 44, 41, 0.08);
-}
-
-.menu-modal-card:hover .hover-overlay {
-    opacity: 1 !important;
-}
-
-/* Hide arrows from number input */
-.modal-item-qty::-webkit-inner-spin-button,
-.modal-item-qty::-webkit-outer-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-}
-.modal-item-qty {
-    -moz-appearance: textfield;
-}
-
-#orderItemsTable th:nth-child(3),
-#orderItemsTable td.item-qty-cell {
-    min-width: 132px;
-}
-
-#orderItemsTable .item-qty {
-    min-width: 96px;
-    text-align: center;
-    font-weight: 600;
-}
-
-#inventoryIssueList .inventory-issue {
-    border: 1px solid #fecaca;
-    background: #fef2f2;
-    color: #991b1b;
-    border-radius: .5rem;
-    padding: .65rem .75rem;
-    margin-bottom: .5rem;
-}
-
-#inventoryIssueList .inventory-ok {
-    border: 1px solid #bbf7d0;
-    background: #f0fdf4;
-    color: #166534;
-    border-radius: .5rem;
-    padding: .65rem .75rem;
-}
-
-@media (max-width: 1199.98px) {
-    .menu-order-sticky {
-        position: static;
-    }
-}
-
-@media (max-width: 575.98px) {
-    #orderItemsTable th:nth-child(3),
-    #orderItemsTable td.item-qty-cell {
-        min-width: 116px;
-    }
-
-    #orderItemsTable .item-qty {
-        min-width: 84px;
-    }
-}
-</style>
-@endpush
 
 @push('scripts')
 <script>
@@ -690,7 +580,7 @@
                 '</div>' +
                 '<div class="col-lg-1 d-grid">' +
                     '<button type="button" class="btn btn-outline-danger remove-additional-charge" title="Remove charge">' +
-                        '<i data-feather="trash-2" class="text-white"></i>' +
+                        '<i data-lucide="trash-2"></i>' +
                     '</button>' +
                 '</div>' +
             '</div>';
@@ -706,8 +596,8 @@
         bindAdditionalChargeRow(row);
         updateAdditionalChargeEmptyState();
 
-        if (typeof feather !== 'undefined') {
-            feather.replace();
+        if (typeof window.refreshLucideIcons === 'function') {
+            window.refreshLucideIcons();
         }
     }
 
@@ -1078,7 +968,7 @@
                 }
                 row.remove();
                 recalcPreview();
-                if (typeof feather !== 'undefined') { setTimeout(function() { feather.replace(); }, 50); }
+                if (typeof window.refreshLucideIcons === 'function') { setTimeout(function() { window.refreshLucideIcons(); }, 50); }
             });
         }
     }
@@ -1229,7 +1119,7 @@
             if (qty > 0) {
                 card.classList.add('border-primary');
                 card.classList.remove('border-0');
-                card.style.boxShadow = '0 0 0 0.2rem rgba(162, 44, 41, 0.25)';
+                card.style.boxShadow = '0 0 0 0.2rem rgba(var(--primary-color-rgb), 0.25)';
             } else {
                 card.classList.remove('border-primary');
                 card.classList.add('border-0');
@@ -1308,8 +1198,8 @@
         var modal = bootstrap.Modal.getInstance(modalEl);
         if (modal) modal.hide();
 
-        if (typeof feather !== 'undefined') {
-            setTimeout(function() { feather.replace(); }, 100);
+        if (typeof window.refreshLucideIcons === 'function') {
+            setTimeout(function() { window.refreshLucideIcons(); }, 100);
         }
         });
     }
@@ -1339,8 +1229,8 @@
 </script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        if (typeof feather !== 'undefined') {
-            feather.replace();
+        if (typeof window.refreshLucideIcons === 'function') {
+            window.refreshLucideIcons();
         }
     });
 </script>

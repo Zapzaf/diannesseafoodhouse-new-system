@@ -3,14 +3,13 @@
 @section('page_title', 'Production - Dianne Seafood House')
 
 @section('content')
-<main>
-    <x-page-header title="Production Orders" subtitle="Track production batches from raw inputs to finished outputs" icon="tool">
+    <x-page-header title="Production Orders" subtitle="Track production batches from raw inputs to finished outputs" icon="wrench">
         <a href="{{ route('productions.create') }}" class="btn btn-light">
-            <i data-feather="plus" class="me-1"></i> Start Production
+            <i data-lucide="plus" class="me-1"></i> Start Production
         </a>
     </x-page-header>
 
-    <div class="container-xl px-4 mt-n10">
+    <div class="container-xl px-4">
         @include('layouts.alerts')
 
         <div class="card shadow-sm">
@@ -26,23 +25,25 @@
                     </select>
                     <div class="input-group input-group-sm" style="max-width: 250px;">
                         <input type="text" name="search" class="form-control" placeholder="Search..." value="{{ request('search') }}">
-                        <button class="btn btn-outline-secondary" type="submit"><i data-feather="search" style="width: 14px; height: 14px;"></i></button>
+                        <button class="btn btn-outline-secondary" type="submit"><i data-lucide="search" style="width: 14px; height: 14px;"></i></button>
                     </div>
                 </form>
             </div>
-            <div class="card-body">
+            <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table table-bordered table-striped align-middle">
-                        <thead class="table-dark">
+                    <table class="table table-hover align-middle mb-0" data-server-page-sort="1">
+                        <thead>
                             <tr>
-                                <th>Order</th>
+                                <th data-sort-key="id">Production Info</th>
                                 @if(auth()->user()?->isAdmin())
-                                <th>Branch</th>
+                                <th data-sort-key="branch_name">Branch</th>
                                 @endif
-                                <th>Status</th>
-                                <th>Inputs</th>
-                                <th>Outputs</th>
-                                <th class="table-actions-head">Action</th>
+                                <th data-sort-key="status">Status</th>
+                                <th data-sort-key="created_at">Created Date</th>
+                                <th data-sort-key="finished_at">Finished Date</th>
+                                <th data-sort-key="inputs_count">Input Details</th>
+                                <th data-sort-key="outputs_count">Output Details</th>
+                                <th class="table-actions-head text-end">Action</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -56,14 +57,22 @@
                                 <td>{{ $production->branch?->name ?? 'N/A' }}</td>
                                 @endif
                                 <td><span class="badge-status badge-{{ $production->status }}">{{ strtoupper(str_replace('_', ' ', $production->status)) }}</span></td>
-                                <td>{{ $production->inputs->count() }}</td>
-                                <td>{{ $production->outputs->count() }}</td>
-                                <td class="table-actions-cell">
+                                <td class="text-muted small">{{ $production->created_at?->format('M d, Y') ?? 'N/A' }}</td>
+                                <td class="text-muted small">{{ $production->finished_at?->format('M d, Y') ?? '—' }}</td>
+                                <td>
+                                    <x-production-item-summary :items="$production->inputs" quantity-field="quantity_used" empty="No inputs" variant="input" />
+                                </td>
+                                <td>
+                                    <x-production-item-summary :items="$production->outputs" quantity-field="quantity_produced" empty="No outputs yet" variant="output" />
+                                </td>
+                                <td class="table-actions-cell text-end">
                                     <a href="{{ route('productions.show', $production) }}" class="btn btn-sm btn-primary">Open</a>
                                 </td>
                             </tr>
                             @empty
-                            <tr><td colspan="{{ auth()->user()?->isAdmin() ? 6 : 5 }}" class="text-center text-muted py-4">No production orders yet.</td></tr>
+                            <tr>
+                                <td colspan="{{ auth()->user()?->isAdmin() ? 8 : 7 }}" class="text-center text-muted py-4">No production orders yet.</td>
+                            </tr>
                             @endforelse
                         </tbody>
                     </table>
@@ -74,5 +83,4 @@
             @endif
         </div>
     </div>
-</main>
 @endsection

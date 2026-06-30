@@ -37,6 +37,20 @@ class ExpenseController extends Controller
         return session('selected_branch_id') ? (int) session('selected_branch_id') : null;
     }
 
+    private function expenseCreateBranchId(Request $request): int
+    {
+        $branchId = $this->currentBranchId();
+        if ($branchId) {
+            return $branchId;
+        }
+
+        $request->validate([
+            'branch_id' => ['required', 'integer', 'exists:branches,id'],
+        ]);
+
+        return (int) $request->input('branch_id');
+    }
+
     public function index()
     {
         $selectedBranchId = $this->currentBranchId();
@@ -234,9 +248,10 @@ class ExpenseController extends Controller
         }
         
         $monthLabel = Carbon::createFromFormat('Y-m', $monthYear)->format('F Y');
+        $branches = Branch::query()->where('is_active', true)->orderBy('name')->get();
 
         return view('expenses.show', compact(
-            'monthYear', 'monthLabel', 'selectedBranchId',
+            'monthYear', 'monthLabel', 'selectedBranchId', 'branches',
             'grossSales', 'netSales', 'vatTotal', 'discountTotal', 'salesByMethod',
             'totalVatable', 'totalNonVatable', 'totalDisbursements',
             'salesRecords', 'vatableRecords', 'nonVatableRecords', 'disbursementRecords'
@@ -247,6 +262,8 @@ class ExpenseController extends Controller
 
     public function storeVatable(Request $request, string $monthYear)
     {
+        $branchId = $this->expenseCreateBranchId($request);
+
         $request->validate([
             'date'          => 'nullable|date',
             'vendor_name'   => 'required|string|max:255',
@@ -259,7 +276,7 @@ class ExpenseController extends Controller
         ]);
 
         VatablePurchase::create([
-            'branch_id'     => $this->currentBranchId(),
+            'branch_id'     => $branchId,
             'month_year'    => $monthYear,
             'date'          => $request->date ?: null,
             'vendor_name'   => $request->vendor_name,
@@ -323,6 +340,8 @@ class ExpenseController extends Controller
 
     public function storeNonVatable(Request $request, string $monthYear)
     {
+        $branchId = $this->expenseCreateBranchId($request);
+
         $request->validate([
             'date'         => 'nullable|date',
             'vendor_name'  => 'required|string|max:255',
@@ -330,7 +349,7 @@ class ExpenseController extends Controller
         ]);
 
         NonVatablePurchase::create([
-            'branch_id'    => $this->currentBranchId(),
+            'branch_id'    => $branchId,
             'month_year'   => $monthYear,
             'date'         => $request->date ?: null,
             'vendor_name'  => $request->vendor_name,
@@ -379,6 +398,8 @@ class ExpenseController extends Controller
 
     public function storeDisbursement(Request $request, string $monthYear)
     {
+        $branchId = $this->expenseCreateBranchId($request);
+
         $request->validate([
             'date'         => 'nullable|date',
             'check_number' => 'nullable|string|max:100',
@@ -388,7 +409,7 @@ class ExpenseController extends Controller
         ]);
 
         CashDisbursement::create([
-            'branch_id'    => $this->currentBranchId(),
+            'branch_id'    => $branchId,
             'month_year'   => $monthYear,
             'date'         => $request->date ?: null,
             'check_number' => $request->check_number,

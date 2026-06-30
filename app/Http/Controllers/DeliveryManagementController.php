@@ -60,9 +60,19 @@ class DeliveryManagementController extends Controller
     {
         $user = $request->user();
         $branchId = $this->resolveBranchId($request);
+        $sort = (string) $request->input('sort', 'created_at');
+        $direction = strtolower((string) $request->input('direction', 'desc')) === 'asc' ? 'asc' : 'desc';
+        $allowedSort = ['reference_number', 'supplier_name', 'destination_branch', 'source_branch', 'items_count', 'total_cost', 'created_at', 'status'];
+
+        if (! in_array($sort, $allowedSort, true)) {
+            $sort = 'created_at';
+        }
 
         $deliveries = Delivery::query()
+            ->select('deliveries.*')
             ->with(['items.item.category.location', 'supplier', 'sourceBranch', 'destinationBranch', 'creator', 'approver'])
+            ->withCount('items')
+            ->withSum('items as total_cost', 'price')
             ->when(! $user->isAdmin(), function ($query) use ($user) {
                 $query->where(function ($inner) use ($user) {
                     $inner->where('destination_branch_id', $user->branch_id)
@@ -75,7 +85,24 @@ class DeliveryManagementController extends Controller
                         ->orWhere('source_branch_id', $branchId);
                 });
             })
-            ->when(request('search'), fn ($q, $s) => $q->where('reference_number', 'like', "%$s%"))->latest()
+            ->when(request('search'), fn ($q, $s) => $q->where('reference_number', 'like', "%$s%"))
+            ->when($sort === 'supplier_name', fn ($query) => $query
+                ->leftJoin('suppliers', 'deliveries.supplier_id', '=', 'suppliers.id')
+                ->leftJoin('branches as source_sort_branches', 'deliveries.source_branch_id', '=', 'source_sort_branches.id')
+                ->orderByRaw("COALESCE(source_sort_branches.name, suppliers.name) {$direction}")
+            )
+            ->when($sort === 'destination_branch', fn ($query) => $query
+                ->leftJoin('branches as destination_sort_branches', 'deliveries.destination_branch_id', '=', 'destination_sort_branches.id')
+                ->orderBy('destination_sort_branches.name', $direction)
+            )
+            ->when($sort === 'source_branch', fn ($query) => $query
+                ->leftJoin('branches as source_branch_sort', 'deliveries.source_branch_id', '=', 'source_branch_sort.id')
+                ->orderBy('source_branch_sort.name', $direction)
+            )
+            ->when($sort === 'items_count', fn ($query) => $query->orderBy('items_count', $direction))
+            ->when($sort === 'total_cost', fn ($query) => $query->orderBy('total_cost', $direction))
+            ->when(in_array($sort, ['reference_number', 'created_at', 'status'], true), fn ($query) => $query->orderBy("deliveries.{$sort}", $direction))
+            ->orderBy('deliveries.created_at', 'desc')
             ->paginate((int) request('per_page', 10))->withQueryString();
 
         return view('deliveries.index', [
@@ -154,6 +181,7 @@ class DeliveryManagementController extends Controller
 
             $delivery = Delivery::create([
                 'reference_number' => 'DLV-'.now()->format('YmdHis').'-'.random_int(100, 999),
+                'delivery_date' => $validated['delivery_date'] ?? now()->toDateString(),
                 'supplier_id' => $sourceItem ? null : ($validated['supplier_id'] ?? null),
                 'source_branch_id' => $sourceItem ? (int) $sourceItem->branch_id : ($validated['source_branch_id'] ?? null),
                 'destination_branch_id' => $validated['destination_branch_id'],
@@ -162,6 +190,8 @@ class DeliveryManagementController extends Controller
                 'approved_by' => $isAutoApprove ? $request->user()->id : null,
                 'approved_at' => $isAutoApprove ? now() : null,
             ]);
+
+            $transactionDate = $delivery->delivery_date?->copy()->startOfDay();
 
             foreach ($validated['items'] as $row) {
                 $deliveryItem = DeliveryItem::create([
@@ -182,7 +212,8 @@ class DeliveryManagementController extends Controller
                             $linkedItem,
                             $deliveryItem,
                             $request->user()->id,
-                            'FROM DELIVERY: '.$delivery->reference_number
+                            'FROM DELIVERY: '.$delivery->reference_number,
+                            $transactionDate
                         );
                     }
                 }
@@ -203,7 +234,8 @@ class DeliveryManagementController extends Controller
                         $request->user()->id,
                         $beginning,
                         $sourceItem->unit_price ? (float) $sourceItem->unit_price : null,
-                        $remaining
+                        $remaining,
+                        $transactionDate
                     );
                 }
             }
@@ -326,6 +358,7 @@ class DeliveryManagementController extends Controller
 
             $delivery->loadMissing('items.item');
             $allocations = collect($validated['items'])->keyBy('delivery_item_id');
+            $transactionDate = $delivery->delivery_date?->copy()->startOfDay();
 
             foreach ($delivery->items as $item) {
                 $allocation = $allocations->get($item->id);
@@ -336,7 +369,8 @@ class DeliveryManagementController extends Controller
                             $item->item,
                             $item,
                             $request->user()->id,
-                            'FROM DELIVERY: '.$delivery->reference_number
+                            'FROM DELIVERY: '.$delivery->reference_number,
+                            $transactionDate
                         );
                     }
 
@@ -352,7 +386,8 @@ class DeliveryManagementController extends Controller
                         $item->item,
                         $item,
                         $request->user()->id,
-                        'FROM DELIVERY: '.$delivery->reference_number
+                        'FROM DELIVERY: '.$delivery->reference_number,
+                        $transactionDate
                     );
                 }
                 // production: no transaction log at this stage
@@ -391,7 +426,8 @@ class DeliveryManagementController extends Controller
                         $request->user()->id,
                         $beginning,
                         $sourceItem->unit_price ? (float) $sourceItem->unit_price : null,
-                        $remaining
+                        $remaining,
+                        $transactionDate
                     );
                 }
             }
@@ -406,9 +442,18 @@ class DeliveryManagementController extends Controller
     {
         $user = $request->user();
         $branchId = $this->resolveBranchId($request);
+        $sort = (string) $request->input('sort', 'created_at');
+        $direction = strtolower((string) $request->input('direction', 'desc')) === 'asc' ? 'asc' : 'desc';
+        $allowedSort = ['reference_number', 'supplier_name', 'destination_branch', 'items_count', 'created_at', 'status'];
+
+        if (! in_array($sort, $allowedSort, true)) {
+            $sort = 'created_at';
+        }
 
         $deliveries = Delivery::query()
+            ->select('deliveries.*')
             ->with(['items.item.category.location', 'supplier', 'sourceBranch', 'destinationBranch', 'creator'])
+            ->withCount('items')
             ->where('status', 'pending')
             ->when(! $user->isAdmin(), function ($query) use ($user) {
                 $query->where(function ($inner) use ($user) {
@@ -422,7 +467,19 @@ class DeliveryManagementController extends Controller
                         ->orWhere('source_branch_id', $branchId);
                 });
             })
-            ->when(request('search'), fn ($q, $s) => $q->where('reference_number', 'like', "%$s%"))->latest()
+            ->when(request('search'), fn ($q, $s) => $q->where('reference_number', 'like', "%$s%"))
+            ->when($sort === 'supplier_name', fn ($query) => $query
+                ->leftJoin('suppliers', 'deliveries.supplier_id', '=', 'suppliers.id')
+                ->leftJoin('branches as source_sort_branches', 'deliveries.source_branch_id', '=', 'source_sort_branches.id')
+                ->orderByRaw("COALESCE(source_sort_branches.name, suppliers.name) {$direction}")
+            )
+            ->when($sort === 'destination_branch', fn ($query) => $query
+                ->leftJoin('branches as destination_sort_branches', 'deliveries.destination_branch_id', '=', 'destination_sort_branches.id')
+                ->orderBy('destination_sort_branches.name', $direction)
+            )
+            ->when($sort === 'items_count', fn ($query) => $query->orderBy('items_count', $direction))
+            ->when(in_array($sort, ['reference_number', 'created_at', 'status'], true), fn ($query) => $query->orderBy("deliveries.{$sort}", $direction))
+            ->orderBy('deliveries.created_at', 'desc')
             ->paginate((int) request('per_page', 10))->withQueryString();
 
         return view('deliveries.pending', [
@@ -453,6 +510,7 @@ class DeliveryManagementController extends Controller
         DeliveryItem $deliveryItem,
         ?int $actorId = null,
         ?string $reason = null,
+        ?\DateTimeInterface $transactionDate = null,
     ): void {
         $qty = (float) $deliveryItem->quantity;
         $price = (float) ($deliveryItem->price ?? 0);
@@ -476,7 +534,8 @@ class DeliveryManagementController extends Controller
             $actorId,
             $beginning,
             $unitPrice,
-            $remaining
+            $remaining,
+            $transactionDate
         );
     }
 
@@ -489,6 +548,7 @@ class DeliveryManagementController extends Controller
         ?float $beginningQuantity = null,
         ?float $transactionPrice = null,
         ?float $remainingQuantity = null,
+        ?\DateTimeInterface $transactionDate = null,
     ): void {
         InventoryTransaction::create([
             'item_id' => $item->id,
@@ -498,7 +558,7 @@ class DeliveryManagementController extends Controller
             'beginning_quantity' => $beginningQuantity,
             'remaining_quantity' => $remainingQuantity,
             'transaction_price' => $transactionPrice,
-            'transaction_date' => now(),
+            'transaction_date' => $transactionDate ?? now(),
             'reason' => $reason,
             'status' => 'approved',
             'created_by' => $actorId,
@@ -520,13 +580,13 @@ class DeliveryManagementController extends Controller
             return;
         }
 
-        $order = ProductionOrder::create([
-            'branch_id' => $delivery->destination_branch_id,
-            'status' => 'in_progress',
-            'created_by' => $actorId,
-        ]);
-
         foreach ($availableItems as $deliveryItem) {
+            $order = ProductionOrder::create([
+                'branch_id' => $delivery->destination_branch_id,
+                'status' => 'in_progress',
+                'created_by' => $actorId,
+            ]);
+
             ProductionInput::create([
                 'production_order_id' => $order->id,
                 'item_id' => $deliveryItem->item_id,

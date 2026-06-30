@@ -1,22 +1,21 @@
 @extends('layouts.app')
 @section('page_title', 'Pending Transactions - Dianne Seafood House')
 @section('content')
-<main>
 <x-page-header title="Pending Transactions" subtitle="Manual stock movements awaiting review" icon="clock">
     <a href="{{ route('transactions.index') }}" class="btn btn-light text-primary">
-        <i data-feather="list" class="me-1"></i> All Transactions
+        <i data-lucide="list" class="me-1"></i> All Transactions
     </a>
     <a href="{{ route('transactions.create') }}" class="btn btn-light text-primary">
-        <i data-feather="plus-circle" class="me-1"></i> New Transaction
+        <i data-lucide="plus-circle" class="me-1"></i> New Transaction
     </a>
 </x-page-header>
 
-<div class="container-xl px-4 mt-n10">
+<div class="container-xl px-4">
     @include('layouts.alerts')
 
     <div class="card shadow-sm">
         <div class="card-header fw-semibold d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <div><i data-feather="clock" class="me-1"></i> Pending Approval</div>
+            <div><i data-lucide="clock" class="me-1"></i> Pending Approval</div>
             <form method="GET" action="{{ url()->current() }}" class="d-flex gap-2 align-items-center">
                 <select name="per_page" class="form-select form-select-sm" style="width: auto;" onchange="this.form.submit()">
                     <option value="5" {{ request('per_page') == 5 ? 'selected' : '' }}>5</option>
@@ -27,7 +26,7 @@
                 </select>
                 <div class="input-group input-group-sm" style="max-width: 250px;">
                     <input type="text" name="search" class="form-control" placeholder="Search..." value="{{ request('search') }}">
-                    <button class="btn btn-outline-secondary" type="submit"><i data-feather="search" style="width: 14px; height: 14px;"></i></button>
+                    <button class="btn btn-outline-secondary" type="submit"><i data-lucide="search" style="width: 14px; height: 14px;"></i></button>
                 </div>
             </form>
         </div>
@@ -84,5 +83,4 @@
         </style>
     </div>
 </div>
-</main>
 @endsection

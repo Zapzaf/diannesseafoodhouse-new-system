@@ -3,14 +3,13 @@
 @section('page_title', 'Waste Report Details - Dianne Seafood House')
 
 @section('content')
-<main>
     <x-page-header :title="'Waste Report WR-' . str_pad((string) $wasteReport->id, 5, '0', STR_PAD_LEFT)" :subtitle="'Branch: ' . ($wasteReport->branch?->name ?? 'N/A')" icon="alert-triangle">
         <a href="{{ route('waste-reports.index') }}" class="btn btn-light text-primary">
-            <i data-feather="arrow-left" class="me-1"></i> Back
+            <i data-lucide="arrow-left" class="me-1"></i> Back
         </a>
     </x-page-header>
 
-    <div class="container-xl px-4 mt-n10">
+    <div class="container-xl px-4">
         @include('layouts.alerts')
 
         <div class="card shadow-sm mb-4">
@@ -71,5 +70,4 @@
             </div>
         </div>
     </div>
-</main>
 @endsection

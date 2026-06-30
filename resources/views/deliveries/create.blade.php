@@ -3,40 +3,27 @@
 @section('page_title', 'Log Delivery - Dianne Seafood House')
 
 @section('content')
-<main>
-    <header class="page-header page-header-dark bg-gradient-primary-to-secondary pb-10">
-        <div class="container-xl px-4">
-            <div class="page-header-content pt-4">
-                <div class="row align-items-center justify-content-between">
-                    <div class="col-auto mt-4">
-                        <h1 class="page-header-title">
-                            <div class="page-header-icon"><i data-feather="truck"></i></div>
-                            Log Incoming Delivery
-                        </h1>
-                        <div class="page-header-subtitle">Record a delivery from an external supplier</div>
-                    </div>
-                    <div class="col-auto mt-4">
-                        <a href="{{ route('deliveries.index') }}" class="btn btn-light text-primary">
-                            <i data-feather="arrow-left" class="me-1"></i> All Deliveries
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </header>
+    <x-page-header title="Log Incoming Delivery" subtitle="Record a delivery from an external supplier" icon="truck">
+        <a href="{{ route('deliveries.index') }}" class="btn btn-outline-primary">
+            <i data-lucide="arrow-left" class="me-1"></i> All Deliveries
+        </a>
+    </x-page-header>
 
-    <div class="container-xl px-4 mt-n10">
+    <div class="container-xl px-4">
         @include('layouts.alerts')
 
-        <div class="card shadow-sm mb-4">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <div>
-                    <div class="fw-semibold">Delivery Details</div>
-                    <div class="small text-muted">Add each delivered item, then choose where it should go.</div>
+        <div class="card p-4 shadow-sm mb-4">
+            <div class="card-body p-0">
+                <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+                    <div>
+                        <h5 class="fw-bold mb-1 d-flex align-items-center gap-2 text-primary">
+                            <i data-lucide="truck" style="width: 20px; height: 20px;"></i>
+                            <span>Delivery Details</span>
+                        </h5>
+                        <div class="small text-muted">Add each delivered item, then choose where it should go.</div>
+                    </div>
+                    <span class="badge bg-primary px-3 py-2">Destination required per row</span>
                 </div>
-                <span class="badge bg-primary">Destination required per row</span>
-            </div>
-            <div class="card-body">
                 <form method="POST" action="{{ route('deliveries.store') }}" id="delivery-form">
                     @csrf
 
@@ -45,8 +32,10 @@
                     <input type="hidden" name="source_item_id" id="hiddenSourceItemId" value="{{ old('source_item_id', request('source_item_id', '')) }}">
 
                     <div class="row g-3">
+                        @php($requiresBranchSelection = auth()->user()?->isAdmin() && empty($selectedBranchId))
+
                         {{-- Supplier --}}
-                        <div class="col-md-12">
+                        <div class="{{ $requiresBranchSelection ? 'col-md-4' : 'col-md-8' }}">
                             <label class="form-label fw-semibold">Supplier <span class="text-danger">*</span></label>
                             <select name="supplier_id" class="form-select" id="supplierSelect" required>
                                 <option value="">Select supplier</option>
@@ -59,29 +48,60 @@
                             @error('supplier_id') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                         </div>
 
-                        {{-- Non-admin or Admin: branch is fixed to selected branch --}}
-                        <input type="hidden" name="destination_branch_id" value="{{ $selectedBranchId ?? '' }}">
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Delivery Date <span class="text-danger">*</span></label>
+                            <input type="date"
+                                   name="delivery_date"
+                                   class="form-control"
+                                   value="{{ old('delivery_date', now()->toDateString()) }}"
+                                   required>
+                            <div class="form-text">Use the actual date the items were received.</div>
+                            @error('delivery_date') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                        </div>
+
+                        @if($requiresBranchSelection)
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold">Delivery Branch <span class="text-danger">*</span></label>
+                            <select name="destination_branch_id" class="form-select" id="destinationBranchSelect" required>
+                                <option value="">Select Branch</option>
+                                @foreach($branches as $branch)
+                                <option value="{{ $branch->id }}" {{ old('destination_branch_id') == $branch->id ? 'selected' : '' }}>
+                                    {{ $branch->name }}
+                                </option>
+                                @endforeach
+                            </select>
+                            <div class="form-text">Choose the branch before selecting item destinations.</div>
+                            @error('destination_branch_id') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                        </div>
+                        @else
+                        {{-- Non-admin or Admin with an active branch: branch is fixed to selected branch --}}
+                        <input type="hidden" name="destination_branch_id" id="destinationBranchSelect" value="{{ old('destination_branch_id', $selectedBranchId ?? '') }}">
+                        @error('destination_branch_id') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                        @endif
                     </div>
 
                     {{-- Items Table --}}
                     <div class="mt-4 d-flex justify-content-between align-items-center border-top pt-4">
-                        <h6 class="mb-0 fw-semibold">Delivery Items</h6>
-                        <button type="button" class="btn btn-sm btn-light" id="add-row">
-                            <i data-feather="plus" class="me-1"></i> Add Item
+                        <h5 class="fw-bold mb-0 d-flex align-items-center gap-2 text-primary">
+                            <i data-lucide="package" style="width: 20px; height: 20px;"></i>
+                            <span>Delivery Items</span>
+                        </h5>
+                        <button type="button" class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" id="add-row">
+                            <i data-lucide="plus" style="width: 14px; height: 14px;"></i> Add Item
                         </button>
                     </div>
                     @error('items') <div class="alert alert-danger py-2 mt-3 mb-0">{{ $message }}</div> @enderror
 
                     <div class="table-responsive mt-3">
-                        <table class="table table-bordered align-middle delivery-items-table" id="items-table">
-                            <thead class="table-light">
+                        <table class="table table-hover align-middle delivery-items-table" id="items-table">
+                            <thead>
                                 <tr>
                                     <th style="min-width:200px">Item Description</th>
                                     <th style="min-width:90px">Quantity</th>
                                     <th style="min-width:120px">Unit</th>
                                     <th style="min-width:110px">Price</th>
                                     <th style="min-width:170px">Destination</th>
-                                    <th style="min-width:80px">Actions</th>
+                                    <th class="table-actions-head" style="min-width:80px">Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="items-body">
@@ -89,10 +109,11 @@
                         </table>
                     </div>
 
-                    <div class="mt-3 d-flex justify-content-end gap-2">
-                        <a href="{{ route('deliveries.index') }}" class="btn btn-secondary">Cancel</a>
-                        <button type="submit" class="btn btn-primary">
-                            <i data-feather="save" class="me-1"></i> Save Delivery
+                    <div class="mt-4 d-flex justify-content-end gap-3">
+                        <a href="{{ route('deliveries.index') }}" class="btn btn-outline-secondary px-4">Cancel</a>
+                        <button type="submit" class="btn btn-primary px-4 d-flex align-items-center gap-2">
+                            <i data-lucide="save" style="width: 18px; height: 18px;"></i>
+                            <span>Save Delivery</span>
                         </button>
                     </div>
                 </form>
@@ -101,46 +122,64 @@
     </div>
 
     {{-- Destination Modal --}}
-    <div class="modal fade" id="destinationModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal fade destination-picker-modal" id="destinationModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="destinationModalTitle">Select Destination</h5>
+                    <div>
+                        <h5 class="modal-title" id="destinationModalTitle">Select Destination</h5>
+                        <div class="small text-muted">Choose where this delivery item should be allocated.</div>
+                    </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     {{-- Step 1: Choose Production or Inventory Storage --}}
                     <div id="stepChoose">
-                        <p class="text-black mb-3">Where should this delivery item go?</p>
-                        <div class="d-flex gap-3">
+                        <p class="text-muted mb-3">Where should this delivery item go?</p>
+                        <div class="destination-choice-grid">
                             <button type="button" id="chooseInventory"
-                                    class="btn btn-outline-primary d-flex flex-column align-items-center flex-grow-1 py-4 gap-2">
-                                <i data-feather="archive" style="width:32px;height:32px;"></i>
+                                    class="btn btn-outline-primary destination-choice-btn">
+                                <i data-lucide="archive" style="width:32px;height:32px;"></i>
                                 <span class="fw-semibold">Inventory Storage</span>
-                                <span class="small text-white">Add to stock inventory</span>
+                                <span class="small text-muted">Add to stock inventory</span>
                             </button>
                             <button type="button" id="chooseProduction"
-                                    class="btn btn-outline-secondary d-flex flex-column align-items-center flex-grow-1 py-4 gap-2">
-                                <i data-feather="settings" style="width:32px;height:32px;"></i>
+                                    class="btn btn-outline-secondary destination-choice-btn">
+                                <i data-lucide="settings" style="width:32px;height:32px;"></i>
                                 <span class="fw-semibold">Production</span>
-                                <span class="small text-white">Send items to production</span>
+                                <span class="small text-muted">Send items to production</span>
                             </button>
                         </div>
                     </div>
 
                     {{-- Step 2: Search & pick inventory item (only shown when Inventory Storage chosen) --}}
                     <div id="stepSearch" class="d-none">
-                        <div class="d-flex align-items-center gap-2 mb-3">
-                            <button type="button" class="btn btn-sm btn-light" id="backToChoose">
-                                <i data-feather="arrow-left" style="width:14px;height:14px;"></i> Back
+                        <div class="destination-search-header">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="backToChoose">
+                                <i data-lucide="arrow-left" style="width:14px;height:14px;"></i> Back
                             </button>
-                            <span class="fw-semibold">Search Inventory Items</span>
+                            <div>
+                                <div class="fw-semibold">Search Inventory Items</div>
+                                <div class="small text-muted">Only items from the selected branch are shown.</div>
+                            </div>
                         </div>
-                        <input type="text" id="searchInput" class="form-control mb-3" placeholder="Search by Item Name or ID...">
+                        <div class="destination-search-wrap">
+                            <i data-lucide="search"></i>
+                            <input type="text" id="searchInput" class="form-control" placeholder="Search by item name or ID...">
+                        </div>
 
-                        <div class="table-responsive">
-                            <table class="table table-sm table-hover mb-0">
-                                <thead class="table-light">
+                        <div class="table-responsive destination-table-scroll">
+                            <table class="table table-sm table-hover mb-0 destination-items-table">
+                                <colgroup>
+                                    <col class="destination-col-id">
+                                    <col class="destination-col-name">
+                                    <col class="destination-col-unit">
+                                    <col class="destination-col-qty">
+                                    <col class="destination-col-location">
+                                    <col class="destination-col-category">
+                                    <col class="destination-col-action">
+                                </colgroup>
+                                <thead>
                                     <tr>
                                         <th>Item ID</th>
                                         <th>Item Name</th>
@@ -163,7 +202,6 @@
             </div>
         </div>
     </div>
-</main>
 @endsection
 
 @push('scripts')
@@ -177,7 +215,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const UNITS = @json($deliveryUnitOptions);
 
     const itemsData         = @json($itemsForModal);
-    let selectedBranchId     = parseInt(@json($selectedBranchId ?? 0)) || 0;
+    const branchSelect = document.getElementById('destinationBranchSelect');
+    let selectedBranchId = parseInt(branchSelect ? branchSelect.value : @json($selectedBranchId ?? 0)) || 0;
     const transferSourceItemId = parseInt(@json(request('source_item_id'))) || 0;
     const transferQty = parseFloat(@json(request('quantity'))) || 0;
     const transferReason = @json(request('reason', ''));
@@ -217,7 +256,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 <input type="hidden" name="items[${index}][allocated_to]" class="row-allocated" value="">
                 <div class="destination-control">
                     <button type="button" class="btn btn-sm btn-outline-primary btn-dest w-100">
-                        <i data-feather="map-pin"></i> Select Destination
+                        <i data-lucide="map-pin"></i> Select Destination
                     </button>
                     <div class="dest-selection d-none">
                         <span class="dest-label"></span>
@@ -226,8 +265,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     <div class="destination-error small text-danger mt-1 d-none"></div>
                 </div>
             </td>
-            <td>
-                <button type="button" class="btn btn-sm btn-outline-danger btn-remove">Remove</button>
+            <td class="table-actions-cell">
+                <button type="button" class="btn btn-sm btn-outline-danger btn-remove" title="Remove"><i data-lucide="trash-2"></i></button>
             </td>
         `;
         return tr;
@@ -236,10 +275,23 @@ document.addEventListener('DOMContentLoaded', function () {
     function addRow() {
         const row = buildRow(rowCount++);
         tbody.appendChild(row);
-        if (typeof feather !== 'undefined') feather.replace();
+        if (typeof window.refreshLucideIcons === 'function') window.refreshLucideIcons();
     }
 
     addRow();
+
+    if (branchSelect) {
+        branchSelect.addEventListener('change', function () {
+            const nextBranchId = parseInt(this.value) || 0;
+            if (nextBranchId === selectedBranchId) {
+                return;
+            }
+
+            selectedBranchId = nextBranchId;
+            tbody.querySelectorAll('tr').forEach(clearDestination);
+            filterItems('');
+        });
+    }
 
     // Transfer flow: lock supplier; prefill qty/description; force item selection from modal
     if (transferSourceItemId) {
@@ -290,6 +342,16 @@ document.addEventListener('DOMContentLoaded', function () {
     addBtn.addEventListener('click', addRow);
 
     document.getElementById('delivery-form').addEventListener('submit', function (e) {
+        selectedBranchId = parseInt(branchSelect ? branchSelect.value : selectedBranchId) || 0;
+        if (!selectedBranchId) {
+            e.preventDefault();
+            alert('Please select a branch before proceeding.');
+            if (branchSelect && typeof branchSelect.focus === 'function') {
+                branchSelect.focus();
+            }
+            return;
+        }
+
         const rows = tbody.querySelectorAll('tr');
         if (rows.length === 0) {
             e.preventDefault();
@@ -334,6 +396,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const destBtn = e.target.closest('.btn-dest');
         if (destBtn) {
+            selectedBranchId = parseInt(branchSelect ? branchSelect.value : selectedBranchId) || 0;
+            if (!selectedBranchId) {
+                alert('Please select a branch before choosing a destination.');
+                if (branchSelect && typeof branchSelect.focus === 'function') {
+                    branchSelect.focus();
+                }
+                return;
+            }
+
             activeRow = destBtn.closest('tr');
             openModal();
             return;
@@ -371,7 +442,7 @@ document.addEventListener('DOMContentLoaded', function () {
     function showStep(step) {
         stepChoose.classList.toggle('d-none', step !== 'choose');
         stepSearch.classList.toggle('d-none', step !== 'search');
-        if (typeof feather !== 'undefined') feather.replace();
+        if (typeof window.refreshLucideIcons === 'function') window.refreshLucideIcons();
     }
 
     const destModalEl = document.getElementById('destinationModal');
@@ -385,7 +456,7 @@ document.addEventListener('DOMContentLoaded', function () {
         showStep('choose');
         destModal.show();
         destModalEl.addEventListener('shown.bs.modal', () => {
-            if (typeof feather !== 'undefined') feather.replace();
+            if (typeof window.refreshLucideIcons === 'function') window.refreshLucideIcons();
         }, { once: true });
     }
 
@@ -435,13 +506,14 @@ document.addEventListener('DOMContentLoaded', function () {
                     <td>${esc(item.name)}</td>
                     <td><span class="badge bg-light text-dark">${esc(item.unit)}</span></td>
                     <td>${item.quantity.toFixed(2)}</td>
-                    <td>${esc(item.location)}</td>
-                    <td>${esc(item.category)}</td>
+                    <td><span class="destination-cell-truncate" title="${esc(item.location)}">${esc(item.location)}</span></td>
+                    <td><span class="destination-cell-truncate" title="${esc(item.category)}">${esc(item.category)}</span></td>
                     <td>
-                        <button type="button" class="btn btn-sm btn-outline-primary btn-pick-item"
+                        <button type="button" class="btn btn-sm btn-primary btn-pick-item"
                                     data-item-id="${item.id}" data-item-name="${esc(item.name)}"
                                     data-unit-price="${item.unit_price !== null ? item.unit_price : ''}">
-                            Select
+                            <i data-lucide="check"></i>
+                            <span>Select</span>
                         </button>
                     </td>
                 </tr>`).join('')
@@ -530,6 +602,147 @@ document.addEventListener('DOMContentLoaded', function () {
 
 @push('styles')
 <style>
+.destination-picker-modal .modal-dialog {
+    max-width: min(1040px, calc(100vw - 2rem));
+}
+
+.destination-picker-modal .modal-content {
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--bg-card);
+    color: var(--text-main);
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+}
+
+.destination-picker-modal .modal-header {
+    align-items: flex-start;
+    padding: 1.15rem 1.35rem;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-card);
+}
+
+.destination-picker-modal .modal-title {
+    color: var(--text-main);
+    font-weight: 800;
+}
+
+.destination-picker-modal .modal-body {
+    padding: 1.25rem 1.35rem 1.35rem;
+}
+
+.destination-choice-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+}
+
+.destination-choice-btn {
+    min-height: 9rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: .55rem;
+    border-radius: 10px;
+}
+
+.destination-search-header {
+    display: flex;
+    align-items: center;
+    gap: .85rem;
+    margin-bottom: 1rem;
+}
+
+.destination-search-wrap {
+    position: relative;
+    margin-bottom: 1rem;
+}
+
+.destination-search-wrap svg {
+    position: absolute;
+    left: .95rem;
+    top: 50%;
+    width: 1rem;
+    height: 1rem;
+    color: var(--text-muted);
+    transform: translateY(-50%);
+    pointer-events: none;
+}
+
+.destination-search-wrap .form-control {
+    min-height: 2.75rem;
+    padding-left: 2.65rem;
+    border-radius: 10px;
+    background: var(--bg-main);
+}
+
+.destination-table-scroll {
+    max-height: min(58vh, 560px);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    overflow: auto;
+    background: var(--bg-card);
+}
+
+.destination-items-table {
+    min-width: 850px;
+    table-layout: fixed;
+}
+
+.destination-items-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    padding: .85rem .8rem;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-main);
+    color: var(--text-muted);
+    font-size: .72rem;
+    font-weight: 800;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.destination-items-table tbody td {
+    padding: .85rem .8rem;
+    vertical-align: middle;
+    border-color: var(--border-color);
+    color: var(--text-main);
+}
+
+.destination-items-table .destination-col-id { width: 98px; }
+.destination-items-table .destination-col-name { width: 230px; }
+.destination-items-table .destination-col-unit { width: 82px; }
+.destination-items-table .destination-col-qty { width: 112px; }
+.destination-items-table .destination-col-location { width: 150px; }
+.destination-items-table .destination-col-category { width: 150px; }
+.destination-items-table .destination-col-action { width: 120px; }
+
+.destination-cell-truncate {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.destination-items-table .btn-pick-item {
+    width: 5.75rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .35rem;
+    padding-inline: .65rem;
+    white-space: nowrap;
+}
+
+.destination-items-table .btn-pick-item svg {
+    width: .9rem;
+    height: .9rem;
+}
+
 .delivery-items-table th { white-space: nowrap; }
 .delivery-items-table td { padding: .85rem; }
 .destination-control { min-width: 220px; }
@@ -540,15 +753,15 @@ document.addEventListener('DOMContentLoaded', function () {
     justify-content: space-between;
     gap: .5rem;
     padding: .45rem .55rem .45rem .75rem;
-    border: 1px solid rgba(0, 97, 242, .25);
+    border: 1px solid rgba(var(--primary-color-rgb), .25);
     border-radius: .5rem;
-    color: #0061f2;
-    background: rgba(0, 97, 242, .08);
+    color: var(--primary-color);
+    background: rgba(var(--primary-color-rgb), .08);
     font-size: .85rem;
     font-weight: 600;
 }
 .dest-selection.destination-production {
-    color: #855400;
+    color: var(--bs-warning, #f59e0b);
     border-color: rgba(245, 158, 11, .35);
     background: rgba(245, 158, 11, .12);
 }
@@ -559,6 +772,38 @@ document.addEventListener('DOMContentLoaded', function () {
     color: inherit;
     font-size: 1.25rem;
     line-height: 1;
+}
+
+[data-bs-theme="dark"] .destination-picker-modal .modal-content,
+[data-bs-theme="dark"] .destination-picker-modal .modal-header,
+[data-bs-theme="dark"] .destination-table-scroll {
+    background: var(--bg-card);
+}
+
+[data-bs-theme="dark"] .destination-items-table thead th,
+[data-bs-theme="dark"] .destination-search-wrap .form-control {
+    background: rgba(255, 255, 255, .035);
+}
+
+@media (max-width: 767.98px) {
+    .destination-picker-modal .modal-dialog {
+        max-width: calc(100vw - 1rem);
+        margin: .5rem auto;
+    }
+
+    .destination-picker-modal .modal-header,
+    .destination-picker-modal .modal-body {
+        padding-inline: 1rem;
+    }
+
+    .destination-choice-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .destination-search-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
 }
 </style>
 @endpush

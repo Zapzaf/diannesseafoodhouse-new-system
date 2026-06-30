@@ -1,11 +1,10 @@
 @extends('layouts.app')
 @section('page_title', 'Delivery Report - Dianne Seafood House')
 @section('content')
-<main>
 <x-page-header title="Delivery Report" subtitle="Delivery history with status breakdown" icon="truck">
 </x-page-header>
 
-<div class="container-xl px-4 mt-n10">
+<div class="container-xl px-4">
     @include('layouts.alerts')
 
     {{-- Filters --}}
@@ -42,7 +41,7 @@
             <div class="card border-0 shadow-sm">
                 <div class="card-body d-flex align-items-center gap-3">
                     <div class="rounded-circle bg-warning bg-opacity-10 p-3">
-                        <i data-feather="clock" class="text-warning" style="width:24px;height:24px;"></i>
+                        <i data-lucide="clock" class="text-warning" style="width:24px;height:24px;"></i>
                     </div>
                     <div>
                         <div class="text-muted small">Pending Deliveries</div>
@@ -55,7 +54,7 @@
             <div class="card border-0 shadow-sm">
                 <div class="card-body d-flex align-items-center gap-3">
                     <div class="rounded-circle bg-success bg-opacity-10 p-3">
-                        <i data-feather="check-circle" class="text-success" style="width:24px;height:24px;"></i>
+                        <i data-lucide="check-circle" class="text-success" style="width:24px;height:24px;"></i>
                     </div>
                     <div>
                         <div class="text-muted small">Received Deliveries</div>
@@ -68,7 +67,7 @@
 
     {{-- Table --}}
     <div class="card shadow-sm">
-        <div class="card-header fw-semibold"><i data-feather="truck" class="me-1"></i> Deliveries</div>
+        <div class="card-header fw-semibold"><i data-lucide="truck" class="me-1"></i> Deliveries</div>
         <div class="card-body">
             <div class="table-responsive">
                 <table class="table table-bordered table-striped">
@@ -122,5 +121,4 @@
         @endif
     </div>
 </div>
-</main>
 @endsection

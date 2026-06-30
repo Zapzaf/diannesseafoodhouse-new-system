@@ -1,22 +1,26 @@
 @props(['title' => '', 'subtitle' => null, 'icon' => 'grid'])
 
-<header class="page-header page-header-dark bg-gradient-primary-to-secondary pb-10">
+<div class="page-header">
     <div class="container-xl px-4">
-        <div class="page-header-content pt-4">
-            <div class="row align-items-center justify-content-between">
-                <div class="col-auto mt-4">
-                    <h1 class="page-header-title">
-                        <div class="page-header-icon"><i data-feather="{{ $icon }}"></i></div>
-                        {{ $title }}
-                    </h1>
+        <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3">
+            <div class="page-header-heading d-flex align-items-start gap-2 min-w-0">
+                @if($icon)
+                <span class="page-header-icon flex-shrink-0">
+                    <i data-lucide="{{ $icon }}"></i>
+                </span>
+                @endif
+                <div class="min-w-0">
+                    <h4 class="page-header-title fw-bold mb-0 text-main">{{ $title }}</h4>
                     @if($subtitle)
-                    <div class="page-header-subtitle">{{ $subtitle }}</div>
+                    <p class="page-header-subtitle text-muted mb-0 small">{{ $subtitle }}</p>
                     @endif
                 </div>
-                <div class="col-auto mt-4 d-flex gap-2">
-                    {{ $slot }}
-                </div>
             </div>
+            @if(trim((string) $slot) !== '')
+            <div class="page-header-actions d-flex align-items-center gap-2 flex-wrap">
+                {{ $slot }}
+            </div>
+            @endif
         </div>
     </div>
-</header>
+</div>

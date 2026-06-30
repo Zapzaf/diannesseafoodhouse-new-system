@@ -1,14 +1,13 @@
 @extends('layouts.app')
 @section('page_title', 'Suppliers')
 @section('content')
-<main>
     <x-page-header title="Suppliers" subtitle="Manage external suppliers and contact details" icon="truck">
         <a href="{{ route('suppliers.create') }}" class="btn btn-light text-primary">
-            <i data-feather="plus-circle" class="me-1"></i> Add Supplier
+            <i data-lucide="plus-circle" class="me-1"></i> Add Supplier
         </a>
     </x-page-header>
 
-    <div class="container-xl px-4 mt-n10">
+    <div class="container-xl px-4">
         @include('layouts.alerts')
         <div class="card shadow-sm">
             <div class="card-body">
@@ -42,5 +41,4 @@
             @endif
         </div>
     </div>
-</main>
 @endsection

@@ -1,14 +1,13 @@
 @extends('layouts.app')
 @section('page_title', 'Create Branch')
 @section('content')
-<main>
     <x-page-header title="Create Branch" subtitle="Add a new branch and optionally assign a manager" icon="plus-circle">
         <a href="{{ route('branches.index') }}" class="btn btn-light text-primary">
-            <i data-feather="arrow-left" class="me-1"></i> Back to Branches
+            <i data-lucide="arrow-left" class="me-1"></i> Back to Branches
         </a>
     </x-page-header>
 
-    <div class="container-xl px-4 mt-n10">
+    <div class="container-xl px-4">
         @include('layouts.alerts')
         <div class="card shadow-sm">
             <div class="card-body">
@@ -46,5 +45,4 @@
             </div>
         </div>
     </div>
-</main>
 @endsection

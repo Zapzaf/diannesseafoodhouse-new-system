@@ -3,19 +3,18 @@
 @section('page_title', $menu->name . ' - Dianne\'s Seafood House')
 
 @section('content')
-<main>
     <x-page-header :title="$menu->name" :subtitle="$menu->category_label . ' · ₱' . number_format($menu->selling_price, 2)" icon="coffee">
         <div class="d-flex gap-2">
             <a href="{{ route('menus.edit', $menu) }}" class="btn btn-light text-primary">
-                <i data-feather="edit" class="me-1"></i> Edit
+                <i data-lucide="edit" class="me-1"></i> Edit
             </a>
             <a href="{{ route('menus.index') }}" class="btn btn-light text-primary">
-                <i data-feather="arrow-left" class="me-1"></i> Back
+                <i data-lucide="arrow-left" class="me-1"></i> Back
             </a>
         </div>
     </x-page-header>
 
-    <div class="container-xl px-4 mt-n10">
+    <div class="container-xl px-4">
         @include('layouts.alerts')
 
         <div class="row g-4">
@@ -120,5 +119,4 @@
             </div>
         </div>
     </div>
-</main>
 @endsection

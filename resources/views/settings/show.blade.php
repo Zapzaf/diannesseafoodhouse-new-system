@@ -1,11 +1,10 @@
 @extends('layouts.app')
 @section('page_title', 'Settings - Dianne Seafood House')
 @section('content')
-<main>
 <x-page-header title="Settings" subtitle="System overview and configuration" icon="settings">
 </x-page-header>
 
-<div class="container-xl px-4 mt-n10">
+<div class="container-xl px-4">
     @include('layouts.alerts')
 
     {{-- System Info --}}
@@ -14,7 +13,7 @@
             <div class="card border-0 shadow-sm">
                 <div class="card-body d-flex align-items-center gap-3">
                     <div class="rounded-circle bg-primary bg-opacity-10 p-3">
-                        <i data-feather="map-pin" class="text-white" style="width:24px;height:24px;"></i>
+                        <i data-lucide="map-pin" class="text-white" style="width:24px;height:24px;"></i>
                     </div>
                     <div>
                         <div class="text-muted small">Total Branches</div>
@@ -27,7 +26,7 @@
             <div class="card border-0 shadow-sm">
                 <div class="card-body d-flex align-items-center gap-3">
                     <div class="rounded-circle bg-success bg-opacity-10 p-3">
-                        <i data-feather="users" class="text-success" style="width:24px;height:24px;"></i>
+                        <i data-lucide="users" class="text-success" style="width:24px;height:24px;"></i>
                     </div>
                     <div>
                         <div class="text-muted small">Total Users</div>
@@ -40,7 +39,7 @@
             <div class="card border-0 shadow-sm">
                 <div class="card-body d-flex align-items-center gap-3">
                     <div class="rounded-circle bg-info bg-opacity-10 p-3">
-                        <i data-feather="package" class="text-info" style="width:24px;height:24px;"></i>
+                        <i data-lucide="package" class="text-info" style="width:24px;height:24px;"></i>
                     </div>
                     <div>
                         <div class="text-muted small">Inventory Items</div>
@@ -53,7 +52,7 @@
             <div class="card border-0 shadow-sm">
                 <div class="card-body d-flex align-items-center gap-3">
                     <div class="rounded-circle bg-warning bg-opacity-10 p-3">
-                        <i data-feather="alert-triangle" class="text-warning" style="width:24px;height:24px;"></i>
+                        <i data-lucide="alert-triangle" class="text-warning" style="width:24px;height:24px;"></i>
                     </div>
                     <div>
                         <div class="text-muted small">Low Stock Items</div>
@@ -68,7 +67,7 @@
         <div class="col-12">
             <div class="card shadow-sm">
                 <div class="card-header fw-semibold d-flex justify-content-between align-items-center flex-wrap gap-2">
-                    <span><i data-feather="sliders" class="me-1"></i> Branch Settings</span>
+                    <span><i data-lucide="sliders" class="me-1"></i> Branch Settings</span>
                     @if($selectedBranch)
                     <span class="text-muted small">Billing, receipt, and guest discount behavior for {{ $selectedBranch->name }}</span>
                     @endif
@@ -235,7 +234,7 @@
 
                                 <div class="col-12 d-flex justify-content-end">
                                     <button type="submit" class="btn btn-primary">
-                                        <i data-feather="save" class="me-1"></i> Save Branch Settings
+                                        <i data-lucide="save" class="me-1"></i> Save Branch Settings
                                     </button>
                                 </div>
                             </form>
@@ -253,29 +252,29 @@
     <div class="row g-4">
         <div class="col-md-6">
             <div class="card shadow-sm">
-                <div class="card-header fw-semibold"><i data-feather="link" class="me-1"></i> Quick Actions</div>
+                <div class="card-header fw-semibold"><i data-lucide="link" class="me-1"></i> Quick Actions</div>
                 <div class="card-body">
                     <div class="list-group list-group-flush">
                         @if(auth()->user()->isAdmin())
                         <a href="{{ route('branches.index') }}" class="list-group-item list-group-item-action d-flex align-items-center gap-2">
-                            <i data-feather="map-pin" class="text-primary" style="width:18px;height:18px;"></i>
+                            <i data-lucide="map-pin" class="text-primary" style="width:18px;height:18px;"></i>
                             Manage Branches
                         </a>
                         <a href="{{ route('users.index') }}" class="list-group-item list-group-item-action d-flex align-items-center gap-2">
-                            <i data-feather="users" class="text-primary" style="width:18px;height:18px;"></i>
+                            <i data-lucide="users" class="text-primary" style="width:18px;height:18px;"></i>
                             Manage Users
                         </a>
                         @endif
                         <a href="{{ route('categories.index', 'inventory') }}" class="list-group-item list-group-item-action d-flex align-items-center gap-2">
-                            <i data-feather="folder" class="text-primary" style="width:18px;height:18px;"></i>
+                            <i data-lucide="folder" class="text-primary" style="width:18px;height:18px;"></i>
                             Manage Categories
                         </a>
                         <a href="{{ route('items.low-stock') }}" class="list-group-item list-group-item-action d-flex align-items-center gap-2">
-                            <i data-feather="alert-triangle" class="text-warning" style="width:18px;height:18px;"></i>
+                            <i data-lucide="alert-triangle" class="text-warning" style="width:18px;height:18px;"></i>
                             View Low Stock Alerts
                         </a>
                         <a href="{{ route('account.index') }}" class="list-group-item list-group-item-action d-flex align-items-center gap-2">
-                            <i data-feather="settings" class="text-primary" style="width:18px;height:18px;"></i>
+                            <i data-lucide="settings" class="text-primary" style="width:18px;height:18px;"></i>
                             Account Settings
                         </a>
                     </div>
@@ -284,7 +283,7 @@
         </div>
         <div class="col-md-6">
             <div class="card shadow-sm">
-                <div class="card-header fw-semibold"><i data-feather="info" class="me-1"></i> System Information</div>
+                <div class="card-header fw-semibold"><i data-lucide="info" class="me-1"></i> System Information</div>
                 <div class="card-body">
                     <div class="table-responsive">
                     <table class="table table-sm table-borderless mb-0">
@@ -317,7 +316,6 @@
         </div>
     </div>
 </div>
-</main>
 @endsection
 
 @push('scripts')

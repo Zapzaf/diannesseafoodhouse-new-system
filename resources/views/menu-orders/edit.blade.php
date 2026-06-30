@@ -16,29 +16,13 @@
 @section('page_title', 'Edit Menu Order ' . $order->orderNumber() . ' - Dianne\'s Seafood House')
 
 @section('content')
-<main>
-    <header class="page-header page-header-dark bg-gradient-primary-to-secondary pb-10">
-        <div class="container-xl px-4">
-            <div class="page-header-content pt-4">
-                <div class="row align-items-center justify-content-between">
-                    <div class="col-auto mt-4">
-                        <h1 class="page-header-title">
-                            <div class="page-header-icon"><i data-feather="edit"></i></div>
-                            Edit Menu Order {{ $order->orderNumber() }}
-                        </h1>
-                        <div class="page-header-subtitle">Update order details only. Menu items are managed from the order details page.</div>
-                    </div>
-                    <div class="col-auto mt-4 d-flex gap-2">
-                        <a class="btn btn-light text-primary" href="{{ route('menu-orders.show', $order) }}">
-                            <i class="me-1" data-feather="arrow-left"></i> Back to Order
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </header>
+    <x-page-header :title="'Edit Menu Order ' . $order->orderNumber()" subtitle="Update order details only. Menu items are managed from the order details page." icon="edit">
+        <a class="btn btn-primary" href="{{ route('menu-orders.show', $order) }}">
+            <i class="me-1" data-lucide="arrow-left"></i> Back to Order
+        </a>
+    </x-page-header>
 
-    <div class="container-xl px-4 mt-n10">
+    <div class="container-xl px-4 menu-order-workspace menu-order-edit">
         @include('layouts.alerts')
 
         <form action="{{ route('menu-orders.update', $order) }}" method="POST" id="menuOrderEditForm">
@@ -49,7 +33,7 @@
 
             <div class="row g-4">
                 <div class="col-lg-8">
-                    <div class="card mb-4">
+                    <div class="card mb-4 menu-order-form-card">
                         <div class="card-header fw-semibold">Order Details</div>
                         <div class="card-body">
                             <div class="row">
@@ -78,11 +62,11 @@
                         </div>
                     </div>
 
-                    <div class="card mb-4">
+                    <div class="card mb-4 menu-order-form-card">
                         <div class="card-header d-flex justify-content-between align-items-center">
                             <span class="fw-semibold">Additional Charges</span>
                             <button type="button" class="btn btn-outline-primary btn-sm" id="addAdditionalChargeBtn">
-                                <i data-feather="plus" class="me-1"></i> Add Charge
+                                <i data-lucide="plus" class="me-1"></i> Add Charge
                             </button>
                         </div>
                         <div class="card-body">
@@ -113,7 +97,7 @@
                                         </div>
                                         <div class="col-lg-1 d-grid">
                                             <button type="button" class="btn btn-outline-danger remove-additional-charge" title="Remove charge">
-                                                <i data-feather="trash-2"></i>
+                                                <i data-lucide="trash-2"></i>
                                             </button>
                                         </div>
                                     </div>
@@ -124,7 +108,7 @@
                         </div>
                     </div>
 
-                    <div class="card mb-4">
+                    <div class="card mb-4 menu-order-form-card">
                         <div class="card-header fw-semibold">Pax Breakdown</div>
                         <div class="card-body">
                             <div class="row">
@@ -151,7 +135,7 @@
                         </div>
                     </div>
 
-                    <div class="card mb-4">
+                    <div class="card mb-4 menu-order-form-card">
                         <div class="card-header fw-semibold">Notes</div>
                         <div class="card-body">
                             <textarea name="notes" class="form-control @error('notes') is-invalid @enderror" rows="4">{{ old('notes', $order->notes) }}</textarea>
@@ -161,7 +145,7 @@
                 </div>
 
                 <div class="col-lg-4">
-                    <div class="card mb-4">
+                    <div class="card mb-4 menu-order-form-card menu-order-sticky">
                         <div class="card-header fw-semibold">Current Menu Items</div>
                         <div class="card-body">
                             <div class="table-responsive">
@@ -187,7 +171,7 @@
                     </div>
                     <div class="d-grid gap-2">
                         <button type="submit" class="btn btn-primary text-white" id="menuOrderSubmitBtn">
-                            <i class="me-1" data-feather="save"></i> Save Changes
+                            <i class="me-1" data-lucide="save"></i> Save Changes
                         </button>
                         <a href="{{ route('menu-orders.show', $order) }}" class="btn btn-secondary text-white">Cancel</a>
                     </div>
@@ -195,7 +179,6 @@
             </div>
         </form>
     </div>
-</main>
 @endsection
 
 @push('scripts')
@@ -259,12 +242,12 @@
             '<div class="col-lg-5"><label class="form-label fw-semibold small mb-1">Label / Description</label><input type="text" name="additional_charges[' + index + '][label]" class="form-control additional-charge-label" maxlength="120" required></div>' +
             '<div class="col-lg-3"><label class="form-label fw-semibold small mb-1">Charge Type</label><select name="additional_charges[' + index + '][type]" class="form-select additional-charge-type" required><option value="fixed">Fixed Amount</option><option value="percentage">Percentage</option></select></div>' +
             '<div class="col-lg-3"><label class="form-label fw-semibold small mb-1">Value</label><div class="input-group"><span class="input-group-text additional-charge-prefix">PHP</span><input type="number" name="additional_charges[' + index + '][value]" class="form-control additional-charge-value" min="0.01" step="0.01" required></div></div>' +
-            '<div class="col-lg-1 d-grid"><button type="button" class="btn btn-outline-danger remove-additional-charge" title="Remove charge"><i data-feather="trash-2"></i></button></div>' +
+            '<div class="col-lg-1 d-grid"><button type="button" class="btn btn-outline-danger remove-additional-charge" title="Remove charge"><i data-lucide="trash-2"></i></button></div>' +
             '</div>';
         additionalChargesList.appendChild(row);
         bindAdditionalChargeRow(row);
         updateAdditionalChargeEmptyState();
-        if (typeof feather !== 'undefined') feather.replace();
+        if (typeof window.refreshLucideIcons === 'function') window.refreshLucideIcons();
     }
 
     function collectAdditionalCharges() {

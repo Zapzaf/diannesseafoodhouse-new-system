@@ -3,19 +3,18 @@
 @section('page_title', 'Waste Reports - Dianne Seafood House')
 
 @section('content')
-<main>
     <x-page-header title="Waste Reports" subtitle="Track unusable, expired, spoiled, or contaminated inventory" icon="alert-triangle">
         <a href="{{ route('waste-reports.create') }}" class="btn btn-light text-primary">
-            <i data-feather="plus" class="me-1"></i> Create Waste Report
+            <i data-lucide="plus" class="me-1"></i> Create Waste Report
         </a>
     </x-page-header>
 
-    <div class="container-xl px-4 mt-n10">
+    <div class="container-xl px-4">
         @include('layouts.alerts')
 
         <div class="card shadow-sm">
             <div class="card-header d-flex flex-wrap gap-3 justify-content-between align-items-center">
-                <div class="fw-semibold"><i data-feather="alert-triangle" class="me-1"></i> Waste Reports</div>
+                <div class="fw-semibold"><i data-lucide="alert-triangle" class="me-1"></i> Waste Reports</div>
                 <form method="GET" class="d-flex gap-2">
                     <input type="search" name="search" class="form-control form-control-sm" value="{{ request('search') }}" placeholder="Search report, item, or reason">
                     <button class="btn btn-sm btn-primary" type="submit">Search</button>
@@ -64,5 +63,4 @@
             @endif
         </div>
     </div>
-</main>
 @endsection

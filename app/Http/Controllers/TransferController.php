@@ -56,6 +56,7 @@ class TransferController extends Controller
         $transfer = DB::transaction(function () use ($validated, $request): Transfer {
             $delivery = Delivery::create([
                 'reference_number' => 'TRF-DLV-'.now()->format('YmdHis').'-'.random_int(100, 999),
+                'delivery_date' => now()->toDateString(),
                 'source_branch_id' => $validated['from_branch_id'],
                 'destination_branch_id' => $validated['to_branch_id'],
                 'status' => 'pending',

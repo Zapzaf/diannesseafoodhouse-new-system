@@ -3,29 +3,13 @@
 @section('page_title', 'Edit Payment #' . $payment->payment_id . ' - Welheim Insurance')
 
 @section('content')
-<main>
-    <header class="page-header page-header-dark bg-gradient-primary-to-secondary pb-10">
-        <div class="container-xl px-4">
-            <div class="page-header-content pt-4">
-                <div class="row align-items-center justify-content-between">
-                    <div class="col-auto mt-4">
-                        <h1 class="page-header-title">
-                            <div class="page-header-icon"><i data-feather="edit"></i></div>
-                            Edit Payment #{{ $payment->payment_id }}
-                        </h1>
-                        <div class="page-header-subtitle">Update payment and remittance breakdown details</div>
-                    </div>
-                    <div class="col-auto mt-4">
-                        <a class="btn btn-light text-primary" href="{{ route('payments.show', $payment) }}">
-                            <i class="me-1" data-feather="arrow-left"></i> Back to Payment
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </header>
+    <x-page-header :title="'Edit Payment #' . $payment->payment_id" subtitle="Update payment and remittance breakdown details" icon="edit">
+        <a class="btn btn-primary" href="{{ route('payments.show', $payment) }}">
+            <i class="me-1" data-lucide="arrow-left"></i> Back to Payment
+        </a>
+    </x-page-header>
 
-    <div class="container-xl px-4 mt-n10">
+    <div class="container-xl px-4">
         @if($errors->any())
             <div class="alert alert-danger">
                 <ul class="mb-0">
@@ -37,7 +21,7 @@
         @endif
 
         <div class="card mb-4">
-            <div class="card-header"><i class="me-1" data-feather="info"></i> Payment Details</div>
+            <div class="card-header"><i class="me-1" data-lucide="info"></i> Payment Details</div>
             <div class="card-body">
                 <form action="{{ route('payments.update', $payment) }}" method="POST">
                     @csrf
@@ -97,7 +81,7 @@
                     </div>
 
                     <div class="card border mb-3">
-                        <div class="card-header"><i class="me-1" data-feather="list"></i> Payment Breakdown</div>
+                        <div class="card-header"><i class="me-1" data-lucide="list"></i> Payment Breakdown</div>
                         <div class="card-body">
                             <div class="row">
                                 <div class="col-md-3 mb-3">
@@ -147,14 +131,13 @@
                     <div class="d-flex justify-content-end gap-2">
                         <a href="{{ route('payments.show', $payment) }}" class="btn btn-secondary">Cancel</a>
                         <button type="submit" class="btn btn-primary">
-                            <i class="me-1" data-feather="save"></i> Update Payment
+                            <i class="me-1" data-lucide="save"></i> Update Payment
                         </button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
-</main>
 @endsection
 
 @push('scripts')

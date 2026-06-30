@@ -1,11 +1,10 @@
 @extends('layouts.app')
 @section('page_title', 'Inventory Report - Dianne Seafood House')
 @section('content')
-<main>
 <x-page-header title="Inventory Report" subtitle="Current stock levels across all items and locations" icon="bar-chart-2">
 </x-page-header>
 
-<div class="container-xl px-4 mt-n10">
+<div class="container-xl px-4">
     @include('layouts.alerts')
 
     {{-- Summary Cards --}}
@@ -14,7 +13,7 @@
             <div class="card border-0 shadow-sm">
                 <div class="card-body d-flex align-items-center gap-3">
                     <div class="rounded-circle bg-success bg-opacity-10 p-3">
-                        <i data-feather="package" class="text-success" style="width:24px;height:24px;"></i>
+                        <i data-lucide="package" class="text-success" style="width:24px;height:24px;"></i>
                     </div>
                     <div>
                         <div class="text-muted small">Total Items</div>
@@ -27,7 +26,7 @@
             <div class="card border-0 shadow-sm">
                 <div class="card-body d-flex align-items-center gap-3">
                     <div class="rounded-circle bg-success bg-opacity-10 p-3">
-                        <i data-feather="layers" class="text-success" style="width:24px;height:24px;"></i>
+                        <i data-lucide="layers" class="text-success" style="width:24px;height:24px;"></i>
                     </div>
                     <div>
                         <div class="text-muted small">Total Quantity</div>
@@ -40,7 +39,7 @@
             <div class="card border-0 shadow-sm">
                 <div class="card-body d-flex align-items-center gap-3">
                     <div class="rounded-circle bg-warning bg-opacity-10 p-3">
-                        <i data-feather="alert-triangle" class="text-warning" style="width:24px;height:24px;"></i>
+                        <i data-lucide="alert-triangle" class="text-warning" style="width:24px;height:24px;"></i>
                     </div>
                     <div>
                         <div class="text-muted small">Low Stock Items</div>
@@ -55,7 +54,7 @@
     @if($lowStockItems->isNotEmpty())
     <div class="card shadow-sm mb-4 border-warning">
         <div class="card-header text-warning fw-semibold">
-            <i data-feather="alert-triangle" class="me-1"></i> Low Stock Items ({{ $lowStockItems->count() }})
+            <i data-lucide="alert-triangle" class="me-1"></i> Low Stock Items ({{ $lowStockItems->count() }})
         </div>
         <div class="card-body">
             <div class="table-responsive">
@@ -90,7 +89,7 @@
 
     {{-- All Items --}}
     <div class="card shadow-sm">
-        <div class="card-header fw-semibold"><i data-feather="archive" class="me-1"></i> All Items — Stock Levels</div>
+        <div class="card-header fw-semibold"><i data-lucide="archive" class="me-1"></i> All Items — Stock Levels</div>
         <div class="card-body">
             <div class="table-responsive">
                 <table class="table table-bordered table-striped">
@@ -137,6 +136,5 @@
         </div>
     </div>
 </div>
-</main>
 @endsection
 

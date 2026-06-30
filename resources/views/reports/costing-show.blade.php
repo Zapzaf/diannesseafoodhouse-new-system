@@ -1,10 +1,9 @@
 @extends('layouts.app')
 @section('page_title', 'Costing Report #' . $costingReport->id . ' - Dianne Seafood House')
 @section('content')
-<main>
 <x-page-header :title="'Costing Report #' . $costingReport->id" :subtitle="$costingReport->item?->name ?? 'Deleted item'" icon="file-text">
     <a href="{{ route('reports.costing.index') }}" class="btn btn-light">
-        <i data-feather="arrow-left" class="me-1"></i> Back
+        <i data-lucide="arrow-left" class="me-1"></i> Back
     </a>
 </x-page-header>
 
@@ -13,7 +12,7 @@
     $statusClass = $costingReport->status === 'approved' ? 'badge-approved' : ($costingReport->status === 'rejected' ? 'badge-expired' : 'badge-pending');
 @endphp
 
-<div class="container-xl px-4 mt-n10">
+<div class="container-xl px-4">
     @include('layouts.alerts')
 
     <div class="row g-4 mb-4">
@@ -56,7 +55,7 @@
     <div class="row g-4">
         <div class="col-lg-8">
             <div class="card shadow-sm mb-4">
-                <div class="card-header fw-semibold"><i data-feather="clipboard" class="me-1"></i> Report Details</div>
+                <div class="card-header fw-semibold"><i data-lucide="clipboard" class="me-1"></i> Report Details</div>
                 <div class="card-body">
                     <dl class="row mb-0">
                         <dt class="col-sm-4">Item</dt>
@@ -78,14 +77,14 @@
             </div>
 
             <div class="card shadow-sm mb-4">
-                <div class="card-header fw-semibold"><i data-feather="message-square" class="me-1"></i> Justification</div>
+                <div class="card-header fw-semibold"><i data-lucide="message-square" class="me-1"></i> Justification</div>
                 <div class="card-body">
                     <p class="mb-0" style="white-space: pre-line;">{{ $costingReport->reason }}</p>
                 </div>
             </div>
 
             <div class="card shadow-sm">
-                <div class="card-header fw-semibold"><i data-feather="list" class="me-1"></i> Supporting Costing Details</div>
+                <div class="card-header fw-semibold"><i data-lucide="list" class="me-1"></i> Supporting Costing Details</div>
                 <div class="card-body">
                     <p class="mb-0 text-muted" style="white-space: pre-line;">{{ $costingReport->costing_details ?: 'No supporting costing details were provided.' }}</p>
                 </div>
@@ -95,7 +94,7 @@
         <div class="col-lg-4">
             @if(auth()->user()?->isAdmin() && $costingReport->isPending())
             <div class="card shadow-sm mb-4">
-                <div class="card-header fw-semibold"><i data-feather="shield" class="me-1"></i> Admin Review</div>
+                <div class="card-header fw-semibold"><i data-lucide="shield" class="me-1"></i> Admin Review</div>
                 <div class="card-body">
                     <form method="POST" action="{{ route('reports.costing.approve', $costingReport) }}" class="mb-3">
                         @csrf
@@ -116,7 +115,7 @@
             @endif
 
             <div class="card shadow-sm">
-                <div class="card-header fw-semibold"><i data-feather="check-square" class="me-1"></i> Review Result</div>
+                <div class="card-header fw-semibold"><i data-lucide="check-square" class="me-1"></i> Review Result</div>
                 <div class="card-body">
                     <div class="text-muted small mb-2">Remarks</div>
                     <p class="mb-0" style="white-space: pre-line;">{{ $costingReport->approval_remarks ?: 'No review remarks yet.' }}</p>
@@ -125,5 +124,4 @@
         </div>
     </div>
 </div>
-</main>
 @endsection

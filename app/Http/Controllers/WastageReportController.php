@@ -39,6 +39,7 @@ class WastageReportController extends Controller
             'items' => ['required', 'array', 'min:1'],
             'items.*.scrap_name' => ['nullable', 'string', 'max:255'],
             'items.*.quantity_lost' => ['required', 'numeric', 'gt:0'],
+            'items.*.quantity_lost_unit' => ['required_with:items.*.quantity_lost', 'string', 'max:32'],
             'items.*.reason' => ['nullable', 'string', 'max:255'],
             'items.*.convert_to_item_id' => ['nullable', 'exists:items,id', 'required_with:items.*.converted_quantity'],
             'items.*.converted_quantity' => ['nullable', 'numeric', 'gt:0', 'required_with:items.*.convert_to_item_id'],

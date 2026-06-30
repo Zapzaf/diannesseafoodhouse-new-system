@@ -29,6 +29,7 @@ class StoreDeliveryRequest extends FormRequest
             'source_branch_id' => ['nullable', 'exists:branches,id'],
             'destination_branch_id' => ['required', 'exists:branches,id'],
             'source_item_id' => ['nullable', 'exists:items,id'],
+            'delivery_date' => ['nullable', 'date'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.description' => ['required', 'string', 'max:255'],
             'items.*.item_id' => [

@@ -1,21 +1,21 @@
 @extends('layouts.app')
 @section('page_title', 'New Costing Report - Dianne Seafood House')
 @section('content')
-<main>
 <x-page-header title="New Costing Report" subtitle="Submit an item price change for admin review" icon="file-plus">
     <a href="{{ route('reports.costing.index') }}" class="btn btn-light">
-        <i data-feather="arrow-left" class="me-1"></i> Back
+        <i data-lucide="arrow-left" class="me-1"></i> Back
     </a>
 </x-page-header>
 
-<div class="container-xl px-4 mt-n10">
+<div class="container-xl px-4">
     @include('layouts.alerts')
 
-    <div class="card shadow-sm">
-        <div class="card-header fw-semibold">
-            <i data-feather="edit-3" class="me-1"></i> Costing Details
-        </div>
-        <div class="card-body">
+    <div class="card p-4 shadow-sm">
+        <div class="card-body p-0">
+            <h5 class="fw-bold mb-4 d-flex align-items-center gap-2 text-primary">
+                <i data-lucide="edit-3" style="width: 20px; height: 20px;"></i>
+                <span>Costing Details</span>
+            </h5>
             <form method="POST" action="{{ route('reports.costing.store') }}">
                 @csrf
                 <div class="row g-3">
@@ -54,15 +54,17 @@
                     </div>
                 </div>
 
-                <div class="d-flex justify-content-end gap-2 mt-4">
-                    <a href="{{ route('reports.costing.index') }}" class="btn btn-secondary">Cancel</a>
-                    <button type="submit" class="btn btn-primary">Submit for Review</button>
+                <div class="d-flex justify-content-end gap-3 mt-4">
+                    <a href="{{ route('reports.costing.index') }}" class="btn btn-outline-secondary px-4">Cancel</a>
+                    <button type="submit" class="btn btn-primary px-4 d-flex align-items-center gap-2">
+                        <i data-lucide="send" style="width: 18px; height: 18px;"></i>
+                        <span>Submit for Review</span>
+                    </button>
                 </div>
             </form>
         </div>
     </div>
 </div>
-</main>
 @endsection
 
 @push('scripts')

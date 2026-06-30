@@ -15,6 +15,7 @@ class WastageItem extends Model
         'item_id',
         'scrap_name',
         'quantity_lost',
+        'quantity_lost_unit',
         'reason',
         'convert_to_item_id',
         'converted_quantity',

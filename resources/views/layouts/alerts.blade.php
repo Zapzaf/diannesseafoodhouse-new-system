@@ -1,12 +1,12 @@
 @if(session('success'))
 <div class="alert alert-success alert-dismissible fade show" role="alert">
-    <i data-feather="check-circle" class="me-1"></i>{{ session('success') }}
+    <i data-lucide="check-circle" class="me-1"></i>{{ session('success') }}
     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
 </div>
 @endif
 @if(session('error'))
 <div class="alert alert-danger alert-dismissible fade show" role="alert">
-    <i data-feather="alert-circle" class="me-1"></i>{{ session('error') }}
+    <i data-lucide="alert-circle" class="me-1"></i>{{ session('error') }}
     <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
 </div>
 @endif

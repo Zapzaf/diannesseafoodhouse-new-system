@@ -1,22 +1,21 @@
 @extends('layouts.app')
 @section('page_title', 'Branch — ' . $branch->name)
 @section('content')
-<main>
     <x-page-header :title="$branch->name" subtitle="Branch details and assigned resources" icon="map-pin">
         <a href="{{ route('branches.edit', $branch) }}" class="btn btn-light text-primary">
-            <i data-feather="edit" class="me-1"></i> Edit
+            <i data-lucide="edit" class="me-1"></i> Edit
         </a>
         <a href="{{ route('branches.index') }}" class="btn btn-light text-secondary">
-            <i data-feather="arrow-left" class="me-1"></i> Back
+            <i data-lucide="arrow-left" class="me-1"></i> Back
         </a>
     </x-page-header>
 
-    <div class="container-xl px-4 mt-n10">
+    <div class="container-xl px-4">
         @include('layouts.alerts')
 
         {{-- Branch info card --}}
         <div class="card shadow-sm mb-4">
-            <div class="card-header fw-semibold"><i data-feather="info" class="me-1"></i> Branch Information</div>
+            <div class="card-header fw-semibold"><i data-lucide="info" class="me-1"></i> Branch Information</div>
             <div class="card-body">
                 <dl class="row mb-0">
                     <dt class="col-sm-3">Name</dt>
@@ -43,7 +42,7 @@
 
         {{-- Assigned users --}}
         <div class="card shadow-sm mb-4">
-            <div class="card-header fw-semibold"><i data-feather="users" class="me-1"></i> Assigned Users ({{ $branch->users->count() }})</div>
+            <div class="card-header fw-semibold"><i data-lucide="users" class="me-1"></i> Assigned Users ({{ $branch->users->count() }})</div>
             <div class="card-body">
                 <div class="table-responsive mt-3">
                     <table class="table table-bordered table-striped align-middle mb-0">
@@ -72,18 +71,18 @@
 
         {{-- Locations & Categories --}}
         <div class="card shadow-sm mb-4">
-            <div class="card-header fw-semibold"><i data-feather="layers" class="me-1"></i> Locations & Categories ({{ $branch->locations->count() }})</div>
+            <div class="card-header fw-semibold"><i data-lucide="layers" class="me-1"></i> Locations & Categories ({{ $branch->locations->count() }})</div>
             <div class="card-body">
                 @forelse($branch->locations as $location)
                 <div class="mb-3">
                     <div class="fw-semibold text-primary mb-1">
-                        <i data-feather="map-pin" class="me-1" style="width:14px;height:14px"></i> {{ $location->name }}
+                        <i data-lucide="map-pin" class="me-1" style="width:14px;height:14px"></i> {{ $location->name }}
                     </div>
                     @if($location->categories->isNotEmpty())
                     <ul class="list-unstyled ms-3 mb-0">
                         @foreach($location->categories as $category)
                         <li class="text-muted small">
-                            <i data-feather="tag" class="me-1" style="width:12px;height:12px"></i> {{ $category->name }}
+                            <i data-lucide="tag" class="me-1" style="width:12px;height:12px"></i> {{ $category->name }}
                         </li>
                         @endforeach
                     </ul>
@@ -99,7 +98,7 @@
 
         {{-- Danger zone --}}
         <div class="card shadow-sm border-danger mb-4">
-            <div class="card-header fw-semibold text-danger"><i data-feather="alert-triangle" class="me-1"></i> Danger Zone</div>
+            <div class="card-header fw-semibold text-danger"><i data-lucide="alert-triangle" class="me-1"></i> Danger Zone</div>
             <div class="card-body">
                 <p class="text-muted mb-3">Permanently delete this branch. This action cannot be undone.</p>
                 <form method="POST" action="{{ route('branches.destroy', $branch) }}"
@@ -107,12 +106,11 @@
                     @csrf
                     @method('DELETE')
                     <button type="submit" class="btn btn-danger">
-                        <i data-feather="trash-2" class="me-1"></i> Delete Branch
+                        <i data-lucide="trash-2" class="me-1"></i> Delete Branch
                     </button>
                 </form>
             </div>
         </div>
 
     </div>
-</main>
 @endsection

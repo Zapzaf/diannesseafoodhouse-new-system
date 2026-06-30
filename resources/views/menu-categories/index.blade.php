@@ -3,28 +3,12 @@
 @section('page_title', 'Menu Categories - Dianne\'s Seafood House')
 
 @section('content')
-<main>
-    <header class="page-header page-header-dark bg-gradient-primary-to-secondary pb-10">
-        <div class="container-xl px-4">
-            <div class="page-header-content pt-4">
-                <div class="row align-items-center justify-content-between">
-                    <div class="col-auto mt-4">
-                        <h1 class="page-header-title">
-                            <div class="page-header-icon"><i data-feather="tag"></i></div>
-                            Menu Categories
-                        </h1>
-                        <div class="page-header-subtitle">Manage categories for menu items per branch</div>
-                    </div>
-                    <div class="col-auto mt-4">
-                        <a class="btn btn-light text-primary" href="{{ route('menu-categories.create') }}">
-                            <i class="me-1" data-feather="plus"></i> New Category
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </header>
-    <div class="container-xl px-4 mt-n10">
+    <x-page-header title="Menu Categories" subtitle="Manage categories for menu items per branch" icon="tag">
+        <a class="btn btn-primary" href="{{ route('menu-categories.create') }}">
+            <i class="me-1" data-lucide="plus"></i> New Category
+        </a>
+    </x-page-header>
+    <div class="container-xl px-4">
         @include('layouts.alerts')
         <div class="card shadow-sm">
             <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
@@ -55,7 +39,6 @@
             </div>
         </div>
     </div>
-</main>
 @endsection
 
 @push('scripts')
@@ -82,12 +65,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td class="fw-semibold">${ctx.escapeHtml(cat.name)}</td>
                     <td>${ctx.escapeHtml(cat.branch ? cat.branch.name : '\u2014')}</td>
                     <td>${cat.menus_count || 0}</td>
-                    <td class="text-nowrap">
-                        <a href="{{ url('/menu-categories') }}/${cat.id}/edit" class="btn btn-sm btn-outline-warning" title="Edit"><i data-feather="edit"></i></a>
+                    <td class="table-actions-cell text-nowrap">
+                        <a href="{{ url('/menu-categories') }}/${cat.id}/edit" class="btn btn-sm btn-outline-warning" title="Edit"><i data-lucide="edit"></i></a>
                         <form action="{{ url('/menu-categories') }}/${cat.id}" method="POST" class="d-inline" onsubmit="return confirm('Delete this category?')">
                             <input type="hidden" name="_token" value="${csrf}">
                             <input type="hidden" name="_method" value="DELETE">
-                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i data-feather="trash-2"></i></button>
+                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i data-lucide="trash-2"></i></button>
                         </form>
                     </td>
                 </tr>`;

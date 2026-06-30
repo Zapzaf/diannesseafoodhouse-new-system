@@ -1,18 +1,17 @@
 @extends('layouts.app')
 @section('page_title', 'Branches')
 @section('content')
-<main>
     <x-page-header title="Branches" subtitle="Manage branch details and manager assignments" icon="map-pin">
         <a href="{{ route('branches.create') }}" class="btn btn-light text-primary">
-            <i data-feather="plus-circle" class="me-1"></i> Add Branch
+            <i data-lucide="plus-circle" class="me-1"></i> Add Branch
         </a>
     </x-page-header>
 
-    <div class="container-xl px-4 mt-n10">
+    <div class="container-xl px-4">
         @include('layouts.alerts')
         <div class="card shadow-sm">
             <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <div><i data-feather="git-branch" class="me-1"></i> Branch List</div>
+                <div><i data-lucide="git-branch" class="me-1"></i> Branch List</div>
                 <form method="GET" action="{{ url()->current() }}" class="d-flex gap-2 align-items-center">
                     <select name="per_page" class="form-select form-select-sm" style="width: auto;" onchange="this.form.submit()">
                         <option value="5" {{ request('per_page') == 5 ? 'selected' : '' }}>5</option>
@@ -23,7 +22,7 @@
                     </select>
                     <div class="input-group input-group-sm" style="max-width: 250px;">
                         <input type="text" name="search" class="form-control" placeholder="Search..." value="{{ request('search') }}">
-                        <button class="btn btn-outline-secondary" type="submit"><i data-feather="search" style="width: 14px; height: 14px;"></i></button>
+                        <button class="btn btn-outline-secondary" type="submit"><i data-lucide="search" style="width: 14px; height: 14px;"></i></button>
                     </div>
                 </form>
             </div>
@@ -36,7 +35,7 @@
                                 <th>Address</th>
                                 <th>Manager</th>
                                 <th>Status</th>
-                                <th>Actions</th>
+                                <th class="table-actions-head">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -50,19 +49,19 @@
                                         {{ $branch->is_active ? 'Active' : 'Inactive' }}
                                     </span>
                                 </td>
-                                <td class="text-nowrap">
+                                <td class="table-actions-cell text-nowrap">
                                     <a href="{{ route('branches.show', $branch) }}" class="btn btn-sm btn-outline-secondary">
-                                        <i data-feather="eye"></i>
+                                        <i data-lucide="eye"></i>
                                     </a>
                                     <a href="{{ route('branches.edit', $branch) }}" class="btn btn-sm btn-outline-primary">
-                                        <i data-feather="edit"></i>
+                                        <i data-lucide="edit"></i>
                                     </a>
                                     <form method="POST" action="{{ route('branches.destroy', $branch) }}" class="d-inline"
                                           onsubmit="return confirm('Delete branch {{ addslashes($branch->name) }}? This cannot be undone.')">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="btn btn-sm btn-outline-danger">
-                                            <i data-feather="trash-2"></i>
+                                            <i data-lucide="trash-2"></i>
                                         </button>
                                     </form>
                                 </td>
@@ -79,6 +78,5 @@
             @endif
         </div>
     </div>
-</main>
 @endsection
 

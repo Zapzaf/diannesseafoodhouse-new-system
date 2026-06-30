@@ -3,32 +3,16 @@
 @section('page_title', 'All Location Categories')
 
 @section('content')
-<main>
-    <header class="page-header page-header-dark bg-gradient-primary-to-secondary pb-10">
-        <div class="container-xl px-4">
-            <div class="page-header-content pt-4">
-                <div class="row align-items-center justify-content-between">
-                    <div class="col-auto mt-4">
-                        <h1 class="page-header-title">
-                            <div class="page-header-icon"><i data-feather="folder"></i></div>
-                            All Location Categories
-                        </h1>
-                        <div class="page-header-subtitle">Tree structure: Location &gt; Category</div>
-                    </div>
-                    <div class="col-auto mt-4 d-flex gap-2">
-                        <a href="{{ route('categories.locations.create') }}" class="btn btn-light text-primary">
-                            <i data-feather="map-pin" class="me-1"></i> Create Location
-                        </a>
-                        <a href="{{ route('categories.items.create') }}" class="btn btn-light text-primary">
-                            <i data-feather="folder-plus" class="me-1"></i> Create Category
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </header>
+    <x-page-header title="All Location Categories" subtitle="Tree structure: Location &gt; Category" icon="folder">
+        <a href="{{ route('categories.locations.create') }}" class="btn btn-outline-primary">
+            <i data-lucide="map-pin" class="me-1"></i> Create Location
+        </a>
+        <a href="{{ route('categories.items.create') }}" class="btn btn-primary">
+            <i data-lucide="folder-plus" class="me-1"></i> Create Category
+        </a>
+    </x-page-header>
 
-    <div class="container-xl px-4 mt-n10">
+    <div class="container-xl px-4">
         @include('layouts.alerts')
 
         <div class="card mb-4">
@@ -44,7 +28,7 @@
                     </select>
                     <div class="input-group input-group-sm" style="max-width: 250px;">
                         <input type="text" name="search" class="form-control" placeholder="Search..." value="{{ request('search') }}">
-                        <button class="btn btn-outline-secondary" type="submit"><i data-feather="search" style="width: 14px; height: 14px;"></i></button>
+                        <button class="btn btn-outline-secondary" type="submit"><i data-lucide="search" style="width: 14px; height: 14px;"></i></button>
                     </div>
                 </form>
             </div>
@@ -56,31 +40,31 @@
                                 <th style="min-width: 260px;">Hierarchy</th>
                                 <th>Branch</th>
                                 <th>Type</th>
-                                <th class="text-end" style="min-width: 230px;">Actions</th>
+                                <th class="table-actions-head text-end" style="min-width: 230px;">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             @forelse($locations as $location)
                             <tr class="table-light">
                                 <td class="fw-semibold">
-                                    <i data-feather="map-pin" style="width:14px;height:14px;" class="me-1"></i>
+                                    <i data-lucide="map-pin" style="width:14px;height:14px;" class="me-1"></i>
                                     {{ $location->name }}
                                 </td>
                                 <td>{{ $location->branch?->name ?? 'N/A' }}</td>
                                 <td><span class="badge bg-secondary">Location</span></td>
-                                <td class="text-end">
+                                <td class="table-actions-cell text-end">
                                     <a href="{{ route('categories.items.create', ['location_id' => $location->id]) }}" class="btn btn-sm btn-primary" title="Add Category" aria-label="Add Category">
-                                        <i data-feather="plus-circle" style="width:14px;height:14px;"></i>
+                                        <i data-lucide="plus-circle" style="width:14px;height:14px;"></i>
                                     </a>
                                     @if($user->isAdmin())
                                     <button type="button" class="btn btn-sm btn-warning edit-location-btn" data-id="{{ $location->id }}" data-name="{{ $location->name }}" title="Edit Location" aria-label="Edit Location">
-                                        <i data-feather="edit" style="width:14px;height:14px;"></i>
+                                        <i data-lucide="edit" style="width:14px;height:14px;"></i>
                                     </button>
                                     <form method="POST" action="{{ route('categories.locations.destroy', $location) }}" class="d-inline">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete this location?')" title="Delete Location" aria-label="Delete Location">
-                                            <i data-feather="trash-2" style="width:14px;height:14px;"></i>
+                                            <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
                                         </button>
                                     </form>
                                     @endif
@@ -91,24 +75,24 @@
                             <tr>
                                 <td class="ps-4">
                                     <span class="text-muted me-2">└─</span>
-                                    <i data-feather="folder" style="width:14px;height:14px;" class="me-1"></i>
+                                    <i data-lucide="folder" style="width:14px;height:14px;" class="me-1"></i>
                                     {{ $category->name }}
                                 </td>
                                 <td>{{ $category->branch?->name ?? $location->branch?->name ?? 'N/A' }}</td>
                                 <td><span class="badge bg-info text-white">Category</span></td>
-                                <td class="text-end">
+                                <td class="table-actions-cell text-end">
                                     <a href="{{ route('categories.view', [$location, 'category_id' => $category->id]) }}" class="btn btn-sm btn-info text-white" title="View Category Items" aria-label="View Category Items">
-                                        <i data-feather="eye" style="width:14px;height:14px;"></i>
+                                        <i data-lucide="eye" style="width:14px;height:14px;"></i>
                                     </a>
                                     @if($user->isAdmin())
                                     <button type="button" class="btn btn-sm btn-warning edit-category-btn" data-id="{{ $category->id }}" data-name="{{ $category->name }}" data-location-id="{{ $location->id }}" title="Edit Category" aria-label="Edit Category">
-                                        <i data-feather="edit" style="width:14px;height:14px;"></i>
+                                        <i data-lucide="edit" style="width:14px;height:14px;"></i>
                                     </button>
                                     <form method="POST" action="{{ route('categories.items.destroy', $category) }}" class="d-inline">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete this category?')" title="Delete Category" aria-label="Delete Category">
-                                            <i data-feather="trash-2" style="width:14px;height:14px;"></i>
+                                            <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
                                         </button>
                                     </form>
                                     @endif
@@ -184,7 +168,6 @@
         </div>
     </div>
     @endif
-</main>
 @endsection
 
 @push('scripts')
@@ -211,8 +194,8 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     @endif
 
-    if (typeof feather !== 'undefined') {
-        feather.replace();
+    if (typeof window.refreshLucideIcons === 'function') {
+        window.refreshLucideIcons();
     }
 });
 </script>

@@ -1,11 +1,10 @@
 @extends('layouts.app')
 @section('page_title', 'Transaction Report - Dianne Seafood House')
 @section('content')
-<main>
 <x-page-header title="Transaction Report" subtitle="Stock movement history with filters" icon="list">
 </x-page-header>
 
-<div class="container-xl px-4 mt-n10">
+<div class="container-xl px-4">
     @include('layouts.alerts')
 
     {{-- Filters --}}
@@ -42,7 +41,7 @@
             <div class="card border-0 shadow-sm">
                 <div class="card-body d-flex align-items-center gap-3">
                     <div class="rounded-circle bg-success bg-opacity-10 p-3">
-                        <i data-feather="trending-up" class="text-success" style="width:24px;height:24px;"></i>
+                        <i data-lucide="trending-up" class="text-success" style="width:24px;height:24px;"></i>
                     </div>
                     <div>
                         <div class="text-muted small">Total Stock In</div>
@@ -55,7 +54,7 @@
             <div class="card border-0 shadow-sm">
                 <div class="card-body d-flex align-items-center gap-3">
                     <div class="rounded-circle bg-danger bg-opacity-10 p-3">
-                        <i data-feather="trending-down" class="text-danger" style="width:24px;height:24px;"></i>
+                        <i data-lucide="trending-down" class="text-danger" style="width:24px;height:24px;"></i>
                     </div>
                     <div>
                         <div class="text-muted small">Total Stock Out</div>
@@ -68,7 +67,7 @@
 
     {{-- Table --}}
     <div class="card shadow-sm">
-        <div class="card-header fw-semibold"><i data-feather="list" class="me-1"></i> Transactions</div>
+        <div class="card-header fw-semibold"><i data-lucide="list" class="me-1"></i> Transactions</div>
         <div class="card-body">
             <div class="table-responsive">
                 <table class="table table-bordered table-striped">
@@ -122,5 +121,4 @@
         @endif
     </div>
 </div>
-</main>
 @endsection

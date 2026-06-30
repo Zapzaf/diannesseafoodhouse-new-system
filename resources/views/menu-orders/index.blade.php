@@ -3,32 +3,16 @@
 @section('page_title', 'Menu Orders - Dianne\'s Seafood House')
 
 @section('content')
-<main>
-    <header class="page-header page-header-dark bg-gradient-primary-to-secondary pb-10">
-        <div class="container-xl px-4">
-            <div class="page-header-content pt-4">
-                <div class="row align-items-center justify-content-between">
-                    <div class="col-auto mt-4">
-                        <h1 class="page-header-title">
-                            <div class="page-header-icon"><i data-feather="shopping-bag"></i></div>
-                            Menu Orders
-                        </h1>
-                        <div class="page-header-subtitle">Track standalone food purchases and payments</div>
-                    </div>
-                    <div class="col-auto mt-4">
-                        <a class="btn btn-light text-primary" href="{{ route('menu-orders.create') }}">
-                            <i class="me-1" data-feather="plus"></i> New Menu Order
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </header>
+    <x-page-header title="Menu Orders" subtitle="Track standalone food purchases and payments" icon="shopping-bag">
+        <a class="btn btn-primary" href="{{ route('menu-orders.create') }}">
+            <i class="me-1" data-lucide="plus"></i> New Menu Order
+        </a>
+    </x-page-header>
 
-    <div class="container-xl px-4 mt-n10">
+    <div class="container-xl px-4 menu-order-workspace">
         @include('layouts.alerts')
-        <div class="card shadow-sm">
-            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div class="card shadow-sm menu-order-index-card">
+            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2 menu-order-index-header">
                 <ul class="nav nav-tabs card-header-tabs" id="menuOrderStatusTabs" role="tablist">
                     <li class="nav-item" role="presentation">
                         <button class="nav-link active" data-status="open" type="button" role="tab" aria-selected="true">Open Orders</button>
@@ -42,13 +26,13 @@
                 </ul>
                 <div class="d-flex align-items-center gap-2">
                     <input type="hidden" id="statusFilter" value="open">
-                    <input type="text" id="searchInput" class="form-control form-control-sm" placeholder="Search menu orders..." style="max-width: 280px;">
+                    <input type="text" id="searchInput" class="form-control form-control-sm menu-order-search" placeholder="Search menu orders...">
                 </div>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
-                    <table class="table table-bordered table-striped" id="menuOrdersTable" data-server-sort="1">
-                        <thead class="table-dark">
+                    <table class="table table-bordered table-striped menu-order-list-table" id="menuOrdersTable" data-server-sort="1">
+                        <thead>
                             <tr>
                                 <th>Sales ID</th>
                                 <th>Customer</th>
@@ -71,9 +55,7 @@
                     <ul id="pagination" class="pagination pagination-sm mb-0"></ul>
                 </nav>
             </div>
-        </div>
     </div>
-</main>
 
 <div class="modal fade" id="voidModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
@@ -81,7 +63,7 @@
             @csrf
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title text-warning"><i data-feather="alert-triangle"></i> Void Menu Order</h5>
+                    <h5 class="modal-title text-warning"><i data-lucide="alert-triangle"></i> Void Menu Order</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
@@ -129,17 +111,17 @@ document.addEventListener('DOMContentLoaded', function() {
             const canVoid = isBranchManager && order.status !== 'voided' && order.status !== 'cancelled' && Number(order.payments_count || 0) === 0;
 
             const editActions = canEdit ? `
-                <a href="{{ url('/menu-orders') }}/${order.id}/edit" class="btn btn-sm btn-outline-secondary" title="Edit"><i data-feather="edit"></i></a>
+                <a href="{{ url('/menu-orders') }}/${order.id}/edit" class="btn btn-sm btn-outline-secondary" title="Edit"><i data-lucide="edit"></i></a>
                 <form action="{{ url('/menu-orders') }}/${order.id}" method="POST" class="d-inline" onsubmit="return confirm('Delete this menu order?')">
                     <input type="hidden" name="_token" value="${csrf}">
                     <input type="hidden" name="_method" value="DELETE">
-                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i data-feather="trash-2"></i></button>
+                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i data-lucide="trash-2"></i></button>
                 </form>
             ` : '';
 
             const voidAction = canVoid ? `
                 <button type="button" class="btn btn-sm btn-outline-warning" title="Void Order" onclick="openVoidModal(${order.id})">
-                    <i data-feather="slash"></i>
+                    <i data-lucide="slash"></i>
                 </button>
             ` : '';
 
@@ -153,8 +135,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td class="${Number(order.balance || 0) > 0 ? 'text-danger fw-bold' : ''}">\u20B1${Number(order.balance || 0).toFixed(2)}</td>
                     <td><span class="badge badge-status badge-${ctx.escapeHtml(order.payment_status || 'unpaid')}">${ctx.escapeHtml(order.payment_status || 'unpaid')}</span></td>
                     <td><span class="badge badge-status badge-${ctx.escapeHtml(order.status || 'open')}">${ctx.escapeHtml(order.status || 'open')}</span></td>
-                    <td class="text-nowrap">
-                        <a href="{{ url('/menu-orders') }}/${order.id}" class="btn btn-sm btn-outline-info" title="View"><i data-feather="eye"></i></a>
+                    <td class="table-actions-cell text-nowrap">
+                        <a href="{{ url('/menu-orders') }}/${order.id}" class="btn btn-sm btn-outline-info" title="View"><i data-lucide="eye"></i></a>
                         ${editActions}
                         ${voidAction}
                     </td>

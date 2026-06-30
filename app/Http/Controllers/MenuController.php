@@ -56,7 +56,7 @@ class MenuController extends Controller
         $search = trim((string) $request->input('search', ''));
         $sort = (string) $request->input('sort', 'name');
         $direction = strtolower((string) $request->input('direction', 'asc')) === 'desc' ? 'desc' : 'asc';
-        $allowedSort = ['id', 'name', 'category', 'selling_price', 'branch_id', 'created_at'];
+        $allowedSort = ['id', 'name', 'menu_description', 'category', 'selling_price', 'items_count', 'branch_id', 'created_at'];
 
         if (!in_array($sort, $allowedSort, true)) {
             $sort = 'name';

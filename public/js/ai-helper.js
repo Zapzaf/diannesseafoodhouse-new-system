@@ -347,11 +347,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Change button text temporarily
                 const originalHTML = copyImagePromptBtn.innerHTML;
-                copyImagePromptBtn.innerHTML = '<i class="me-1" data-feather="check"></i>Copied!';
+                copyImagePromptBtn.innerHTML = '<i class="me-1" data-lucide="check"></i>Copied!';
                 
                 setTimeout(() => {
                     copyImagePromptBtn.innerHTML = originalHTML;
-                    feather.replace(); // Re-initialize feather icons
+                    if (typeof window.refreshLucideIcons === 'function') {
+                        window.refreshLucideIcons();
+                    }
                 }, 2000);
             }).catch(function(err) {
                 console.error('Failed to copy:', err);

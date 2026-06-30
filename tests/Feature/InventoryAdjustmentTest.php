@@ -85,6 +85,55 @@ it('uses the item model price for manual inventory transactions', function () {
     expect((float) InventoryTransaction::query()->firstOrFail()->transaction_price)->toBe(250.0);
 });
 
+it('allows deleting inventory items while keeping transaction history visible', function () {
+    $item = inventoryAdjustmentItem($this, 'History Shrimp', 'pcs');
+
+    InventoryTransaction::create([
+        'item_id' => $item->id,
+        'branch_id' => $item->branch_id,
+        'type' => 'in',
+        'quantity' => 5,
+        'beginning_quantity' => 10,
+        'remaining_quantity' => 15,
+        'transaction_date' => now(),
+        'reason' => 'Test history',
+        'status' => 'approved',
+        'created_by' => $this->user->id,
+    ]);
+
+    $this->actingAs($this->user)
+        ->delete(route('inventory.destroy', $item))
+        ->assertRedirect(route('inventory.index'))
+        ->assertSessionHas('success');
+
+    $this->assertSoftDeleted('items', ['id' => $item->id]);
+    $this->assertDatabaseHas('inventory_transactions', [
+        'item_id' => $item->id,
+        'reason' => 'Test history',
+    ]);
+
+    expect(InventoryTransaction::query()->firstOrFail()->inventory?->name)->toBe('History Shrimp');
+
+    $this->actingAs($this->user)
+        ->get(route('transactions.index'))
+        ->assertOk()
+        ->assertSee('History Shrimp')
+        ->assertSee('Deleted');
+});
+
+it('accepts ajax-style inventory item deletes from the table action button', function () {
+    $item = inventoryAdjustmentItem($this, 'Ajax Delete Shrimp', 'pcs');
+
+    $this->actingAs($this->user)
+        ->withHeader('X-Requested-With', 'XMLHttpRequest')
+        ->post(route('inventory.destroy', $item), [
+            '_method' => 'DELETE',
+        ])
+        ->assertRedirect(route('inventory.index'));
+
+    $this->assertSoftDeleted('items', ['id' => $item->id]);
+});
+
 it('allows decimal stock additions for measurable units', function () {
     $item = inventoryAdjustmentItem($this, 'Cooking Oil', 'liters');
 

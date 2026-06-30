@@ -1,11 +1,10 @@
 @extends('layouts.app')
 @section('page_title', 'Expense Report')
 @section('content')
-<main>
 <x-page-header title="Expense Report" subtitle="Review cost categories, monthly trends, and branch spending" icon="trending-down">
 </x-page-header>
 
-<div class="container-xl px-4 mt-n10">
+<div class="container-xl px-4">
     @include('layouts.alerts')
 
     <div class="card shadow-sm mb-4">
@@ -89,7 +88,6 @@
         </div>
     </div>
 </div>
-</main>
 
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/simple-datatables@7.1.2/dist/umd/simple-datatables.min.js"></script>

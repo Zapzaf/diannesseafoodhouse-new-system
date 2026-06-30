@@ -3,29 +3,13 @@
 @section('page_title', 'Edit Table - Dianne\'s Seafood House')
 
 @section('content')
-<main>
-    <header class="page-header page-header-dark bg-gradient-primary-to-secondary pb-10">
-        <div class="container-xl px-4">
-            <div class="page-header-content pt-4">
-                <div class="row align-items-center justify-content-between">
-                    <div class="col-auto mt-4">
-                        <h1 class="page-header-title">
-                            <div class="page-header-icon"><i data-feather="edit"></i></div>
-                            Edit Table
-                        </h1>
-                        <div class="page-header-subtitle">Update table details and status.</div>
-                    </div>
-                    <div class="col-auto mt-4">
-                        <a class="btn btn-light text-primary" href="{{ route('tables.index') }}">
-                            <i class="me-1" data-feather="arrow-left"></i> Back to Tables
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </header>
+    <x-page-header title="Edit Table" subtitle="Update table details and status." icon="edit">
+        <a class="btn btn-primary" href="{{ route('tables.index') }}">
+            <i class="me-1" data-lucide="arrow-left"></i> Back to Tables
+        </a>
+    </x-page-header>
 
-    <div class="container-xl px-4 mt-n10">
+    <div class="container-xl px-4">
         @include('layouts.alerts')
 
         <div class="card shadow-sm">
@@ -42,5 +26,4 @@
             </div>
         </div>
     </div>
-</main>
 @endsection

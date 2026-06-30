@@ -3,29 +3,13 @@
 @section('page_title', 'Deliveries - Dianne Seafood House')
 
 @section('content')
-<main>
-    <header class="page-header page-header-dark bg-gradient-primary-to-secondary pb-10">
-        <div class="container-xl px-4">
-            <div class="page-header-content pt-4">
-                <div class="row align-items-center justify-content-between">
-                    <div class="col-auto mt-4">
-                        <h1 class="page-header-title">
-                            <div class="page-header-icon"><i data-feather="truck"></i></div>
-                            Deliveries
-                        </h1>
-                        <div class="page-header-subtitle">Track all incoming deliveries</div>
-                    </div>
-                    <div class="col-auto mt-4">
-                        <a class="btn btn-light text-primary" href="{{ route('deliveries.create') }}">
-                            <i data-feather="plus-circle" class="me-1"></i> Log Delivery
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </header>
+    <x-page-header title="Deliveries" subtitle="Track all incoming deliveries" icon="truck">
+        <a class="btn btn-primary" href="{{ route('deliveries.create') }}">
+            <i data-lucide="plus-circle" class="me-1"></i> Log Delivery
+        </a>
+    </x-page-header>
 
-    <div class="container-xl px-4 mt-n10">
+    <div class="container-xl px-4">
         @include('layouts.alerts')
 
         <div class="card mb-4">
@@ -41,25 +25,25 @@
                     </select>
                     <div class="input-group input-group-sm" style="max-width: 250px;">
                         <input type="text" name="search" class="form-control" placeholder="Search..." value="{{ request('search') }}">
-                        <button class="btn btn-outline-secondary" type="submit"><i data-feather="search" style="width: 14px; height: 14px;"></i></button>
+                        <button class="btn btn-outline-secondary" type="submit"><i data-lucide="search" style="width: 14px; height: 14px;"></i></button>
                     </div>
                 </form>
             </div>
-            <div class="card-body">
+            <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table table-bordered table-striped align-middle mb-0">
-                    <thead class="table-dark">
+                    <table class="table table-hover align-middle mb-0" data-server-page-sort="1">
+                    <thead>
                         <tr>
-                            <th>Reference</th>
-                            <th>Supplier</th>
+                            <th data-sort-key="reference_number">Reference</th>
+                            <th data-sort-key="supplier_name">Supplier</th>
                             @if(auth()->user()?->isAdmin())
-                            <th>Destination Branch</th>
-                            <th>Source Branch</th>
+                            <th data-sort-key="destination_branch">Destination Branch</th>
+                            <th data-sort-key="source_branch">Source Branch</th>
                             @endif
-                            <th>Items</th>
-                            <th>Total Cost</th>
-                            <th>Date</th>
-                            <th>Status</th>
+                            <th data-sort-key="items_count">Items</th>
+                            <th data-sort-key="total_cost">Total Cost</th>
+                            <th data-sort-key="created_at">Date</th>
+                            <th data-sort-key="status">Status</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -94,7 +78,7 @@
                             </td>
                             <td>
                                 <a href="{{ route('deliveries.show', $delivery) }}" class="btn btn-sm btn-outline-primary">
-                                    <i data-feather="eye" style="width:14px;height:14px;" class="me-1"></i> View
+                                    <i data-lucide="eye" style="width:14px;height:14px;" class="me-1"></i> View
                                 </a>
                             </td>
                         </tr>
@@ -120,7 +104,5 @@
                 .custom-pagination-wrapper p.small.text-muted { display: none !important; }
                 .custom-pagination-wrapper .pagination { margin-bottom: 0 !important; }
             </style>
-        </div>
     </div>
-</main>
 @endsection

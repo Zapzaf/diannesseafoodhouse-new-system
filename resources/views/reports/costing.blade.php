@@ -1,10 +1,9 @@
 @extends('layouts.app')
 @section('page_title', 'Costing Reports - Dianne Seafood House')
 @section('content')
-<main>
 <x-page-header title="Costing Reports" subtitle="Price change requests, approvals, and audit history" icon="dollar-sign">
     <a href="{{ route('reports.costing.create') }}" class="btn btn-light">
-        <i data-feather="plus" class="me-1"></i> New Costing Report
+        <i data-lucide="plus" class="me-1"></i> New Costing Report
     </a>
 </x-page-header>
 
@@ -14,7 +13,7 @@
     $rejectedCount = (int) ($statusCounts['rejected'] ?? 0);
 @endphp
 
-<div class="container-xl px-4 mt-n10">
+<div class="container-xl px-4">
     @include('layouts.alerts')
 
     <div class="row g-4 mb-4">
@@ -22,7 +21,7 @@
             <div class="card border-0 shadow-sm">
                 <div class="card-body d-flex align-items-center gap-3">
                     <div class="rounded-circle bg-warning bg-opacity-10 p-3">
-                        <i data-feather="clock" class="text-warning" style="width:24px;height:24px;"></i>
+                        <i data-lucide="clock" class="text-warning" style="width:24px;height:24px;"></i>
                     </div>
                     <div>
                         <div class="text-muted small">Pending</div>
@@ -35,7 +34,7 @@
             <div class="card border-0 shadow-sm">
                 <div class="card-body d-flex align-items-center gap-3">
                     <div class="rounded-circle bg-success bg-opacity-10 p-3">
-                        <i data-feather="check-circle" class="text-success" style="width:24px;height:24px;"></i>
+                        <i data-lucide="check-circle" class="text-success" style="width:24px;height:24px;"></i>
                     </div>
                     <div>
                         <div class="text-muted small">Approved</div>
@@ -48,7 +47,7 @@
             <div class="card border-0 shadow-sm">
                 <div class="card-body d-flex align-items-center gap-3">
                     <div class="rounded-circle bg-danger bg-opacity-10 p-3">
-                        <i data-feather="x-circle" class="text-danger" style="width:24px;height:24px;"></i>
+                        <i data-lucide="x-circle" class="text-danger" style="width:24px;height:24px;"></i>
                     </div>
                     <div>
                         <div class="text-muted small">Rejected</div>
@@ -61,7 +60,7 @@
             <div class="card border-0 shadow-sm">
                 <div class="card-body d-flex align-items-center gap-3">
                     <div class="rounded-circle bg-primary bg-opacity-10 p-3">
-                        <i data-feather="file-text" class="text-white" style="width:24px;height:24px;"></i>
+                        <i data-lucide="file-text" class="text-white" style="width:24px;height:24px;"></i>
                     </div>
                     <div>
                         <div class="text-muted small">Reports Shown</div>
@@ -102,7 +101,7 @@
 
     <div class="card shadow-sm mb-4">
         <div class="card-header fw-semibold">
-            <i data-feather="clipboard" class="me-1"></i> Report History
+            <i data-lucide="clipboard" class="me-1"></i> Report History
         </div>
         <div class="card-body">
             <div class="table-responsive">
@@ -162,7 +161,7 @@
 
     <div class="card shadow-sm">
         <div class="card-header fw-semibold">
-            <i data-feather="archive" class="me-1"></i> Current Item Cost Reference
+            <i data-lucide="archive" class="me-1"></i> Current Item Cost Reference
         </div>
         <div class="card-body">
             <div class="table-responsive">
@@ -201,5 +200,4 @@
         </div>
     </div>
 </div>
-</main>
 @endsection

@@ -23,68 +23,48 @@
 @endphp
 
 @section('content')
-<main>
-    <header class="page-header page-header-dark bg-gradient-primary-to-secondary pb-10">
-        <div class="container-xl px-4">
-            <div class="page-header-content pt-4">
-                <div class="row align-items-start justify-content-between g-3">
-                    <div class="col-xl-6 mt-4">
-                        <h1 class="page-header-title">
-                            <div class="page-header-icon"><i data-feather="shopping-bag"></i></div>
-                            Menu Order {{ $menuOrder->orderNumber() }}
-                        </h1>
-                        <div class="page-header-subtitle">
-                            {{ $menuOrder->customerDisplayName() }} - {{ $menuOrder->branch->name ?? '-' }}
-                        </div>
-                    </div>
-                    <div class="col-xl-6 mt-4">
-                        <div class="order-action-bar">
-                            <a class="btn btn-light text-primary" href="{{ route('menu-orders.billing', $menuOrder) }}" target="_blank">
-                                <i class="me-1" data-feather="printer"></i> Billing
-                            </a>
-                            @if($canRecordPayment)
-                            <a class="btn btn-success text-white" href="{{ route('payments.create', ['menu_order_id' => $menuOrder->id]) }}">
-                                <i class="me-1" data-feather="credit-card"></i> Pay
-                            </a>
-                            @endif
-                            @if($canEditOrder)
-                            <a class="btn btn-light text-primary" href="{{ route('menu-orders.edit', $menuOrder) }}">
-                                <i class="me-1" data-feather="edit"></i> Edit
-                            </a>
-                            @endif
-                            @if($canEditOrder)
-                            <form action="{{ route('menu-orders.cancel', $menuOrder) }}" method="POST" onsubmit="return confirm('Cancel this order?')">
-                                @csrf
-                                <button type="submit" class="btn btn-light text-warning">
-                                    <i class="me-1" data-feather="x-circle"></i> Cancel
-                                </button>
-                            </form>
-                            @endif
-                            @if($canVoidOrder)
-                            <button type="button" class="btn btn-light text-warning" data-bs-toggle="modal" data-bs-target="#voidModal">
-                                <i class="me-1" data-feather="slash"></i> Void
-                            </button>
-                            @endif
-                            @if($canDeleteOrder)
-                            <form action="{{ route('menu-orders.destroy', $menuOrder) }}" method="POST" onsubmit="return confirm('Delete this menu order?')">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="btn btn-light text-danger">
-                                    <i class="me-1" data-feather="trash-2"></i> Delete
-                                </button>
-                            </form>
-                            @endif
-                            <a class="btn btn-light text-primary" href="{{ route('menu-orders.index') }}">
-                                <i class="me-1" data-feather="arrow-left"></i> Back
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </header>
+    <x-page-header :title="'Menu Order ' . $menuOrder->orderNumber()" :subtitle="$menuOrder->customerDisplayName() . ' - ' . ($menuOrder->branch->name ?? '-')" icon="shopping-bag">
+        <a class="btn btn-outline-primary" href="{{ route('menu-orders.billing', $menuOrder) }}" target="_blank">
+            <i class="me-1" data-lucide="printer"></i> Billing
+        </a>
+        @if($canRecordPayment)
+        <a class="btn btn-success text-white" href="{{ route('payments.create', ['menu_order_id' => $menuOrder->id]) }}">
+            <i class="me-1" data-lucide="credit-card"></i> Pay
+        </a>
+        @endif
+        @if($canEditOrder)
+        <a class="btn btn-outline-primary" href="{{ route('menu-orders.edit', $menuOrder) }}">
+            <i class="me-1" data-lucide="edit"></i> Edit
+        </a>
+        @endif
+        @if($canEditOrder)
+        <form action="{{ route('menu-orders.cancel', $menuOrder) }}" method="POST" onsubmit="return confirm('Cancel this order?')">
+            @csrf
+            <button type="submit" class="btn btn-outline-warning">
+                <i class="me-1" data-lucide="x-circle"></i> Cancel
+            </button>
+        </form>
+        @endif
+        @if($canVoidOrder)
+        <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#voidModal">
+            <i class="me-1" data-lucide="slash"></i> Void
+        </button>
+        @endif
+        @if($canDeleteOrder)
+        <form action="{{ route('menu-orders.destroy', $menuOrder) }}" method="POST" onsubmit="return confirm('Delete this menu order?')">
+            @csrf
+            @method('DELETE')
+            <button type="submit" class="btn btn-outline-danger">
+                <i class="me-1" data-lucide="trash-2"></i> Delete
+            </button>
+        </form>
+        @endif
+        <a class="btn btn-outline-primary" href="{{ route('menu-orders.index') }}">
+            <i class="me-1" data-lucide="arrow-left"></i> Back
+        </a>
+    </x-page-header>
 
-    <div class="container-xl px-4 mt-n10">
+    <div class="container-xl px-4 menu-order-workspace menu-order-show">
         @include('layouts.alerts')
 
         <div class="row g-3 mb-4">
@@ -95,7 +75,7 @@
                             <div class="stat-label">Order Status</div>
                             <div class="stat-value stat-value-sm"><span class="badge-status badge-{{ strtolower((string) $menuOrder->status) }}">{{ ucfirst((string) $menuOrder->status) }}</span></div>
                         </div>
-                        <div class="icon-circle"><i data-feather="shopping-bag"></i></div>
+                        <div class="icon-circle"><i data-lucide="shopping-bag"></i></div>
                     </div>
                 </div>
             </div>
@@ -106,7 +86,7 @@
                             <div class="stat-label">Payment Status</div>
                             <div class="stat-value stat-value-sm"><span class="badge-status badge-{{ strtolower((string) $menuOrder->payment_status) }}">{{ ucfirst((string) $menuOrder->payment_status) }}</span></div>
                         </div>
-                        <div class="icon-circle"><i data-feather="credit-card"></i></div>
+                        <div class="icon-circle"><i data-lucide="credit-card"></i></div>
                     </div>
                 </div>
             </div>
@@ -117,7 +97,7 @@
                             <div class="stat-label">Balance</div>
                             <div class="stat-value {{ (float) $menuOrder->balance > 0 ? 'text-danger' : 'text-success' }}">PHP {{ number_format((float) $menuOrder->balance, 2) }}</div>
                         </div>
-                        <div class="icon-circle"><i data-feather="dollar-sign"></i></div>
+                        <div class="icon-circle"><i data-lucide="dollar-sign"></i></div>
                     </div>
                 </div>
             </div>
@@ -128,7 +108,7 @@
                             <div class="stat-label">Items</div>
                             <div class="stat-value">{{ number_format($itemCount) }}</div>
                         </div>
-                        <div class="icon-circle"><i data-feather="list"></i></div>
+                        <div class="icon-circle"><i data-lucide="list"></i></div>
                     </div>
                 </div>
             </div>
@@ -144,7 +124,7 @@
 
         <div class="row g-4">
             <div class="col-xl-8">
-                <section class="card shadow-sm order-tab-card">
+                <section class="card shadow-sm order-tab-card menu-order-detail-card">
                     <div class="card-header order-tab-header">
                         <ul class="nav nav-tabs card-header-tabs" id="orderDetailTabs" role="tablist">
                             <li class="nav-item" role="presentation">
@@ -162,18 +142,18 @@
                         </ul>
                         @if($canModifyItems)
                         <button type="button" class="btn btn-primary btn-sm text-white" data-bs-toggle="modal" data-bs-target="#addMenuModal">
-                            <i data-feather="plus-circle" class="me-1"></i> Add Menu
+                            <i data-lucide="plus-circle" class="me-1"></i> Add Menu
                         </button>
                         @endif
                     </div>
                     <div class="tab-content" id="orderDetailTabsContent">
-                        <div class="tab-pane fade show active" id="ordered-items-pane" role="tabpanel" aria-labelledby="ordered-items-tab" tabindex="0" style = "padding: 20px;">
+                        <div class="tab-pane fade show active menu-order-tab-pane" id="ordered-items-pane" role="tabpanel" aria-labelledby="ordered-items-tab" tabindex="0">
                             <div class="tab-pane-summary">
                                 <span>{{ $menuOrder->items->count() }} line item(s)</span>
                                 <span>{{ number_format($itemCount) }} total quantity</span>
                             </div>
                             <div class="table-responsive">
-                            <table class="table table-hover align-middle order-items-table">
+                            <table class="table table-hover align-middle order-items-table menu-order-items-table" data-no-table-enhance="1">
                                 <thead>
                                     <tr>
                                         <th>Menu Item</th>
@@ -203,7 +183,7 @@
                                         <td>
                                             @if($item->inventory_deducted)
                                                 <span class="badge bg-success">
-                                                    <i data-feather="check" style="width:11px;height:11px;"></i> Deducted
+                                                    <i data-lucide="check" style="width:11px;height:11px;"></i> Deducted
                                                 </span>
                                             @elseif($item->menu && $item->menu->items->isEmpty())
                                                 <span class="badge bg-warning text-dark">No Recipe</span>
@@ -218,7 +198,7 @@
                                                 @csrf
                                                 @method('DELETE')
                                                 <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete item">
-                                                    <i data-feather="trash-2" style="width:14px;height:14px;"></i>
+                                                    <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
                                                 </button>
                                             </form>
                                             @else
@@ -234,13 +214,13 @@
                             </table>
                             </div>
                         </div>
-                        <div class="tab-pane fade" id="payment-history-pane" role="tabpanel" aria-labelledby="payment-history-tab" tabindex="0" style = "padding: 20px;">
+                        <div class="tab-pane fade menu-order-tab-pane" id="payment-history-pane" role="tabpanel" aria-labelledby="payment-history-tab" tabindex="0">
                             <div class="tab-pane-summary">
                                 <span>{{ $paymentCount }} payment record(s)</span>
                                 <span>Paid PHP {{ number_format((float) $menuOrder->amount_paid, 2) }}</span>
                             </div>
                             <div class="table-responsive">
-                            <table class="table table-hover align-middle">
+                            <table class="table table-hover align-middle" data-no-table-enhance="1">
                                 <thead>
                                     <tr>
                                         <th>Date</th>
@@ -265,7 +245,7 @@
                                         <td class="fw-semibold">{{ $payment->or_number ?: '-' }}</td>
                                         <td class="text-center">
                                             <a href="{{ route('menu-orders.payments.receipt', $payment) }}" target="_blank" class="btn btn-sm btn-outline-secondary" title="Print receipt">
-                                                <i data-feather="printer" style="width:14px;height:14px;"></i>
+                                                <i data-lucide="printer" style="width:14px;height:14px;"></i>
                                             </a>
                                         </td>
                                     </tr>
@@ -421,7 +401,7 @@
                                     <input type="text" name="reference_number" class="form-control" value="{{ old('reference_number') }}" maxlength="100">
                                 </div>
                                 <button type="submit" class="btn btn-primary w-100 text-white">
-                                    <i class="me-1" data-feather="save"></i> Save Payment
+                                    <i class="me-1" data-lucide="save"></i> Save Payment
                                 </button>
                             </form>
                         </div>
@@ -431,7 +411,6 @@
             </div>
         </div>
     </div>
-</main>
 
 <div class="modal fade" id="voidModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
@@ -439,7 +418,7 @@
             @csrf
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title text-warning"><i data-feather="alert-triangle"></i> Void Menu Order</h5>
+                    <h5 class="modal-title text-warning"><i data-lucide="alert-triangle"></i> Void Menu Order</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
@@ -468,250 +447,6 @@
 @endif
 
 @endsection
-
-@push('styles')
-<style>
-.order-action-bar {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: .5rem;
-}
-
-.order-action-bar form {
-    margin: 0;
-}
-
-.kpi-card {
-    border-left: 4px solid var(--bs-primary);
-}
-
-.kpi-card .icon-circle {
-    align-items: center;
-    background: rgba(162, 44, 41, .1);
-    border-radius: 50%;
-    display: flex;
-    height: 3rem;
-    justify-content: center;
-    width: 3rem;
-}
-
-.kpi-card .icon-circle svg {
-    color: #a22c29;
-    stroke: #a22c29;
-}
-
-.stat-label {
-    color: #6b7280;
-    font-size: .76rem;
-    font-weight: 700;
-    letter-spacing: .06em;
-    text-transform: uppercase;
-}
-
-.stat-value {
-    color: #111827;
-    font-size: 1.6rem;
-    font-weight: 800;
-}
-
-.stat-value-sm {
-    font-size: 1rem;
-    margin-top: .25rem;
-}
-
-.order-tab-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-}
-
-.order-tab-card .nav-tabs {
-    border-bottom: 0;
-}
-
-.order-tab-card .nav-link {
-    align-items: center;
-    display: flex;
-    font-weight: 700;
-    gap: .25rem;
-}
-
-.tab-pane-summary {
-    align-items: center;
-    background: #f8fafc;
-    border-bottom: 1px solid #e5e7eb;
-    color: #64748b;
-    display: flex;
-    flex-wrap: wrap;
-    font-size: .85rem;
-    gap: 1rem;
-    justify-content: space-between;
-    padding: .75rem 1rem;
-}
-
-.order-items-table th,
-.order-items-table td {
-    white-space: nowrap;
-}
-
-.order-items-table th:first-child,
-.order-items-table td:first-child {
-    min-width: 180px;
-    white-space: normal;
-}
-
-.order-sidebar {
-    position: sticky;
-    top: 1rem;
-}
-
-.billing-row,
-.billing-total,
-.billing-balance {
-    display: flex;
-    justify-content: space-between;
-    gap: 1rem;
-    padding: .55rem 0;
-    border-bottom: 1px solid #e5e7eb;
-}
-
-.billing-row span,
-.billing-breakdown {
-    color: #64748b;
-}
-
-.billing-breakdown {
-    border-bottom: 1px solid #e5e7eb;
-    font-size: .82rem;
-    padding: 0 0 .55rem 1rem;
-}
-
-.billing-total {
-    align-items: center;
-    border-bottom: 0;
-    color: #0f172a;
-    font-size: 1.05rem;
-    padding-top: .85rem;
-}
-
-.billing-balance {
-    border-bottom: 0;
-    border-radius: .4rem;
-    margin-top: .5rem;
-    padding: .75rem;
-}
-
-.billing-balance.is-due {
-    background: #fef2f2;
-    color: #991b1b;
-}
-
-.billing-balance.is-paid {
-    background: #f0fdf4;
-    color: #166534;
-}
-
-.profile-list {
-    display: grid;
-    gap: .75rem;
-}
-
-.profile-list div {
-    display: flex;
-    justify-content: space-between;
-    gap: 1rem;
-}
-
-.profile-list span {
-    color: #64748b;
-}
-
-.profile-list strong {
-    text-align: right;
-}
-
-.discount-id-row {
-    align-items: center;
-    display: flex;
-    flex-wrap: wrap;
-    gap: .4rem;
-    margin-bottom: .4rem;
-}
-
-.change-preview {
-    background: #f0fdf4;
-    border: 1px solid #bbf7d0;
-    border-radius: .5rem;
-    color: #166534;
-    padding: .75rem;
-}
-
-.menu-modal-card {
-    transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
-    border: 1px solid transparent !important;
-}
-
-.menu-modal-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.08) !important;
-    border-color: rgba(162, 44, 41, 0.2) !important;
-}
-
-.menu-modal-card.border-primary {
-    border-color: #a22c29 !important;
-}
-
-.menu-modal-card .hover-overlay {
-    background: rgba(162, 44, 41, 0.08);
-}
-
-.menu-modal-card:hover .hover-overlay {
-    opacity: 1 !important;
-}
-
-.modal-item-qty::-webkit-inner-spin-button,
-.modal-item-qty::-webkit-outer-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-}
-
-.modal-item-qty {
-    -moz-appearance: textfield;
-}
-
-@media (max-width: 1199.98px) {
-    .order-action-bar {
-        justify-content: flex-start;
-    }
-
-    .order-sidebar {
-        position: static;
-    }
-}
-
-@media (max-width: 575.98px) {
-    .order-tab-header {
-        align-items: flex-start;
-        flex-direction: column;
-    }
-
-    .order-tab-card .nav-tabs {
-        width: 100%;
-    }
-
-    .order-action-bar .btn,
-    .order-action-bar form {
-        width: 100%;
-    }
-
-    .order-action-bar form .btn {
-        width: 100%;
-    }
-}
-</style>
-@endpush
 
 @push('scripts')
 @if($canRecordPayment)
@@ -762,7 +497,7 @@
         if (qty > 0) {
             card.classList.add('border-primary');
             card.classList.remove('border-0');
-            card.style.boxShadow = '0 0 0 0.2rem rgba(162, 44, 41, 0.25)';
+            card.style.boxShadow = '0 0 0 0.2rem rgba(var(--primary-color-rgb), 0.25)';
         } else {
             card.classList.remove('border-primary');
             card.classList.add('border-0');

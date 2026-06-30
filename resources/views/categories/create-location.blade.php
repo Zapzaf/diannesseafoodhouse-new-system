@@ -3,29 +3,13 @@
 @section('page_title', 'Create Location')
 
 @section('content')
-<main>
-    <header class="page-header page-header-dark bg-gradient-primary-to-secondary pb-10">
-        <div class="container-xl px-4">
-            <div class="page-header-content pt-4">
-                <div class="row align-items-center justify-content-between">
-                    <div class="col-auto mt-4">
-                        <h1 class="page-header-title">
-                            <div class="page-header-icon"><i data-feather="map-pin"></i></div>
-                            Create Location
-                        </h1>
-                        <div class="page-header-subtitle">Add a new location for the selected branch</div>
-                    </div>
-                    <div class="col-auto mt-4">
-                        <a href="{{ route('categories.all') }}" class="btn btn-light text-primary">
-                            <i data-feather="arrow-left" class="me-1"></i> All Location Categories
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </header>
+    <x-page-header title="Create Location" subtitle="Add a new location for the selected branch" icon="map-pin">
+        <a href="{{ route('categories.all') }}" class="btn btn-outline-primary">
+            <i data-lucide="arrow-left" class="me-1"></i> All Location Categories
+        </a>
+    </x-page-header>
 
-    <div class="container-xl px-4 mt-n10">
+    <div class="container-xl px-4">
         @include('layouts.alerts')
 
         <div class="card mb-4">
@@ -55,7 +39,7 @@
 
                         <div class="col-md-2 d-grid">
                             <button type="submit" class="btn btn-primary">
-                                <i data-feather="save" class="me-1"></i> Save
+                                <i data-lucide="save" class="me-1"></i> Save
                             </button>
                         </div>
                     </div>
@@ -63,5 +47,4 @@
             </div>
         </div>
     </div>
-</main>
 @endsection

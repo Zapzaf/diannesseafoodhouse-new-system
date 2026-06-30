@@ -3,19 +3,18 @@
 @section('page_title', 'Menu Items - Dianne\'s Seafood House')
 
 @section('content')
-<main>
     <x-page-header title="Menu Items" subtitle="Manage restaurant menu items and recipes" icon="coffee">
         <a class="btn btn-light text-primary" href="{{ route('menus.create') }}">
-            <i data-feather="plus-circle" class="me-1"></i> Add Menu Item
+            <i data-lucide="plus-circle" class="me-1"></i> Add Menu Item
         </a>
     </x-page-header>
 
-    <div class="container-xl px-4 mt-n10">
+    <div class="container-xl px-4">
         @include('layouts.alerts')
 
         <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <div><i data-feather="coffee" class="me-1"></i> All Menu Items</div>
+                <div><i data-lucide="coffee" class="me-1"></i> All Menu Items</div>
                 <div class="d-flex gap-2">
                     <select id="perPage" class="form-select form-select-sm" style="width: auto;">
                         <option value="5">5</option>
@@ -54,7 +53,6 @@
             </div>
         </div>
     </div>
-</main>
 @endsection
 
 @push('scripts')
@@ -68,7 +66,7 @@ document.addEventListener('DOMContentLoaded', function() {
         dataUrl: @json(route('menus.data')),
         searchInputId: 'searchInput',
         perPageId: 'perPage',
-        sortColumns: ['id', 'name', 'category', 'selling_price', 'items_count', 'branch_id'],
+        sortColumns: ['id', 'name', 'menu_description', 'category', 'selling_price', 'items_count', 'branch_id'],
         defaultSort: 'name',
         defaultDirection: 'asc',
         emptyMessage: 'No menu items found.',
@@ -86,13 +84,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td>\u20B1${Number(menu.selling_price || 0).toFixed(2)}</td>
                     <td>${ingredientText}</td>
                     <td>${ctx.escapeHtml(menu.branch ? menu.branch.name : '\u2014')}</td>
-                    <td class="text-nowrap">
-                            <a href="{{ url('/menus') }}/${menu.id}" class="btn btn-sm btn-outline-info" title="View"><i data-feather="eye"></i></a>
-                            <a href="{{ url('/menus') }}/${menu.id}/edit" class="btn btn-sm btn-outline-primary" title="Edit"><i data-feather="edit"></i></a>
-                            <form action="{{ url('/menus') }}/${menu.id}" method="POST" onsubmit="return confirm('Delete this menu item?')">
+                    <td class="table-actions-cell text-nowrap">
+                            <a href="{{ url('/menus') }}/${menu.id}" class="btn btn-sm btn-outline-info" title="View"><i data-lucide="eye"></i></a>
+                            <a href="{{ url('/menus') }}/${menu.id}/edit" class="btn btn-sm btn-outline-primary" title="Edit"><i data-lucide="edit"></i></a>
+                            <form action="{{ url('/menus') }}/${menu.id}" method="POST" class="d-inline" onsubmit="return confirm('Delete this menu item?')">
                                 <input type="hidden" name="_token" value="${csrf}">
                                 <input type="hidden" name="_method" value="DELETE">
-                                <button class="btn btn-sm btn-outline-danger" title="Delete"><i data-feather="trash-2"></i></button>
+                                <button class="btn btn-sm btn-outline-danger" title="Delete"><i data-lucide="trash-2"></i></button>
                             </form>
                         </td>
                     </tr>

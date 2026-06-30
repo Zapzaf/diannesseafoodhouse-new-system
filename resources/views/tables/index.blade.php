@@ -3,29 +3,13 @@
 @section('page_title', 'Table Management - Dianne\'s Seafood House')
 
 @section('content')
-<main>
-    <header class="page-header page-header-dark bg-gradient-primary-to-secondary pb-10">
-        <div class="container-xl px-4">
-            <div class="page-header-content pt-4">
-                <div class="row align-items-center justify-content-between">
-                    <div class="col-auto mt-4">
-                        <h1 class="page-header-title">
-                            <div class="page-header-icon"><i data-feather="layout"></i></div>
-                            Table Management
-                        </h1>
-                        <div class="page-header-subtitle">Manage restaurant tables, status, and assignments.</div>
-                    </div>
-                    <div class="col-auto mt-4">
-                        <a class="btn btn-light text-primary" href="{{ route('tables.create') }}">
-                            <i class="me-1" data-feather="plus"></i> Add Table
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </header>
+    <x-page-header title="Table Management" subtitle="Manage restaurant tables, status, and assignments." icon="layout">
+        <a class="btn btn-primary" href="{{ route('tables.create') }}">
+            <i class="me-1" data-lucide="plus"></i> Add Table
+        </a>
+    </x-page-header>
 
-    <div class="container-xl px-4 mt-n10">
+    <div class="container-xl px-4">
         @include('layouts.alerts')
 
         <div class="card shadow-sm">
@@ -76,9 +60,7 @@
                     <ul id="pagination" class="pagination pagination-sm mb-0"></ul>
                 </nav>
             </div>
-        </div>
     </div>
-</main>
 
 <div class="modal fade" id="assignTableModal" tabindex="-1" aria-labelledby="assignTableModalLabel" aria-hidden="true">
     <div class="modal-dialog">
@@ -141,12 +123,12 @@ document.addEventListener('DOMContentLoaded', function() {
         colspan: 7,
         renderRow: function(table, ctx) {
             const actions = [];
-            actions.push(`<a href="${window.location.origin}/tables/${table.id}/edit" class="btn btn-sm btn-outline-secondary" title="Edit"><i data-feather="edit"></i></a>`);
-            actions.push(`<button type="button" class="btn btn-sm btn-outline-${table.status === 'available' ? 'primary' : 'secondary'}" title="${table.status === 'available' ? 'Assign' : 'Release'}" onclick="handleTableAction(${table.id}, '${table.status}')">${table.status === 'available' ? '<i data-feather="plus-square"></i>' : '<i data-feather="refresh-cw"></i>'}</button>`);
+            actions.push(`<a href="${window.location.origin}/tables/${table.id}/edit" class="btn btn-sm btn-outline-secondary" title="Edit"><i data-lucide="edit"></i></a>`);
+            actions.push(`<button type="button" class="btn btn-sm btn-outline-${table.status === 'available' ? 'primary' : 'secondary'}" title="${table.status === 'available' ? 'Assign' : 'Release'}" onclick="handleTableAction(${table.id}, '${table.status}')">${table.status === 'available' ? '<i data-lucide="plus-square"></i>' : '<i data-lucide="refresh-cw"></i>'}</button>`);
             actions.push(`<form action="${window.location.origin}/tables/${table.id}" method="POST" class="d-inline" onsubmit="return confirm('Delete this table?')">
                     <input type="hidden" name="_token" value="${csrf}">
                     <input type="hidden" name="_method" value="DELETE">
-                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i data-feather="trash-2"></i></button>
+                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i data-lucide="trash-2"></i></button>
                 </form>`);
 
             return `
@@ -157,7 +139,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td>${ctx.escapeHtml(table.capacity)}</td>
                     <td>${renderStatusBadge(ctx.escapeHtml(table.status))}</td>
                     <td>${table.current_order_id ? '#'+ctx.escapeHtml(table.current_order_id) : '—'}</td>
-                    <td class="text-nowrap">${actions.join(' ')}</td>
+                    <td class="table-actions-cell text-nowrap">${actions.join(' ')}</td>
                 </tr>
             `;
         }

@@ -40,7 +40,7 @@ class ProductionManagementController extends Controller
             'label' => '#'.$item->id.' - '.$item->name
                 .' ('.($item->category?->location?->name ?? 'N/A')
                 .' / '.($item->category?->name ?? 'N/A').')'
-                .' â€” '.number_format((float) $item->quantity, 2).' '.$item->unit,
+                .' - '.number_format((float) $item->quantity, 2).' '.$item->unit,
         ])->values()->all();
 
         return view('productions.create', [
@@ -53,12 +53,33 @@ class ProductionManagementController extends Controller
     public function index(Request $request): View
     {
         $branchId = $this->resolveBranchId($request);
+        $sort = (string) $request->input('sort', 'created_at');
+        $direction = strtolower((string) $request->input('direction', 'desc')) === 'asc' ? 'asc' : 'desc';
+        $allowedSort = ['id', 'branch_name', 'status', 'inputs_count', 'outputs_count', 'created_at', 'finished_at'];
+
+        if (! in_array($sort, $allowedSort, true)) {
+            $sort = 'created_at';
+        }
+
+        $productionsQuery = ProductionOrder::query()
+            ->select('production_orders.*')
+            ->with(['branch', 'creator', 'inputs.item', 'inputs.deliveryItem', 'outputs.item'])
+            ->withCount(['inputs', 'outputs'])
+            ->when($branchId, fn ($query, $branchId) => $query->where('branch_id', $branchId))
+            ->when(request('search'), fn ($q, $s) => $q->where('id', 'like', "%$s%"));
+
+        if ($sort === 'branch_name') {
+            $productionsQuery->leftJoin('branches as branch_sort', 'production_orders.branch_id', '=', 'branch_sort.id')
+                ->orderBy('branch_sort.name', $direction);
+        } elseif (in_array($sort, ['inputs_count', 'outputs_count'], true)) {
+            $productionsQuery->orderBy($sort, $direction);
+        } else {
+            $productionsQuery->orderBy("production_orders.{$sort}", $direction);
+        }
 
         return view('productions.index', [
-            'productions' => ProductionOrder::query()
-                ->with(['branch', 'creator', 'inputs.item', 'outputs.item'])
-                ->when($branchId, fn ($query, $branchId) => $query->where('branch_id', $branchId))
-                ->when(request('search'), fn ($q, $s) => $q->where('id', 'like', "%$s%"))->latest()
+            'productions' => $productionsQuery
+                ->orderBy('production_orders.created_at', 'desc')
                 ->paginate((int) request('per_page', 12))->withQueryString(),
             'branches' => Branch::query()->where('is_active', true)->orderBy('name')->get(),
             'items' => Item::query()
@@ -151,11 +172,19 @@ class ProductionManagementController extends Controller
             abort(403, 'This production order is outside your active branch.');
         }
 
-        $production->load(['branch', 'creator', 'inputs.item', 'inputs.deliveryItem.delivery.supplier', 'outputs.item', 'wastageReports.items.item', 'wastageReports.items.convertedItem']);
+        $production->load(['branch', 'creator', 'inputs.item', 'inputs.deliveryItem.item', 'inputs.deliveryItem.sourceItem', 'inputs.deliveryItem.delivery.supplier', 'outputs.item', 'wastageReports.items.item', 'wastageReports.items.convertedItem']);
+        $scrapLostUnit = $production->inputs
+            ->map(fn ($input) => $input->item?->unit
+                ?? $input->deliveryItem?->item?->unit
+                ?? $input->deliveryItem?->sourceItem?->unit
+                ?? $input->unit)
+            ->filter()
+            ->first();
 
         return view('productions.show', [
             'production' => $production,
             'items' => Item::query()->with(['category.location'])->where('branch_id', $production->branch_id)->orderBy('name')->get(),
+            'scrapLostUnit' => $scrapLostUnit,
         ]);
     }
 
@@ -174,6 +203,7 @@ class ProductionManagementController extends Controller
             'wastage' => ['nullable', 'array'],
             'wastage.*.scrap_name' => ['nullable', 'string', 'max:255'],
             'wastage.*.quantity_lost' => ['nullable', 'numeric', 'gt:0'],
+            'wastage.*.quantity_lost_unit' => ['required_with:wastage.*.quantity_lost', 'string', 'max:32'],
             'wastage.*.reason' => ['nullable', 'string', 'max:255'],
             'wastage.*.convert_to_item_id' => ['nullable', 'exists:items,id', 'required_with:wastage.*.converted_quantity'],
             'wastage.*.converted_quantity' => ['nullable', 'numeric', 'gt:0', 'required_with:wastage.*.convert_to_item_id'],
@@ -296,6 +326,7 @@ class ProductionManagementController extends Controller
             'items' => ['required', 'array', 'min:1'],
             'items.*.scrap_name' => ['nullable', 'string', 'max:255'],
             'items.*.quantity_lost' => ['required', 'numeric', 'gt:0'],
+            'items.*.quantity_lost_unit' => ['required_with:items.*.quantity_lost', 'string', 'max:32'],
             'items.*.reason' => ['nullable', 'string', 'max:255'],
             'items.*.convert_to_item_id' => ['nullable', 'exists:items,id', 'required_with:items.*.converted_quantity'],
             'items.*.converted_quantity' => ['nullable', 'numeric', 'gt:0', 'required_with:items.*.convert_to_item_id'],
@@ -328,13 +359,34 @@ class ProductionManagementController extends Controller
     public function processing(Request $request): View
     {
         $branchId = $this->resolveBranchId($request);
+        $sort = (string) $request->input('sort', 'created_at');
+        $direction = strtolower((string) $request->input('direction', 'desc')) === 'asc' ? 'asc' : 'desc';
+        $allowedSort = ['id', 'branch_name', 'inputs_count', 'outputs_count', 'created_at'];
+
+        if (! in_array($sort, $allowedSort, true)) {
+            $sort = 'created_at';
+        }
+
+        $productionsQuery = ProductionOrder::query()
+            ->select('production_orders.*')
+            ->with(['branch', 'creator', 'inputs.item', 'inputs.deliveryItem', 'outputs.item'])
+            ->withCount(['inputs', 'outputs'])
+            ->where('status', 'in_progress')
+            ->when($branchId, fn ($query, $branchId) => $query->where('branch_id', $branchId))
+            ->when(request('search'), fn ($q, $s) => $q->where('id', 'like', "%$s%"));
+
+        if ($sort === 'branch_name') {
+            $productionsQuery->leftJoin('branches as branch_sort', 'production_orders.branch_id', '=', 'branch_sort.id')
+                ->orderBy('branch_sort.name', $direction);
+        } elseif (in_array($sort, ['inputs_count', 'outputs_count'], true)) {
+            $productionsQuery->orderBy($sort, $direction);
+        } else {
+            $productionsQuery->orderBy("production_orders.{$sort}", $direction);
+        }
 
         return view('productions.processing', [
-            'productions' => ProductionOrder::query()
-                ->with(['branch', 'creator', 'inputs.item', 'outputs.item'])
-                ->where('status', 'in_progress')
-                ->when($branchId, fn ($query, $branchId) => $query->where('branch_id', $branchId))
-                ->when(request('search'), fn ($q, $s) => $q->where('id', 'like', "%$s%"))->latest()
+            'productions' => $productionsQuery
+                ->orderBy('production_orders.created_at', 'desc')
                 ->paginate((int) request('per_page', 12))->withQueryString(),
             'branches' => Branch::query()->where('is_active', true)->orderBy('name')->get(),
         ]);

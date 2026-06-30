@@ -1,11 +1,10 @@
 @extends('layouts.app')
 @section('page_title', 'Revenue Report')
 @section('content')
-<main>
 <x-page-header title="Revenue Report" subtitle="Analyze paid revenue across periods, dates, and branches" icon="bar-chart-2">
 </x-page-header>
 
-<div class="container-xl px-4 mt-n10">
+<div class="container-xl px-4">
     @include('layouts.alerts')
 
     <div class="card shadow-sm mb-4">
@@ -108,7 +107,6 @@
         </div>
     </div>
 </div>
-</main>
 
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/simple-datatables@7.1.2/dist/umd/simple-datatables.min.js"></script>
@@ -120,6 +118,10 @@ ReportUtils.initPeriodFilter('#reportPeriodForm');
 
 const revCtx = document.getElementById('revenueTrendChart');
 if (revCtx) {
+    const rootStyles = getComputedStyle(document.documentElement);
+    const themePrimary = rootStyles.getPropertyValue('--primary-color').trim() || '#f07c59';
+    const themePrimaryRgb = rootStyles.getPropertyValue('--primary-color-rgb').trim() || '240, 124, 89';
+
     new Chart(revCtx, {
         type: 'line',
         data: {
@@ -127,8 +129,8 @@ if (revCtx) {
             datasets: [{
                 label: 'Paid Revenue',
                 data: @json($chartRevenue),
-                borderColor: '#a22c29',
-                backgroundColor: 'rgba(162,44,41,0.20)',
+                borderColor: themePrimary,
+                backgroundColor: `rgba(${themePrimaryRgb},0.20)`,
                 fill: true,
                 tension: 0.25,
             }],

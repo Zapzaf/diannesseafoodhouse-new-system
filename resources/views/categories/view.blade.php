@@ -3,29 +3,13 @@
 @section('page_title', 'View Location Categories')
 
 @section('content')
-<main>
-    <header class="page-header page-header-dark bg-gradient-primary-to-secondary pb-10">
-        <div class="container-xl px-4">
-            <div class="page-header-content pt-4">
-                <div class="row align-items-center justify-content-between">
-                    <div class="col-auto mt-4">
-                        <h1 class="page-header-title">
-                            <div class="page-header-icon"><i data-feather="archive"></i></div>
-                            {{ $location->name }}: Location &gt; Categories &gt; Items
-                        </h1>
-                        <div class="page-header-subtitle">Branch: {{ $location->branch?->name ?? 'N/A' }}</div>
-                    </div>
-                    <div class="col-auto mt-4">
-                        <a href="{{ route('categories.all') }}" class="btn btn-light text-primary">
-                            <i data-feather="arrow-left" class="me-1"></i> All Location Categories
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </header>
+    <x-page-header title="{{ $location->name }}: Location &gt; Categories &gt; Items" subtitle="Branch: {{ $location->branch?->name ?? 'N/A' }}" icon="archive">
+        <a href="{{ route('categories.all') }}" class="btn btn-outline-primary">
+            <i data-lucide="arrow-left" class="me-1"></i> All Location Categories
+        </a>
+    </x-page-header>
 
-    <div class="container-xl px-4 mt-n10">
+    <div class="container-xl px-4">
         @include('layouts.alerts')
 
         @php
@@ -36,9 +20,9 @@
 
         <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <div><i class="me-1" data-feather="tag"></i>Category Name: {{ $selectedCategoryName }}</div>
+                <div><i class="me-1" data-lucide="tag"></i>Category Name: {{ $selectedCategoryName }}</div>
                 <a href="{{ route('items.create', ['location_id' => $location->id, 'category_id' => $selectedCategoryId]) }}" class="btn btn-sm btn-primary">
-                    <i data-feather="plus-circle" class="me-1"></i> Add Item
+                    <i data-lucide="plus-circle" class="me-1"></i> Add Item
                 </a>
             </div>
             <div class="card-body">
@@ -88,5 +72,4 @@
             </div>
         </div>
     </div>
-</main>
 @endsection

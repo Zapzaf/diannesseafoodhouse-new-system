@@ -1,17 +1,16 @@
 @extends('layouts.app')
 @section('page_title', 'Expenses — ' . $monthLabel)
 @section('content')
-<main>
 <x-page-header title="{{ $monthLabel }}" subtitle="Expense and sales breakdown" icon="file-text">
     <a href="{{ route('expenses.export', $monthYear) }}" class="btn btn-success">
-        <i data-feather="download" class="me-1"></i> Export Excel
+        <i data-lucide="download" class="me-1"></i> Export Excel
     </a>
     <a href="{{ route('expenses.index') }}" class="btn btn-light text-primary ms-2">
-        <i data-feather="arrow-left" class="me-1"></i> Back
+        <i data-lucide="arrow-left" class="me-1"></i> Back
     </a>
 </x-page-header>
 
-<div class="container-xl px-4 mt-n10">
+<div class="container-xl px-4">
     @include('layouts.alerts')
 
     <div class="row g-3 mb-4">
@@ -49,22 +48,25 @@
         </div>
     </div>
 
-    @php $activeTab = request('tab', 'sales'); @endphp
+    @php
+        $activeTab = request('tab', 'sales');
+        $requiresExpenseBranch = auth()->user()?->isAdmin() && empty($selectedBranchId);
+    @endphp
 
     <ul class="nav nav-tabs mb-0" id="expenseTabs">
-        <li class="nav-item"><a class="nav-link {{ $activeTab === 'sales' ? 'active' : '' }}" href="?tab=sales"><i data-feather="trending-up" style="width:14px;height:14px;" class="me-1"></i> Daily Sales</a></li>
-        <li class="nav-item"><a class="nav-link {{ $activeTab === 'vatable' ? 'active' : '' }}" href="?tab=vatable"><i data-feather="file-minus" style="width:14px;height:14px;" class="me-1"></i> Vatable</a></li>
-        <li class="nav-item"><a class="nav-link {{ $activeTab === 'nonvatable' ? 'active' : '' }}" href="?tab=nonvatable"><i data-feather="file" style="width:14px;height:14px;" class="me-1"></i> Non-Vatable</a></li>
-        <li class="nav-item"><a class="nav-link {{ $activeTab === 'disbursements' ? 'active' : '' }}" href="?tab=disbursements"><i data-feather="credit-card" style="width:14px;height:14px;" class="me-1"></i> Disbursements</a></li>
+        <li class="nav-item"><a class="nav-link {{ $activeTab === 'sales' ? 'active' : '' }}" href="?tab=sales"><i data-lucide="trending-up" style="width:14px;height:14px;" class="me-1"></i> Daily Sales</a></li>
+        <li class="nav-item"><a class="nav-link {{ $activeTab === 'vatable' ? 'active' : '' }}" href="?tab=vatable"><i data-lucide="file-minus" style="width:14px;height:14px;" class="me-1"></i> Vatable</a></li>
+        <li class="nav-item"><a class="nav-link {{ $activeTab === 'nonvatable' ? 'active' : '' }}" href="?tab=nonvatable"><i data-lucide="file" style="width:14px;height:14px;" class="me-1"></i> Non-Vatable</a></li>
+        <li class="nav-item"><a class="nav-link {{ $activeTab === 'disbursements' ? 'active' : '' }}" href="?tab=disbursements"><i data-lucide="credit-card" style="width:14px;height:14px;" class="me-1"></i> Disbursements</a></li>
     </ul>
 
     <div class="card shadow-sm" style="border-top-left-radius:0;">
         <div class="card-header fw-semibold d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div>
-                @if($activeTab==='sales') <i data-feather="trending-up" class="me-1" style="width:16px;height:16px;"></i> Daily Sales (from Payments)
-                @elseif($activeTab==='vatable') <i data-feather="file-minus" class="me-1" style="width:16px;height:16px;"></i> Vatable Purchases
-                @elseif($activeTab==='nonvatable') <i data-feather="file" class="me-1" style="width:16px;height:16px;"></i> Non-Vatable Purchases
-                @else <i data-feather="credit-card" class="me-1" style="width:16px;height:16px;"></i> Cash Disbursements
+                @if($activeTab==='sales') <i data-lucide="trending-up" class="me-1" style="width:16px;height:16px;"></i> Daily Sales (from Payments)
+                @elseif($activeTab==='vatable') <i data-lucide="file-minus" class="me-1" style="width:16px;height:16px;"></i> Vatable Purchases
+                @elseif($activeTab==='nonvatable') <i data-lucide="file" class="me-1" style="width:16px;height:16px;"></i> Non-Vatable Purchases
+                @else <i data-lucide="credit-card" class="me-1" style="width:16px;height:16px;"></i> Cash Disbursements
                 @endif
             </div>
             <div class="d-flex gap-2 align-items-center flex-wrap">
@@ -72,9 +74,22 @@
                     <input type="hidden" name="tab" value="{{ $activeTab }}">
                     <div class="input-group input-group-sm" style="max-width:220px;">
                         <input type="text" name="search" class="form-control" placeholder="Search..." value="{{ request('search') }}">
-                        <button class="btn btn-outline-secondary" type="submit"><i data-feather="search" style="width:14px;height:14px;"></i></button>
+                        <button class="btn btn-outline-secondary" type="submit"><i data-lucide="search" style="width:14px;height:14px;"></i></button>
                     </div>
                 </form>
+                @if($activeTab === 'vatable')
+                    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addVatableModal">
+                        <i data-lucide="plus" class="me-1" style="width:14px;height:14px;"></i> Add Vatable
+                    </button>
+                @elseif($activeTab === 'nonvatable')
+                    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addNonVatableModal">
+                        <i data-lucide="plus" class="me-1" style="width:14px;height:14px;"></i> Add Non-Vatable
+                    </button>
+                @elseif($activeTab === 'disbursements')
+                    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addDisbursementModal">
+                        <i data-lucide="plus" class="me-1" style="width:14px;height:14px;"></i> Add Disbursement
+                    </button>
+                @endif
             </div>
         </div>
 
@@ -224,5 +239,162 @@
     </div>
 </div>
 
-</main>
+<div class="modal fade" id="addVatableModal" tabindex="-1" aria-labelledby="addVatableModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <form method="POST" action="{{ route('expenses.vatable.store', $monthYear) }}">
+                @csrf
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addVatableModalLabel">Add Vatable Purchase</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        @if($requiresExpenseBranch)
+                            <div class="col-12">
+                                <label class="form-label">Branch <span class="text-danger">*</span></label>
+                                <select name="branch_id" class="form-select" required>
+                                    <option value="">Select Branch</option>
+                                    @foreach($branches as $branch)
+                                        <option value="{{ $branch->id }}">{{ $branch->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        @endif
+                        <div class="col-md-4">
+                            <label class="form-label">Date</label>
+                            <input type="date" name="date" class="form-control" value="{{ $monthYear }}-01">
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label">Vendor Name <span class="text-danger">*</span></label>
+                            <input type="text" name="vendor_name" class="form-control" required>
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label">Address</label>
+                            <input type="text" name="address" class="form-control">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">SI Number</label>
+                            <input type="text" name="si_number" class="form-control">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">TIN</label>
+                            <input type="text" name="tin" class="form-control">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Gross Amount <span class="text-danger">*</span></label>
+                            <input type="number" name="gross_amount" class="form-control" min="0" step="0.01" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">VAT <span class="text-danger">*</span></label>
+                            <input type="number" name="vat" class="form-control" min="0" step="0.01" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Net Purchases <span class="text-danger">*</span></label>
+                            <input type="number" name="net_purchases" class="form-control" min="0" step="0.01" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Vatable Purchase</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addNonVatableModal" tabindex="-1" aria-labelledby="addNonVatableModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ route('expenses.nonvatable.store', $monthYear) }}">
+                @csrf
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addNonVatableModalLabel">Add Non-Vatable Purchase</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    @if($requiresExpenseBranch)
+                        <div class="mb-3">
+                            <label class="form-label">Branch <span class="text-danger">*</span></label>
+                            <select name="branch_id" class="form-select" required>
+                                <option value="">Select Branch</option>
+                                @foreach($branches as $branch)
+                                    <option value="{{ $branch->id }}">{{ $branch->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    @endif
+                    <div class="mb-3">
+                        <label class="form-label">Date</label>
+                        <input type="date" name="date" class="form-control" value="{{ $monthYear }}-01">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Vendor Name <span class="text-danger">*</span></label>
+                        <input type="text" name="vendor_name" class="form-control" required>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label">Gross Amount <span class="text-danger">*</span></label>
+                        <input type="number" name="gross_amount" class="form-control" min="0" step="0.01" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Non-Vatable Purchase</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addDisbursementModal" tabindex="-1" aria-labelledby="addDisbursementModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ route('expenses.disbursement.store', $monthYear) }}">
+                @csrf
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addDisbursementModalLabel">Add Cash Disbursement</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    @if($requiresExpenseBranch)
+                        <div class="mb-3">
+                            <label class="form-label">Branch <span class="text-danger">*</span></label>
+                            <select name="branch_id" class="form-select" required>
+                                <option value="">Select Branch</option>
+                                @foreach($branches as $branch)
+                                    <option value="{{ $branch->id }}">{{ $branch->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    @endif
+                    <div class="mb-3">
+                        <label class="form-label">Date</label>
+                        <input type="date" name="date" class="form-control" value="{{ $monthYear }}-01">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Check Number</label>
+                        <input type="text" name="check_number" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Payee <span class="text-danger">*</span></label>
+                        <input type="text" name="payee" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Amount <span class="text-danger">*</span></label>
+                        <input type="number" name="amount" class="form-control" min="0" step="0.01" required>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label">Reference</label>
+                        <input type="text" name="reference" class="form-control">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Disbursement</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 @endsection

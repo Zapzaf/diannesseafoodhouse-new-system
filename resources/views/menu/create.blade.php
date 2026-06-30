@@ -3,29 +3,13 @@
 @section('page_title', 'Add Menu Item - Dianne\'s Seafood House')
 
 @section('content')
-<main>
-    <header class="page-header page-header-dark bg-gradient-primary-to-secondary pb-10">
-        <div class="container-xl px-4">
-            <div class="page-header-content pt-4">
-                <div class="row align-items-center justify-content-between">
-                    <div class="col-auto mt-4">
-                        <h1 class="page-header-title">
-                            <div class="page-header-icon"><i data-feather="plus-circle"></i></div>
-                            Add Menu Item
-                        </h1>
-                        <div class="page-header-subtitle">Create a new menu item with ingredient recipe</div>
-                    </div>
-                    <div class="col-auto mt-4">
-                        <a class="btn btn-light text-primary" href="{{ route('menus.index') }}">
-                            <i data-feather="arrow-left" class="me-1"></i> Back to Menu
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </header>
+    <x-page-header title="Add Menu Item" subtitle="Create a new menu item with ingredient recipe" icon="plus-circle">
+        <a class="btn btn-primary" href="{{ route('menus.index') }}">
+            <i data-lucide="arrow-left" class="me-1"></i> Back to Menu
+        </a>
+    </x-page-header>
 
-    <div class="container-xl px-4 mt-n10">
+    <div class="container-xl px-4">
         @include('layouts.alerts')
 
         <div id="menuFormAlert" class="alert alert-danger d-none" role="alert"></div>
@@ -40,7 +24,7 @@
             @endif
 
             <div class="card mb-4">
-                <div class="card-header"><i data-feather="info" class="me-1"></i> Menu Details</div>
+                <div class="card-header"><i data-lucide="info" class="me-1"></i> Menu Details</div>
                 <div class="card-body">
                     <div class="alert alert-primary text-white">
                         Set the branch, choose the menu category, then build the recipe from inventory ingredients. Stock availability is checked during ordering, so recipe setup stays available even when an ingredient is currently low or out of stock.
@@ -134,14 +118,14 @@
 
             <div class="card mb-4">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <div><i data-feather="list" class="me-1"></i> Ingredients (Recipe / BOM)</div>
+                    <div><i data-lucide="list" class="me-1"></i> Ingredients (Recipe / BOM)</div>
                     <button type="button" id="addIngredientBtn" class="btn btn-sm btn-outline-primary">
-                        <i data-feather="plus" class="me-1"></i> Add Ingredient
+                        <i data-lucide="plus" class="me-1"></i> Add Ingredient
                     </button>
                 </div>
                 <div class="card-body">
                     <div id="branchWarning" class="alert alert-warning {{ auth()->user()->isAdmin() && !old('branch_id', $branchId) ? '' : 'd-none' }}">
-                        <i data-feather="alert-triangle" class="me-1"></i> Please select a branch first before choosing ingredients.
+                        <i data-lucide="alert-triangle" class="me-1"></i> Please select a branch first before choosing ingredients.
                     </div>
                     <p class="text-muted small mb-3">Define how much inventory stock is consumed per one unit of this menu item. Ingredients are filtered by branch, but zero-stock items can still be included in the recipe.</p>
 
@@ -173,7 +157,7 @@
                             </div>
                             <div class="col-md-2">
                                 <button type="button" class="btn btn-outline-danger w-100 btn-remove-ingredient">
-                                    <i data-feather="trash-2"></i> Remove
+                                    <i data-lucide="trash-2"></i> Remove
                                 </button>
                             </div>
                         </div>
@@ -195,7 +179,7 @@
                             </div>
                             <div class="col-md-2">
                                 <button type="button" class="btn btn-outline-danger w-100 btn-remove-ingredient">
-                                    <i data-feather="trash-2"></i> Remove
+                                    <i data-lucide="trash-2"></i> Remove
                                 </button>
                             </div>
                         </div>
@@ -207,12 +191,11 @@
             <div class="d-flex justify-content-end gap-2 mb-4">
                 <a href="{{ route('menus.index') }}" class="btn btn-secondary text-white">Cancel</a>
                 <button type="submit" class="btn btn-primary text-white" id="menuCreateSubmitBtn">
-                    <i data-feather="save" class="me-1"></i> Save Menu Item
+                    <i data-lucide="save" class="me-1"></i> Save Menu Item
                 </button>
             </div>
         </form>
     </div>
-</main>
 @endsection
 
 @php
@@ -359,7 +342,7 @@ addIngredientBtn?.addEventListener('click', function () {
         </div>
         <div class="col-md-2">
             <button type="button" class="btn btn-outline-danger w-100 btn-remove-ingredient">
-                <i data-feather="trash-2"></i> Remove
+                <i data-lucide="trash-2"></i> Remove
             </button>
         </div>`;
 
@@ -368,7 +351,7 @@ addIngredientBtn?.addEventListener('click', function () {
     showMenuFormAlert([]);
     refreshAllIngredientStockLabels();
 
-    if (typeof feather !== 'undefined') feather.replace();
+    if (typeof window.refreshLucideIcons === 'function') window.refreshLucideIcons();
 });
 
 ingredientsContainer?.addEventListener('click', function (event) {

@@ -3,37 +3,21 @@
 @section('page_title', 'Payment #' . $payment->id . ' - Dianne\'s Seafood House')
 
 @section('content')
-<main>
-    <header class="page-header page-header-dark bg-gradient-primary-to-secondary pb-10">
-        <div class="container-xl px-4">
-            <div class="page-header-content pt-4">
-                <div class="row align-items-center justify-content-between">
-                    <div class="col-auto mt-4">
-                        <h1 class="page-header-title">
-                            <div class="page-header-icon"><i data-feather="receipt"></i></div>
-                            Payment #{{ $payment->id }}
-                        </h1>
-                        <div class="page-header-subtitle">Recorded payment details and balance impact</div>
-                    </div>
-                    <div class="col-auto mt-4 d-flex gap-2">
-                        @if($payment->order)
-                        <a href="{{ route('menu-orders.payments.receipt', $payment) }}" target="_blank" class="btn btn-light text-primary">
-                            <i data-feather="printer" class="me-1"></i> Print Receipt
-                        </a>
-                        <a href="{{ route('menu-orders.show', $payment->order) }}" class="btn btn-light text-primary">
-                            <i data-feather="shopping-bag" class="me-1"></i> View Order
-                        </a>
-                        @endif
-                        <a href="{{ route('payments.index') }}" class="btn btn-light text-primary">
-                            <i data-feather="arrow-left" class="me-1"></i> Back to Payments
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </header>
+    <x-page-header :title="'Payment #' . $payment->id" subtitle="Recorded payment details and balance impact" icon="receipt">
+        @if($payment->order)
+        <a href="{{ route('menu-orders.payments.receipt', $payment) }}" target="_blank" class="btn btn-primary">
+            <i data-lucide="printer" class="me-1"></i> Print Receipt
+        </a>
+        <a href="{{ route('menu-orders.show', $payment->order) }}" class="btn btn-outline-primary">
+            <i data-lucide="shopping-bag" class="me-1"></i> View Order
+        </a>
+        @endif
+        <a href="{{ route('payments.index') }}" class="btn btn-outline-primary">
+            <i data-lucide="arrow-left" class="me-1"></i> Back to Payments
+        </a>
+    </x-page-header>
 
-    <div class="container-xl px-4 mt-n10">
+    <div class="container-xl px-4">
         @include('layouts.alerts')
 
         @php
@@ -42,7 +26,7 @@
 
         @if($payment->is_vat_exempt || (float) $payment->total_discount > 0)
         <div class="alert alert-warning d-flex align-items-center mb-3">
-            <i data-feather="tag" class="me-2"></i>
+            <i data-lucide="tag" class="me-2"></i>
             <span><strong>VAT EXEMPT / DISCOUNTED SALE</strong> - Per-person computation applied for eligible guests.</span>
         </div>
         @endif
@@ -175,5 +159,4 @@
             </div>
         </div>
     </div>
-</main>
 @endsection

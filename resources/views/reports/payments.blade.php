@@ -1,11 +1,10 @@
 @extends('layouts.app')
 @section('page_title', 'Payment Report')
 @section('content')
-<main>
 <x-page-header title="Payment Report" subtitle="Track collections, outstanding balances, and payment channels" icon="credit-card">
 </x-page-header>
 
-<div class="container-xl px-4 mt-n10">
+<div class="container-xl px-4">
     @include('layouts.alerts')
 
     <div class="card shadow-sm mb-4">
@@ -149,7 +148,6 @@
         </div>
     </div>
 </div>
-</main>
 
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/simple-datatables@7.1.2/dist/umd/simple-datatables.min.js"></script>

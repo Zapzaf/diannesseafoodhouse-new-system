@@ -1,18 +1,17 @@
 @extends('layouts.app')
 @section('page_title', 'Log Transaction - Dianne Seafood House')
 @section('content')
-<main>
 <x-page-header title="New Transaction" subtitle="Manually record a stock-in or stock-out movement" icon="list">
     <a href="{{ route('transactions.index') }}" class="btn btn-light text-primary">
-        <i data-feather="arrow-left" class="me-1"></i> All Transactions
+        <i data-lucide="arrow-left" class="me-1"></i> All Transactions
     </a>
 </x-page-header>
 
-<div class="container-xl px-4 mt-n10">
+<div class="container-xl px-4">
     @include('layouts.alerts')
 
     <div class="card shadow-sm">
-        <div class="card-header"><i data-feather="edit-3" class="me-1"></i> Transaction Details</div>
+        <div class="card-header"><i data-lucide="edit-3" class="me-1"></i> Transaction Details</div>
         <div class="card-body">
             <form action="{{ route('transactions.store') }}" method="POST" id="transactionForm">
                 @csrf
@@ -22,7 +21,7 @@
                 @if($isAdminAllBranches)
                 <div class="mb-3">
                     <label class="form-label fw-semibold">
-                        <i data-feather="git-branch" class="me-1" style="width:15px;height:15px"></i>
+                        <i data-lucide="git-branch" class="me-1" style="width:15px;height:15px"></i>
                         Filter by Branch <span class="text-danger">*</span>
                         <span class="badge bg-primary ms-1" style="font-size:.65rem">Admin</span>
                     </label>
@@ -53,7 +52,7 @@
                     <label class="form-label fw-semibold">Items <span class="text-danger">*</span></label>
                     <div id="itemRowsContainer"></div>
                     <button type="button" id="addItemBtn" class="btn btn-sm btn-outline-primary mt-2">
-                        <i data-feather="plus" class="me-1" style="width:14px;height:14px"></i> Add Item
+                        <i data-lucide="plus" class="me-1" style="width:14px;height:14px"></i> Add Item
                     </button>
                 </div>
 
@@ -104,7 +103,7 @@
 
                 <div class="d-flex gap-2">
                     <button type="submit" class="btn btn-primary" id="submitBtn">
-                        <i data-feather="save" class="me-1"></i> Save Transaction
+                        <i data-lucide="save" class="me-1"></i> Save Transaction
                     </button>
                     <a href="{{ route('transactions.index') }}" class="btn btn-secondary">Cancel</a>
                 </div>
@@ -112,7 +111,6 @@
         </div>
     </div>
 </div>
-</main>
 @endsection
 
 @push('styles')
@@ -508,6 +506,7 @@
             if (type === 'out' && qty > selectedItem.quantity) {
                 stockWarning.innerHTML = `${alertIcon} Exceeds available stock! Only ${selectedItem.quantity} ${selectedItem.unit} available.`;
                 stockWarning.classList.add('show');
+                if (typeof window.refreshLucideIcons === 'function') window.refreshLucideIcons();
             } else {
                 stockWarning.classList.remove('show');
             }
@@ -589,6 +588,7 @@
                     hasError = true;
                     stockWarning.innerHTML = `${alertIcon} Exceeds available stock! Only ${item.quantity} ${item.unit} available.`;
                     stockWarning.classList.add('show');
+                    if (typeof window.refreshLucideIcons === 'function') window.refreshLucideIcons();
                     qtyInput.classList.add('is-invalid');
                 }
             }
@@ -603,9 +603,9 @@
     // ────────────────────────────────────
     //  Utility
     // ────────────────────────────────────
-    // Feather icon helper for JS template literals
+    // Lucide icon helper for JS template literals
     function ico(name) {
-        return feather.icons[name] ? feather.icons[name].toSvg({ width: 14, height: 14, class: 'me-1 align-text-bottom' }) : '';
+        return `<i data-lucide="${escapeHtml(name)}" class="me-1 align-text-bottom" style="width:14px;height:14px;"></i>`;
     }
 
     function escapeHtml(str) {

@@ -339,15 +339,36 @@ class InventoryController extends Controller
     public function transactions(Request $request)
     {
         $branchId = $this->resolveBranchId($request);
+        $sort = (string) $request->input('sort', 'transaction_date');
+        $direction = strtolower((string) $request->input('direction', 'desc')) === 'asc' ? 'asc' : 'desc';
+        $allowedSort = ['log_id', 'transaction_date', 'branch_name', 'item_id', 'item_name', 'unit', 'type', 'beginning_quantity', 'quantity', 'remaining_quantity', 'transaction_price', 'status', 'reason', 'created_by'];
 
-        $transactions = InventoryTransaction::with(['inventory', 'creator'])
-            ->when($branchId, fn ($query, $branchId) => $query->whereHas('inventory', fn ($inner) => $inner->where('branch_id', $branchId)))
+        if (! in_array($sort, $allowedSort, true)) {
+            $sort = 'transaction_date';
+        }
+
+        $transactions = InventoryTransaction::with(['inventory', 'branch', 'creator'])
+            ->select('inventory_transactions.*')
+            ->when($branchId, fn ($query, $branchId) => $query->where('inventory_transactions.branch_id', $branchId))
             ->when(request('search'), fn ($q, $s) => $q->where(function ($query) use ($s): void {
                 $query->where('log_id', 'like', "%$s%")
                     ->orWhereHas('inventory', fn ($inner) => $inner->where('name', 'like', "%$s%"))
                     ->orWhere('reason', 'like', "%$s%");
             }))
-            ->latest()
+            ->when($sort === 'branch_name', fn ($query) => $query
+                ->leftJoin('branches as transaction_branch_sort', 'inventory_transactions.branch_id', '=', 'transaction_branch_sort.id')
+                ->orderBy('transaction_branch_sort.name', $direction)
+            )
+            ->when(in_array($sort, ['item_name', 'unit'], true), fn ($query) => $query
+                ->leftJoin('items as transaction_item_sort', 'inventory_transactions.item_id', '=', 'transaction_item_sort.id')
+                ->orderBy($sort === 'item_name' ? 'transaction_item_sort.name' : 'transaction_item_sort.unit', $direction)
+            )
+            ->when($sort === 'created_by', fn ($query) => $query
+                ->leftJoin('users as transaction_creator_sort', 'inventory_transactions.created_by', '=', 'transaction_creator_sort.id')
+                ->orderBy('transaction_creator_sort.name', $direction)
+            )
+            ->when(in_array($sort, ['log_id', 'transaction_date', 'item_id', 'type', 'beginning_quantity', 'quantity', 'remaining_quantity', 'transaction_price', 'status', 'reason'], true), fn ($query) => $query->orderBy("inventory_transactions.{$sort}", $direction))
+            ->orderBy('inventory_transactions.transaction_date', 'desc')
             ->paginate((int) request('per_page', 10))->withQueryString();
 
         return view('transactions.index', compact('transactions'));
@@ -449,7 +470,7 @@ class InventoryController extends Controller
 
         $transactions = InventoryTransaction::with(['inventory', 'creator'])
             ->where('status', 'pending')
-            ->when($branchId, fn ($query, $branchId) => $query->whereHas('inventory', fn ($inner) => $inner->where('branch_id', $branchId)))
+            ->when($branchId, fn ($query, $branchId) => $query->where('branch_id', $branchId))
             ->when(request('search'), fn ($q, $s) => $q->where(function ($query) use ($s): void {
                 $query->where('log_id', 'like', "%$s%")
                     ->orWhereHas('inventory', fn ($inner) => $inner->where('name', 'like', "%$s%"))
@@ -539,6 +560,7 @@ class InventoryController extends Controller
         DB::transaction(function () use ($inventory, $validated, $request): void {
             $delivery = Delivery::create([
                 'reference_number' => 'TRF-'.now()->format('YmdHis').'-'.random_int(100, 999),
+                'delivery_date' => now()->toDateString(),
                 'source_branch_id' => $inventory->branch_id,
                 'destination_branch_id' => $validated['destination_branch_id'],
                 'status' => 'pending',

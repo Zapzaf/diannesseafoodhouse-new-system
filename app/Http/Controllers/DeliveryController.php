@@ -34,6 +34,7 @@ class DeliveryController extends Controller
         $delivery = DB::transaction(function () use ($validated, $request): Delivery {
             $delivery = Delivery::create([
                 'reference_number' => 'DLV-' . now()->format('YmdHis') . '-' . random_int(100, 999),
+                'delivery_date' => $validated['delivery_date'] ?? now()->toDateString(),
                 'supplier_id' => $validated['supplier_id'] ?? null,
                 'source_branch_id' => $validated['source_branch_id'] ?? null,
                 'destination_branch_id' => $validated['destination_branch_id'],

@@ -1,31 +1,30 @@
 @extends('layouts.app')
 @section('page_title', 'Processing - Dianne Seafood House')
 @section('content')
-<main>
 <x-page-header title="Processing" subtitle="Active production orders currently in progress" icon="loader">
     <a href="{{ route('productions.index') }}" class="btn btn-light text-primary">
-        <i data-feather="arrow-left" class="me-1"></i> All Productions
+        <i data-lucide="arrow-left" class="me-1"></i> All Productions
     </a>
     <a href="{{ route('productions.create') }}" class="btn btn-primary">
-        <i data-feather="plus" class="me-1"></i> Start Production
+        <i data-lucide="plus" class="me-1"></i> Start Production
     </a>
 </x-page-header>
 
-<div class="container-xl px-4 mt-n10">
+<div class="container-xl px-4">
     @include('layouts.alerts')
 
     <div class="card shadow-sm">
-        <div class="card-header fw-semibold"><i data-feather="loader" class="me-1"></i> In-Progress Orders</div>
+        <div class="card-header fw-semibold"><i data-lucide="loader" class="me-1"></i> In-Progress Orders</div>
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table table-bordered table-striped align-middle mb-0">
-                    <thead class="table-dark">
+                <table class="table table-hover align-middle mb-0" data-server-page-sort="1">
+                    <thead>
                         <tr>
-                            <th>Order</th>
-                            <th>Branch</th>
-                            <th>Started</th>
-                            <th>Inputs</th>
-                            <th>Outputs</th>
+                            <th data-sort-key="id">Order</th>
+                            <th data-sort-key="branch_name">Branch</th>
+                            <th data-sort-key="created_at">Started</th>
+                            <th data-sort-key="inputs_count">Input Details</th>
+                            <th data-sort-key="outputs_count">Output Details</th>
                             <th class="table-actions-head">Action</th>
                         </tr>
                     </thead>
@@ -38,8 +37,12 @@
                             </td>
                             <td>{{ $production->branch?->name ?? '—' }}</td>
                             <td class="text-nowrap text-muted small">{{ $production->created_at->format('M d, Y H:i') }}</td>
-                            <td>{{ $production->inputs->count() }} item(s)</td>
-                            <td>{{ $production->outputs->count() }} item(s)</td>
+                            <td>
+                                <x-production-item-summary :items="$production->inputs" quantity-field="quantity_used" empty="No inputs" variant="input" />
+                            </td>
+                            <td>
+                                <x-production-item-summary :items="$production->outputs" quantity-field="quantity_produced" empty="No outputs yet" variant="output" />
+                            </td>
                             <td class="table-actions-cell">
                                 <a href="{{ route('productions.show', $production) }}" class="btn btn-sm btn-primary">Open</a>
                             </td>
@@ -58,5 +61,4 @@
         @endif
     </div>
 </div>
-</main>
 @endsection

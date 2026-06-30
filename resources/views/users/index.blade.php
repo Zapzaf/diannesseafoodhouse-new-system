@@ -4,7 +4,7 @@
 <main>
     <x-page-header title="Users" subtitle="Manage staff access, roles, and branch assignments" icon="user-check">
         <a href="{{ route('users.create') }}" class="btn btn-light text-primary">
-            <i data-feather="plus-circle" class="me-1"></i> Add User
+            <i data-lucide="plus-circle" class="me-1"></i> Add User
         </a>
     </x-page-header>
 
@@ -12,7 +12,7 @@
     @include('layouts.alerts')
     <div class="card shadow-sm">
         <div class="card-header d-flex flex-column flex-lg-row justify-content-between align-items-start align-items-lg-center gap-2">
-            <div><i class="me-1" data-feather="users"></i> All Users</div>
+            <div><i class="me-1" data-lucide="users"></i> All Users</div>
             <div class="d-flex flex-wrap gap-2 w-100 justify-content-start justify-content-lg-end">
                 <select id="roleFilter" class="form-select form-select-sm" style="flex: 1 1 160px; min-width: 150px;">
                     <option value="">All Roles</option>
@@ -128,10 +128,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const deleteAction = canManageTarget && Number(u.id) !== Number(currentUserId)
                 ? `
-                    <form action="{{ url('/users') }}/${u.id}" method="POST" onsubmit="return confirm('Delete this user?')">
+                    <form action="{{ url('/users') }}/${u.id}" method="POST" class="d-inline" onsubmit="return confirm('Delete this user?')">
                         <input type="hidden" name="_token" value="${csrfToken}">
                         <input type="hidden" name="_method" value="DELETE">
-                        <button class="btn btn-sm btn-outline-danger" title="Delete"><i data-feather="trash-2"></i></button>
+                        <button class="btn btn-sm btn-outline-danger" title="Delete"><i data-lucide="trash-2"></i></button>
                     </form>
                 `
                 : '';
@@ -144,16 +144,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td><span class="badge ${roleClasses[u.role] || 'bg-secondary'}">${escapeHtml(roleLabel)}</span></td>
                     <td>${escapeHtml(branchName)}</td>
                     <td>${escapeHtml(joined)}</td>
-                    <td class="text-nowrap">
-                        ${canManageTarget ? `<a href="{{ url('/users') }}/${u.id}/edit" class="btn btn-sm btn-outline-primary" title="Edit"><i data-feather="edit-2"></i></a>` : ''}
+                    <td class="table-actions-cell text-nowrap">
+                        ${canManageTarget ? `<a href="{{ url('/users') }}/${u.id}/edit" class="btn btn-sm btn-outline-primary" title="Edit"><i data-lucide="edit-2"></i></a>` : ''}
                         ${deleteAction}
                     </td>
                 </tr>
             `;
         }).join('');
 
-        if (typeof feather !== 'undefined') {
-            feather.replace();
+        if (typeof window.refreshLucideIcons === 'function') {
+            window.refreshLucideIcons();
         }
     }
 

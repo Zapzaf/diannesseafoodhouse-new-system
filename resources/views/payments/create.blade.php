@@ -3,33 +3,17 @@
 @section('page_title', 'Record Payment - Dianne\'s Seafood House')
 
 @section('content')
-<main>
-    <header class="page-header page-header-dark bg-gradient-primary-to-secondary pb-10">
-        <div class="container-xl px-4">
-            <div class="page-header-content pt-4">
-                <div class="row align-items-center justify-content-between">
-                    <div class="col-auto mt-4">
-                        <h1 class="page-header-title">
-                            <div class="page-header-icon"><i data-feather="credit-card"></i></div>
-                            Record Payment
-                        </h1>
-                        <div class="page-header-subtitle">Post payment for a menu order</div>
-                    </div>
-                    <div class="col-auto mt-4">
-                        <a class="btn btn-light text-primary" href="{{ route('payments.index') }}">
-                            <i class="me-1" data-feather="arrow-left"></i> Back to Payments
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </header>
+    <x-page-header title="Record Payment" subtitle="Post payment for a menu order" icon="credit-card">
+        <a class="btn btn-primary" href="{{ route('payments.index') }}">
+            <i class="me-1" data-lucide="arrow-left"></i> Back to Payments
+        </a>
+    </x-page-header>
 
-    <div class="container-xl px-4 mt-n10">
+    <div class="container-xl px-4">
         @include('layouts.alerts')
 
         <div class="card mb-4">
-            <div class="card-header"><i class="me-1" data-feather="dollar-sign"></i> Payment Details</div>
+            <div class="card-header"><i class="me-1" data-lucide="dollar-sign"></i> Payment Details</div>
             <div class="card-body">
                 <form action="{{ route('payments.store') }}" method="POST" onsubmit="return validatePaymentForm()">
                     @csrf
@@ -108,13 +92,12 @@
 
                     <div class="d-flex justify-content-end gap-2">
                         <a href="{{ isset($menuOrder) ? route('menu-orders.show', $menuOrder) : route('payments.index') }}" class="btn btn-secondary text-light">Cancel</a>
-                        <button type="submit" id="savePaymentBtn" class="btn btn-primary"><i class="me-1" data-feather="save"></i> Save Payment</button>
+                        <button type="submit" id="savePaymentBtn" class="btn btn-primary"><i class="me-1" data-lucide="save"></i> Save Payment</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
-</main>
 @endsection
 
 @push('scripts')

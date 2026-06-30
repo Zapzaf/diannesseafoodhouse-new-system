@@ -3,35 +3,19 @@
 @section('page_title', 'Inventory - Dianne Seafood House')
 
 @section('content')
-<main>
-    <header class="page-header page-header-dark bg-gradient-primary-to-secondary pb-10">
-        <div class="container-xl px-4">
-            <div class="page-header-content pt-4">
-                <div class="row align-items-center justify-content-between">
-                    <div class="col-auto mt-4">
-                        <h1 class="page-header-title">
-                            <div class="page-header-icon"><i data-feather="package"></i></div>
-                            Inventory
-                        </h1>
-                        <div class="page-header-subtitle">Track stock levels, suppliers, and replenishment activity</div>
-                    </div>
-                    <div class="col-auto mt-4 d-flex gap-2">
-                        <button type="button" class="btn btn-light text-primary" data-bs-toggle="modal" data-bs-target="#exportInventoryModal">
-                            <i class="me-1" data-feather="download"></i> Export Excel
-                        </button>
-                        <a class="btn btn-light text-primary" href="{{ route('inventory.transactions') }}">
-                            <i class="me-1" data-feather="list"></i> Transactions
-                        </a>
-                        <a class="btn btn-light text-primary" href="{{ route('inventory.create') }}">
-                            <i class="me-1" data-feather="plus-circle"></i> Add Item
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </header>
+    <x-page-header title="Inventory" subtitle="Track stock levels, suppliers, and replenishment activity" icon="package">
+        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#exportInventoryModal">
+            <i class="me-1" data-lucide="download"></i> Export Excel
+        </button>
+        <a class="btn btn-outline-primary" href="{{ route('inventory.transactions') }}">
+            <i class="me-1" data-lucide="list"></i> Transactions
+        </a>
+        <a class="btn btn-primary" href="{{ route('inventory.create') }}">
+            <i class="me-1" data-lucide="plus-circle"></i> Add Item
+        </a>
+    </x-page-header>
 
-    <div class="container-xl px-4 mt-n10">
+    <div class="container-xl px-4">
         @include('layouts.alerts')
 
         <div class="card shadow-sm mb-3">
@@ -40,7 +24,7 @@
                     <div class="flex-grow-1" style="min-width: 240px;">
                         <label for="searchInput" class="form-label small fw-semibold text-muted mb-1">Search Inventory</label>
                         <div class="input-group input-group-sm">
-                            <span class="input-group-text bg-white"><i data-feather="search"></i></span>
+                            <span class="input-group-text bg-white"><i data-lucide="search"></i></span>
                             <input type="text" id="searchInput" class="form-control" placeholder="Search item, category, or location...">
                         </div>
                     </div>
@@ -75,7 +59,7 @@
 
         <div class="card mb-4">
             <div class="card-header d-flex align-items-center justify-content-between gap-2">
-                <div><i class="me-1" data-feather="archive"></i> Inventory Items</div>
+                <div><i class="me-1" data-lucide="archive"></i> Inventory Items</div>
                 <span class="badge bg-primary-soft text-primary">Live inventory</span>
             </div>
             <div class="card-body">
@@ -106,7 +90,6 @@
             </div>
         </div>
     </div>
-</main>
 
 <div class="modal fade" id="stockInModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
@@ -167,7 +150,7 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary">
-                        <i class="me-1" data-feather="download"></i> Export
+                        <i class="me-1" data-lucide="download"></i> Export
                     </button>
                 </div>
             </div>
@@ -215,7 +198,7 @@
             @csrf
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title"><i data-feather="send" class="me-2" style="width:18px;height:18px;"></i>Transfer to Branch: <span id="transferItemName"></span></h5>
+                    <h5 class="modal-title"><i data-lucide="send" class="me-2" style="width:18px;height:18px;"></i>Transfer to Branch: <span id="transferItemName"></span></h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
@@ -255,7 +238,7 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-info text-white">
-                        <i data-feather="send" class="me-1" style="width:14px;height:14px;"></i> Initiate Transfer
+                        <i data-lucide="send" class="me-1" style="width:14px;height:14px;"></i> Initiate Transfer
                     </button>
                 </div>
             </div>
@@ -434,22 +417,73 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td>${ctx.escapeHtml(item.unit || 'N/A')}</td>
                     <td>${threshold}</td>
                     <td>${ctx.escapeHtml(item.supplier_name || 'N/A')}</td>
-                    <td class="text-nowrap">
-                            <button type="button" class="btn btn-sm btn-outline-success stockin-btn" data-id="${item.id}" data-name="${itemName}" data-unit="${ctx.escapeHtml(item.unit || '')}" data-allows-decimals="${item.allows_decimal_quantity ? '1' : '0'}"><i data-feather="plus-circle"></i></button>
-                            <button type="button" class="btn btn-sm btn-outline-warning deduct-btn" data-id="${item.id}" data-name="${itemName}" data-remaining="${remaining}" data-unit="${ctx.escapeHtml(item.unit || '')}" data-allows-decimals="${item.allows_decimal_quantity ? '1' : '0'}"><i data-feather="minus-circle"></i></button>
-                            <button type="button" class="btn btn-sm btn-outline-info transfer-btn" data-id="${item.id}" data-name="${itemName}" data-remaining="${remaining}" data-branch-name="${branchName}" data-branch-id="${item.branch_id || ''}" title="Transfer to another branch"><i data-feather="send"></i></button>
-                            <a href="{{ url('/inventory') }}/${item.id}/edit" class="btn btn-sm btn-outline-primary"><i data-feather="edit-2"></i></a>
-                            <form action="{{ url('/inventory') }}/${item.id}" method="POST" onsubmit="return confirm('Delete this item?')">
-                                <input type="hidden" name="_token" value="${csrf}">
-                                <input type="hidden" name="_method" value="DELETE">
-                                <button class="btn btn-sm btn-outline-danger" type="submit"><i data-feather="trash-2"></i></button>
-                            </form></td>
+                    <td class="table-actions-cell text-nowrap">
+                            <button type="button" class="btn btn-sm btn-outline-success stockin-btn" data-id="${item.id}" data-name="${itemName}" data-unit="${ctx.escapeHtml(item.unit || '')}" data-allows-decimals="${item.allows_decimal_quantity ? '1' : '0'}"><i data-lucide="plus-circle"></i></button>
+                            <button type="button" class="btn btn-sm btn-outline-warning deduct-btn" data-id="${item.id}" data-name="${itemName}" data-remaining="${remaining}" data-unit="${ctx.escapeHtml(item.unit || '')}" data-allows-decimals="${item.allows_decimal_quantity ? '1' : '0'}"><i data-lucide="minus-circle"></i></button>
+                            <button type="button" class="btn btn-sm btn-outline-info transfer-btn" data-id="${item.id}" data-name="${itemName}" data-remaining="${remaining}" data-branch-name="${branchName}" data-branch-id="${item.branch_id || ''}" title="Transfer to another branch"><i data-lucide="send"></i></button>
+                            <a href="{{ url('/inventory') }}/${item.id}/edit" class="btn btn-sm btn-outline-primary"><i data-lucide="edit-2"></i></a>
+                            <button type="button" class="btn btn-sm btn-outline-danger inventory-delete-btn" data-delete-url="{{ url('/inventory') }}/${item.id}" data-token="${csrf}" title="Delete item"><i data-lucide="trash-2"></i></button></td>
                 </tr>
             `;
         }
     });
 
-    document.getElementById('inventoryTable').addEventListener('click', function(e) {
+    const inventoryTable = document.getElementById('inventoryTable');
+
+    async function submitInventoryDelete(button) {
+        if (!button || button.dataset.submitting === '1') {
+            return;
+        }
+
+        const message = button.dataset.confirm || 'Delete this item?';
+        if (!window.confirm(message)) {
+            return;
+        }
+
+        button.dataset.submitting = '1';
+        button.disabled = true;
+
+        const formData = new FormData();
+        formData.append('_token', button.dataset.token || csrf);
+        formData.append('_method', 'DELETE');
+
+        try {
+            const response = await fetch(button.dataset.deleteUrl, {
+                method: 'POST',
+                body: formData,
+                credentials: 'same-origin',
+                headers: {
+                    'Accept': 'text/html, application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Delete request failed.');
+            }
+
+            if (typeof window.IndexTableBridgeReload === 'function') {
+                window.IndexTableBridgeReload();
+            } else {
+                window.location.reload();
+            }
+        } catch (error) {
+            console.error(error);
+            button.dataset.submitting = '0';
+            button.disabled = false;
+            window.alert('Unable to delete item. Please try again.');
+        }
+    }
+
+    inventoryTable.addEventListener('click', function(e) {
+        const deleteButton = e.target.closest('.inventory-delete-btn');
+        if (deleteButton) {
+            e.preventDefault();
+            e.stopPropagation();
+            submitInventoryDelete(deleteButton);
+            return;
+        }
+
         const btn = e.target.closest('button');
         if (!btn) return;
         
@@ -461,6 +495,7 @@ document.addEventListener('DOMContentLoaded', function() {
             showTransfer(btn.dataset.id, btn.dataset.name, btn.dataset.remaining, btn.dataset.branchName, btn.dataset.branchId);
         }
     });
+
 });
 </script>
 @endpush

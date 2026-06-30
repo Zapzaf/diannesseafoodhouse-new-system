@@ -3,39 +3,23 @@
 @section('page_title', 'Edit Menu Item - Dianne\'s Seafood House')
 
 @section('content')
-<main>
-    <header class="page-header page-header-dark bg-gradient-primary-to-secondary pb-10">
-        <div class="container-xl px-4">
-            <div class="page-header-content pt-4">
-                <div class="row align-items-center justify-content-between">
-                    <div class="col-auto mt-4">
-                        <h1 class="page-header-title">
-                            <div class="page-header-icon"><i data-feather="edit"></i></div>
-                            Edit Menu Item
-                        </h1>
-                        <div class="page-header-subtitle">{{ $menu->name }}</div>
-                    </div>
-                    <div class="col-auto mt-4 d-flex gap-2">
-                        <a class="btn btn-light text-primary" href="{{ route('menus.show', $menu) }}">
-                            <i data-feather="eye" class="me-1"></i> View
-                        </a>
-                        <a class="btn btn-light text-primary" href="{{ route('menus.index') }}">
-                            <i data-feather="arrow-left" class="me-1"></i> Back
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </header>
+    <x-page-header title="Edit Menu Item" :subtitle="$menu->name" icon="edit">
+        <a class="btn btn-outline-primary" href="{{ route('menus.show', $menu) }}">
+            <i data-lucide="eye" class="me-1"></i> View
+        </a>
+        <a class="btn btn-primary" href="{{ route('menus.index') }}">
+            <i data-lucide="arrow-left" class="me-1"></i> Back
+        </a>
+    </x-page-header>
 
-    <div class="container-xl px-4 mt-n10">
+    <div class="container-xl px-4">
         @include('layouts.alerts')
 
         <form action="{{ route('menus.update', $menu) }}" method="POST" enctype="multipart/form-data">
             @csrf @method('PUT')
 
             <div class="card mb-4">
-                <div class="card-header"><i data-feather="info" class="me-1"></i> Menu Details</div>
+                <div class="card-header"><i data-lucide="info" class="me-1"></i> Menu Details</div>
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-4 mb-3">
@@ -101,9 +85,9 @@
 
             <div class="card mb-4">
                 <div class="card-header d-flex justify-content-between align-items-center">
-                    <div><i data-feather="list" class="me-1"></i> Ingredients (Recipe / BOM)</div>
+                    <div><i data-lucide="list" class="me-1"></i> Ingredients (Recipe / BOM)</div>
                     <button type="button" id="addIngredientBtn" class="btn btn-sm btn-outline-primary">
-                        <i data-feather="plus" class="me-1"></i> Add Ingredient
+                        <i data-lucide="plus" class="me-1"></i> Add Ingredient
                     </button>
                 </div>
                 <div class="card-body">
@@ -138,7 +122,7 @@
                             </div>
                             <div class="col-md-2">
                                 <button type="button" class="btn btn-outline-danger w-100 btn-remove-ingredient">
-                                    <i data-feather="trash-2"></i> Remove
+                                    <i data-lucide="trash-2"></i> Remove
                                 </button>
                             </div>
                         </div>
@@ -160,7 +144,7 @@
                             </div>
                             <div class="col-md-2">
                                 <button type="button" class="btn btn-outline-danger w-100 btn-remove-ingredient">
-                                    <i data-feather="trash-2"></i> Remove
+                                    <i data-lucide="trash-2"></i> Remove
                                 </button>
                             </div>
                         </div>
@@ -172,12 +156,11 @@
             <div class="d-flex justify-content-end gap-2 mb-4">
                 <a href="{{ route('menus.index') }}" class="btn btn-secondary text-light">Cancel</a>
                 <button type="submit" class="btn btn-primary">
-                    <i data-feather="save" class="me-1"></i> Update Menu Item
+                    <i data-lucide="save" class="me-1"></i> Update Menu Item
                 </button>
             </div>
         </form>
     </div>
-</main>
 @endsection
 
 @push('scripts')
@@ -216,12 +199,12 @@ document.getElementById('addIngredientBtn').addEventListener('click', function (
         </div>
         <div class="col-md-2">
             <button type="button" class="btn btn-outline-danger w-100 btn-remove-ingredient">
-                <i data-feather="trash-2"></i> Remove
+                <i data-lucide="trash-2"></i> Remove
             </button>
         </div>`;
     document.getElementById('ingredientsContainer').appendChild(row);
     rowIndex++;
-    if (typeof feather !== 'undefined') feather.replace();
+    if (typeof window.refreshLucideIcons === 'function') window.refreshLucideIcons();
 });
 
 document.getElementById('ingredientsContainer').addEventListener('click', function (e) {

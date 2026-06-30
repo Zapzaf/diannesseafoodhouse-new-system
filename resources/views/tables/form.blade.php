@@ -1,5 +1,5 @@
 <div class="card mb-4">
-    <div class="card-header"><i class="me-1" data-feather="table"></i> Table Details</div>
+    <div class="card-header"><i class="me-1" data-lucide="table"></i> Table Details</div>
     <div class="card-body">
         <div class="row">
             <div class="col-md-6 mb-3">

@@ -1,15 +1,20 @@
 <?php
 
 use App\Models\Branch;
+use App\Models\CashDisbursement;
 use App\Models\Category;
 use App\Models\Delivery;
 use App\Models\DeliveryItem;
+use App\Models\InventoryTransaction;
 use App\Models\Item;
 use App\Models\Location;
+use App\Models\NonVatablePurchase;
+use App\Models\ProductionInput;
 use App\Models\ProductionOrder;
 use App\Models\Supplier;
 use App\Models\Transfer;
 use App\Models\User;
+use App\Models\VatablePurchase;
 use App\Models\WastageReport;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
@@ -117,6 +122,20 @@ it('requires an inventory item before storing a delivery', function () {
     $this->assertDatabaseCount('deliveries', 0);
 });
 
+it('asks admins on all branches to select a delivery branch before logging delivery', function () {
+    [, $branch] = makeDeliveryProductionContext();
+    $admin = User::factory()->create(['role' => 'admin', 'branch_id' => null]);
+
+    $this->actingAs($admin)
+        ->withSession(['selected_branch_id' => null])
+        ->get(route('deliveries.create'))
+        ->assertOk()
+        ->assertSee('Delivery Branch')
+        ->assertSee('Select Branch')
+        ->assertSee('name="destination_branch_id"', false)
+        ->assertSee($branch->name);
+});
+
 it('rejects a delivery inventory item from another branch', function () {
     [$manager, $branch, , , , $foreignItem, $supplier] = makeDeliveryProductionContext();
 
@@ -177,6 +196,33 @@ it('rejects a delivery inventory destination with a mismatched unit', function (
     $this->assertDatabaseCount('deliveries', 0);
 });
 
+it('stores a custom delivery date and uses it for inventory transaction logs', function () {
+    [$manager, $branch, , $input, , , $supplier] = makeDeliveryProductionContext();
+
+    $this->actingAs($manager)
+        ->post(route('deliveries.store'), [
+            'supplier_id' => $supplier->id,
+            'destination_branch_id' => $branch->id,
+            'delivery_date' => '2026-06-01',
+            'items' => [[
+                'description' => 'Backdated fish delivery',
+                'item_id' => $input->id,
+                'quantity' => 2,
+                'unit' => 'kg',
+                'price' => 200,
+                'allocated_to' => 'inventory',
+            ]],
+        ])
+        ->assertRedirect(route('deliveries.index'));
+
+    $delivery = Delivery::query()->firstOrFail();
+    $transaction = InventoryTransaction::query()->where('item_id', $input->id)->firstOrFail();
+
+    expect($delivery->delivery_date?->toDateString())->toBe('2026-06-01')
+        ->and($transaction->transaction_date?->toDateString())->toBe('2026-06-01')
+        ->and((float) $input->fresh()->quantity)->toBe(12.0);
+});
+
 it('rejects a pending delivery with a mismatched inventory unit during approval', function () {
     [$manager, $branch, , $input] = makeDeliveryProductionContext();
 
@@ -204,6 +250,47 @@ it('rejects a pending delivery with a mismatched inventory unit during approval'
 
     expect($delivery->fresh()->status)->toBe('pending')
         ->and((float) $input->fresh()->quantity)->toBe(10.0);
+});
+
+it('creates a separate production order for each delivery item allocated to production', function () {
+    [$manager, $branch, , , , , $supplier] = makeDeliveryProductionContext();
+
+    $this->actingAs($manager)
+        ->post(route('deliveries.store'), [
+            'supplier_id' => $supplier->id,
+            'destination_branch_id' => $branch->id,
+            'items' => [
+                [
+                    'description' => 'Fresh tuna',
+                    'quantity' => 2,
+                    'unit' => 'kg',
+                    'price' => 200,
+                    'allocated_to' => 'production',
+                ],
+                [
+                    'description' => 'Fresh salmon',
+                    'quantity' => 3,
+                    'unit' => 'kg',
+                    'price' => 300,
+                    'allocated_to' => 'production',
+                ],
+            ],
+        ])
+        ->assertRedirect(route('deliveries.index'));
+
+    expect(ProductionOrder::query()->count())->toBe(2)
+        ->and(ProductionInput::query()->count())->toBe(2);
+
+    $productionOrders = ProductionOrder::query()
+        ->with('inputs.deliveryItem')
+        ->orderBy('id')
+        ->get();
+
+    expect($productionOrders)->toHaveCount(2)
+        ->and($productionOrders->map(fn (ProductionOrder $order): int => $order->inputs->count())->all())
+        ->toBe([1, 1])
+        ->and($productionOrders->pluck('inputs.0.deliveryItem.description')->all())
+        ->toBe(['Fresh tuna', 'Fresh salmon']);
 });
 
 it('deducts production inputs only once and logs the finished output', function () {
@@ -308,12 +395,108 @@ it('rejects standalone waste conversions to an item from another branch', functi
         'items' => [[
             'scrap_name' => 'Fish trim',
             'quantity_lost' => 1,
+            'quantity_lost_unit' => 'kg',
             'convert_to_item_id' => $foreignItem->id,
             'converted_quantity' => 1,
         ]],
     ])->assertSessionHasErrors('items');
 
     expect(WastageReport::query()->count())->toBe(0);
+});
+
+it('finishes production with scrap when the input comes from a delivery source item', function () {
+    [$manager, $branch, , $input, $output] = makeDeliveryProductionContext();
+
+    $delivery = Delivery::create([
+        'reference_number' => 'DLV-PROD-SCRAP',
+        'destination_branch_id' => $branch->id,
+        'status' => 'received',
+        'created_by' => $manager->id,
+        'approved_by' => $manager->id,
+        'approved_at' => now(),
+    ]);
+
+    $deliveryItem = DeliveryItem::create([
+        'delivery_id' => $delivery->id,
+        'item_id' => null,
+        'source_item_id' => $input->id,
+        'description' => 'Raw Fish for production',
+        'quantity' => 2,
+        'unit' => 'kg',
+        'allocated_to' => 'production',
+    ]);
+
+    $production = ProductionOrder::create([
+        'branch_id' => $branch->id,
+        'status' => 'in_progress',
+        'created_by' => $manager->id,
+    ]);
+
+    ProductionInput::create([
+        'production_order_id' => $production->id,
+        'item_id' => null,
+        'delivery_item_id' => $deliveryItem->id,
+        'quantity_used' => 2,
+        'unit' => 'kg',
+    ]);
+
+    $this->actingAs($manager)->post(route('productions.finish', $production), [
+        'outputs' => [[
+            'item_id' => $output->id,
+            'quantity_produced' => 1,
+            'unit' => 'kg',
+        ]],
+        'wastage' => [[
+            'scrap_name' => 'Fish trim',
+            'quantity_lost' => 1,
+            'quantity_lost_unit' => 'kg',
+            'reason' => 'Processing scrap',
+        ]],
+    ])->assertRedirect(route('productions.show', $production));
+
+    expect($production->fresh()->status)->toBe('finished')
+        ->and(WastageReport::query()->count())->toBe(1)
+        ->and((float) $input->fresh()->quantity)->toBe(9.0)
+        ->and((float) $output->fresh()->quantity)->toBe(1.0);
+
+    $this->assertDatabaseHas('wastage_items', [
+        'item_id' => $input->id,
+        'scrap_name' => 'Fish trim',
+        'quantity_lost_unit' => 'kg',
+    ]);
+});
+
+it('rejects production scrap when qty lost unit does not match the input unit', function () {
+    [$manager, $branch, , $input, $output] = makeDeliveryProductionContext();
+
+    $this->actingAs($manager)->post(route('productions.store'), [
+        'branch_id' => $branch->id,
+        'inputs' => [[
+            'item_id' => $input->id,
+            'quantity_used' => 2,
+            'unit' => 'kg',
+        ]],
+    ]);
+
+    $production = ProductionOrder::query()->firstOrFail();
+
+    $this->actingAs($manager)->post(route('productions.finish', $production), [
+        'outputs' => [[
+            'item_id' => $output->id,
+            'quantity_produced' => 1,
+            'unit' => 'kg',
+        ]],
+        'wastage' => [[
+            'scrap_name' => 'Fish trim',
+            'quantity_lost' => 1,
+            'quantity_lost_unit' => 'pcs',
+            'reason' => 'Processing scrap',
+        ]],
+    ])->assertSessionHasErrors('wastage');
+
+    expect($production->fresh()->status)->toBe('in_progress')
+        ->and(WastageReport::query()->count())->toBe(0)
+        ->and((float) $output->fresh()->quantity)->toBe(0.0);
 });
 
 it('validates and completes an inventory branch transfer through delivery approval', function () {
@@ -394,14 +577,82 @@ it('rejects a transfer quantity greater than available stock', function () {
     $this->assertDatabaseCount('transfers', 0);
 });
 
-it('exposes expenses as read import and export only', function () {
+it('allows users to manually create expense records', function () {
+    [$manager, $branch] = makeDeliveryProductionContext();
+
     expect(Route::has('expenses.index'))->toBeTrue()
         ->and(Route::has('expenses.import'))->toBeTrue()
         ->and(Route::has('expenses.export'))->toBeTrue()
         ->and(Route::has('expenses.show'))->toBeTrue()
-        ->and(Route::has('expenses.vatable.store'))->toBeFalse()
-        ->and(Route::has('expenses.vatable.update'))->toBeFalse()
-        ->and(Route::has('expenses.vatable.destroy'))->toBeFalse()
-        ->and(Route::has('expenses.nonvatable.store'))->toBeFalse()
-        ->and(Route::has('expenses.disbursement.store'))->toBeFalse();
+        ->and(Route::has('expenses.vatable.store'))->toBeTrue()
+        ->and(Route::has('expenses.vatable.update'))->toBeTrue()
+        ->and(Route::has('expenses.vatable.destroy'))->toBeTrue()
+        ->and(Route::has('expenses.nonvatable.store'))->toBeTrue()
+        ->and(Route::has('expenses.nonvatable.update'))->toBeTrue()
+        ->and(Route::has('expenses.nonvatable.destroy'))->toBeTrue()
+        ->and(Route::has('expenses.disbursement.store'))->toBeTrue()
+        ->and(Route::has('expenses.disbursement.update'))->toBeTrue()
+        ->and(Route::has('expenses.disbursement.destroy'))->toBeTrue();
+
+    $this->actingAs($manager)
+        ->post(route('expenses.vatable.store', '2026-06'), [
+            'date' => '2026-06-10',
+            'vendor_name' => 'Seafood Supplies',
+            'address' => 'Harbor',
+            'si_number' => 'SI-001',
+            'tin' => '123-456',
+            'gross_amount' => 1120,
+            'vat' => 120,
+            'net_purchases' => 1000,
+        ])
+        ->assertRedirect(route('expenses.show', '2026-06').'?tab=vatable');
+
+    $this->actingAs($manager)
+        ->post(route('expenses.nonvatable.store', '2026-06'), [
+            'date' => '2026-06-11',
+            'vendor_name' => 'Market Vendor',
+            'gross_amount' => 350,
+        ])
+        ->assertRedirect(route('expenses.show', '2026-06').'?tab=nonvatable');
+
+    $this->actingAs($manager)
+        ->post(route('expenses.disbursement.store', '2026-06'), [
+            'date' => '2026-06-12',
+            'check_number' => 'CHK-001',
+            'payee' => 'Utility Provider',
+            'amount' => 800,
+            'reference' => 'Electric bill',
+        ])
+        ->assertRedirect(route('expenses.show', '2026-06').'?tab=disbursements');
+
+    expect(VatablePurchase::query()->where('vendor_name', 'Seafood Supplies')->exists())->toBeTrue()
+        ->and(NonVatablePurchase::query()->where('vendor_name', 'Market Vendor')->exists())->toBeTrue()
+        ->and(CashDisbursement::query()->where('payee', 'Utility Provider')->exists())->toBeTrue();
+
+    $admin = User::factory()->create(['role' => 'admin', 'branch_id' => null]);
+
+    $this->actingAs($admin)
+        ->withSession(['selected_branch_id' => null])
+        ->post(route('expenses.vatable.store', '2026-06'), [
+            'date' => '2026-06-13',
+            'vendor_name' => 'All Branch Vendor',
+            'gross_amount' => 100,
+            'vat' => 12,
+            'net_purchases' => 88,
+        ])
+        ->assertSessionHasErrors('branch_id');
+
+    $this->actingAs($admin)
+        ->withSession(['selected_branch_id' => null])
+        ->post(route('expenses.vatable.store', '2026-06'), [
+            'branch_id' => $branch->id,
+            'date' => '2026-06-13',
+            'vendor_name' => 'Selected Branch Vendor',
+            'gross_amount' => 100,
+            'vat' => 12,
+            'net_purchases' => 88,
+        ])
+        ->assertRedirect(route('expenses.show', '2026-06').'?tab=vatable');
+
+    expect(VatablePurchase::query()->where('vendor_name', 'Selected Branch Vendor')->value('branch_id'))->toBe($branch->id);
 });

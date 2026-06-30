@@ -1,14 +1,13 @@
 @extends('layouts.app')
 @section('page_title', 'Payments')
 @section('content')
-<main>
     <x-page-header title="Payments" subtitle="Review recorded payments, methods, and receivable coverage" icon="credit-card">
         <a href="{{ route('payments.create') }}" class="btn btn-light text-primary">
-            <i data-feather="plus-circle" class="me-1"></i> Record Payment
+            <i data-lucide="plus-circle" class="me-1"></i> Record Payment
         </a>
     </x-page-header>
 
-<div class="container-xl px-4 mt-n10">
+<div class="container-xl px-4">
     @include('layouts.alerts')
     <div class="card shadow-sm">
         <div class="card-header d-flex justify-content-end">
@@ -43,7 +42,6 @@
         </div>
     </div>
 </div>
-</main>
 @endsection
 
 @push('scripts')
@@ -64,24 +62,24 @@ document.addEventListener('DOMContentLoaded', function() {
         renderRow: function(payment, ctx) {
             const typeLabel = payment.transaction_type === 'menu_order' ? 'Menu Order' : 'Check-in';
             const detailAction = payment.detail_url
-                ? `<a href="${payment.detail_url}" class="btn btn-sm btn-outline-secondary" title="View"><i data-feather="eye"></i></a>`
+                ? `<a href="${payment.detail_url}" class="btn btn-sm btn-outline-secondary" title="View"><i data-lucide="eye"></i></a>`
                 : '';
             const receiptAction = payment.receipt_url
-                ? `<a href="${payment.receipt_url}" target="_blank" class="btn btn-sm btn-outline-secondary" title="Print Receipt"><i data-feather="printer"></i></a>`
+                ? `<a href="${payment.receipt_url}" target="_blank" class="btn btn-sm btn-outline-secondary" title="Print Receipt"><i data-lucide="printer"></i></a>`
                 : '';
 
             return `
                 <tr>
                     <td>${ctx.index}</td>
                     <td><span class="badge bg-secondary">${ctx.escapeHtml(typeLabel)}</span></td>
-                    <td>${ctx.escapeHtml(payment.transaction_reference || '—')}</td>
+                    <td>${ctx.escapeHtml(payment.transaction_reference || 'â€”')}</td>
                     <td>${ctx.formatDate(payment.payment_date)}</td>
-                    <td>${ctx.escapeHtml(payment.customer_name || '—')}</td>
-                    <td>${ctx.escapeHtml(payment.room_or_order || '—')}</td>
+                    <td>${ctx.escapeHtml(payment.customer_name || 'â€”')}</td>
+                    <td>${ctx.escapeHtml(payment.room_or_order || 'â€”')}</td>
                     <td><span class="badge bg-secondary">${ctx.escapeHtml(payment.method || '')}</span></td>
                     <td class="fw-semibold">\u20B1${Number(payment.amount || 0).toFixed(2)}</td>
                     <td class="text-muted small">${ctx.escapeHtml(payment.reference_number || '-')}</td>
-                    <td class="text-nowrap">${detailAction}${receiptAction}</td>
+                    <td class="table-actions-cell text-nowrap">${detailAction}${receiptAction}</td>
                 </tr>
             `;
         }
@@ -89,6 +87,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 @endpush
+
 
 
 

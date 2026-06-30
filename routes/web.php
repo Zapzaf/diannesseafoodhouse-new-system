@@ -24,8 +24,19 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
+Route::get('/csrf-token', fn () => response()
+	->json(['token' => csrf_token()])
+	->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+	->header('Pragma', 'no-cache')
+)->name('csrf-token');
+
 Route::middleware('guest')->group(function (): void {
-	Route::get('/login', fn () => view('auth.login'))->name('login');
+	Route::get('/login', fn () => response()
+		->view('auth.login')
+		->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+		->header('Pragma', 'no-cache')
+		->header('Expires', 'Fri, 01 Jan 1990 00:00:00 GMT')
+	)->name('login');
 	Route::post('/login', function (Request $request) {
 		$credentials = $request->validate([
 			'email' => ['required', 'email'],
@@ -267,6 +278,15 @@ Route::middleware('auth')->group(function (): void {
         Route::get('/', [\App\Http\Controllers\ExpenseController::class, 'index'])->name('index');
         Route::post('/import', [\App\Http\Controllers\ExpenseController::class, 'import'])->name('import');
         Route::get('/export/{monthYear}', [\App\Http\Controllers\ExpenseController::class, 'export'])->name('export');
+        Route::post('/{monthYear}/vatable', [\App\Http\Controllers\ExpenseController::class, 'storeVatable'])->name('vatable.store');
+        Route::put('/{monthYear}/vatable/{vatable}', [\App\Http\Controllers\ExpenseController::class, 'updateVatable'])->name('vatable.update');
+        Route::delete('/{monthYear}/vatable/{vatable}', [\App\Http\Controllers\ExpenseController::class, 'destroyVatable'])->name('vatable.destroy');
+        Route::post('/{monthYear}/non-vatable', [\App\Http\Controllers\ExpenseController::class, 'storeNonVatable'])->name('nonvatable.store');
+        Route::put('/{monthYear}/non-vatable/{nonVatable}', [\App\Http\Controllers\ExpenseController::class, 'updateNonVatable'])->name('nonvatable.update');
+        Route::delete('/{monthYear}/non-vatable/{nonVatable}', [\App\Http\Controllers\ExpenseController::class, 'destroyNonVatable'])->name('nonvatable.destroy');
+        Route::post('/{monthYear}/disbursements', [\App\Http\Controllers\ExpenseController::class, 'storeDisbursement'])->name('disbursement.store');
+        Route::put('/{monthYear}/disbursements/{disbursement}', [\App\Http\Controllers\ExpenseController::class, 'updateDisbursement'])->name('disbursement.update');
+        Route::delete('/{monthYear}/disbursements/{disbursement}', [\App\Http\Controllers\ExpenseController::class, 'destroyDisbursement'])->name('disbursement.destroy');
 
         // Show must be last (wildcard)
         Route::get('/{monthYear}', [\App\Http\Controllers\ExpenseController::class, 'show'])->name('show');

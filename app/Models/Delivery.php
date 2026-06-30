@@ -13,6 +13,7 @@ class Delivery extends Model
 
     protected $fillable = [
         'reference_number',
+        'delivery_date',
         'supplier_id',
         'source_branch_id',
         'destination_branch_id',
@@ -25,6 +26,7 @@ class Delivery extends Model
     protected function casts(): array
     {
         return [
+            'delivery_date' => 'date',
             'approved_at' => 'datetime',
         ];
     }

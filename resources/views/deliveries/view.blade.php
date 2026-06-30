@@ -3,29 +3,13 @@
 @section('page_title', 'Delivery ' . $delivery->reference_number . ' - Dianne Seafood House')
 
 @section('content')
-<main>
-    <header class="page-header page-header-dark bg-gradient-primary-to-secondary pb-10">
-        <div class="container-xl px-4">
-            <div class="page-header-content pt-4">
-                <div class="row align-items-center justify-content-between">
-                    <div class="col-auto mt-4">
-                        <h1 class="page-header-title">
-                            <div class="page-header-icon"><i data-feather="truck"></i></div>
-                            Delivery Details
-                        </h1>
-                        <div class="page-header-subtitle">{{ $delivery->reference_number }}</div>
-                    </div>
-                    <div class="col-auto mt-4">
-                        <a href="{{ route('deliveries.index') }}" class="btn btn-light text-primary">
-                            <i data-feather="arrow-left" class="me-1"></i> All Deliveries
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </header>
+    <x-page-header title="Delivery Details" subtitle="{{ $delivery->reference_number }}" icon="truck">
+        <a href="{{ route('deliveries.index') }}" class="btn btn-outline-primary">
+            <i data-lucide="arrow-left" class="me-1"></i> All Deliveries
+        </a>
+    </x-page-header>
 
-    <div class="container-xl px-4 mt-n10">
+    <div class="container-xl px-4">
         @include('layouts.alerts')
 
         {{-- Delivery Info Card --}}
@@ -114,7 +98,7 @@
                                 <div class="small text-muted">#{{ $item->item->id }} &mdash; {{ $item->item->category?->name ?? '' }}</div>
                                 @endif
                                 @if($item->sourceItem)
-                                <div class="small text-muted text-primary"><i data-feather="corner-down-right" class="me-1" style="width: 12px; height: 12px;"></i>From: {{ $item->sourceItem->name }}</div>
+                                <div class="small text-muted text-primary"><i data-lucide="corner-down-right" class="me-1" style="width: 12px; height: 12px;"></i>From: {{ $item->sourceItem->name }}</div>
                                 @endif
                                 @if($item->description && $item->description !== ($item->item?->name ?? ''))
                                 <div class="small text-muted fst-italic">Note: {{ $item->description }}</div>
@@ -167,7 +151,7 @@
             @if(auth()->user()?->isAdmin())
                 <div class="d-flex justify-content-end mt-2">
                     <button type="submit" class="btn btn-sm btn-outline-primary">
-                        <i data-feather="save" class="me-1"></i> Save Prices
+                        <i data-lucide="save" class="me-1"></i> Save Prices
                     </button>
                 </div>
                 </form>
@@ -187,7 +171,7 @@
                         <input type="hidden" name="items[{{ $index }}][allocated_to]" value="{{ $item->allocated_to ?? 'inventory' }}">
                         @endforeach
                         <button type="submit" class="btn btn-success">
-                            <i data-feather="check-circle" class="me-1"></i> Approve Delivery
+                            <i data-lucide="check-circle" class="me-1"></i> Approve Delivery
                         </button>
                     </form>
                 </div>
@@ -195,5 +179,4 @@
             @endcan
         @endif
     </div>
-</main>
 @endsection

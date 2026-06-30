@@ -47,9 +47,21 @@ window.IndexTableBridge = (function () {
         const lastPage = Number(data.last_page || 1);
         const pages = [];
 
-        if (currentPage > 1) {
-            html += '<li class="page-item"><a class="page-link" href="#" data-page="' + (currentPage - 1) + '">Previous</a></li>';
+        if (lastPage <= 1) {
+            paginationElement.innerHTML = '';
+            return;
         }
+
+        const addControl = function (label, page, disabled, ariaLabel, extraClass) {
+            const className = 'page-item pagination-control ' + (extraClass || '') + (disabled ? ' disabled' : '');
+            const pageAttr = disabled ? '' : ' data-page="' + page + '"';
+            const tabIndex = disabled ? ' tabindex="-1" aria-disabled="true"' : '';
+
+            html += '<li class="' + className.trim() + '"><a class="page-link" href="#"' + pageAttr + tabIndex + ' aria-label="' + ariaLabel + '">' + label + '</a></li>';
+        };
+
+        addControl('<span aria-hidden="true">&laquo;</span><span class="page-link-label">First</span>', 1, currentPage === 1, 'First page', 'pagination-first');
+        addControl('<span aria-hidden="true">&lsaquo;</span><span class="page-link-label">Prev</span>', currentPage - 1, currentPage === 1, 'Previous page', 'pagination-prev');
 
         for (let page = 1; page <= lastPage; page += 1) {
             if (
@@ -65,19 +77,14 @@ window.IndexTableBridge = (function () {
         pages.forEach(function (page, index) {
             const previousPage = pages[index - 1];
             if (previousPage && page - previousPage > 1) {
-                html += '<li class="page-item disabled"><span class="page-link">&hellip;</span></li>';
+                html += '<li class="page-item disabled pagination-gap"><span class="page-link" aria-hidden="true">&hellip;</span></li>';
             }
 
-            html += '<li class="page-item ' + (page === currentPage ? 'active' : '') + '"><a class="page-link" href="#" data-page="' + page + '">' + page + '</a></li>';
+            html += '<li class="page-item pagination-page ' + (page === currentPage ? 'active' : '') + '"><a class="page-link" href="#" data-page="' + page + '"' + (page === currentPage ? ' aria-current="page"' : '') + ' aria-label="Page ' + page + '">' + page + '</a></li>';
         });
 
-        if (lastPage === 0) {
-            html = '';
-        }
-
-        if (currentPage < lastPage) {
-            html += '<li class="page-item"><a class="page-link" href="#" data-page="' + (currentPage + 1) + '">Next</a></li>';
-        }
+        addControl('<span class="page-link-label">Next</span><span aria-hidden="true">&rsaquo;</span>', currentPage + 1, currentPage === lastPage, 'Next page', 'pagination-next');
+        addControl('<span class="page-link-label">Last</span><span aria-hidden="true">&raquo;</span>', lastPage, currentPage === lastPage, 'Last page', 'pagination-last');
 
         paginationElement.innerHTML = html;
     }
@@ -180,8 +187,8 @@ window.IndexTableBridge = (function () {
                         window.WelheimUI.enhanceTables();
                     }
 
-                    if (typeof feather !== 'undefined') {
-                        feather.replace();
+                    if (typeof window.refreshLucideIcons === 'function') {
+                        window.refreshLucideIcons();
                     }
                 });
         }
@@ -219,13 +226,24 @@ window.IndexTableBridge = (function () {
 
         if (pagination) {
             pagination.addEventListener('click', function (event) {
-                const page = event.target.dataset.page;
+                const clickedLink = event.target.closest('.page-link');
+                const pageLink = event.target.closest('[data-page]');
+                const page = pageLink ? pageLink.dataset.page : null;
+
+                if (clickedLink) {
+                    event.preventDefault();
+                }
+
                 if (!page) {
                     return;
                 }
 
-                event.preventDefault();
-                currentPage = parseInt(page, 10);
+                const nextPage = parseInt(page, 10);
+                if (!Number.isInteger(nextPage) || nextPage === currentPage) {
+                    return;
+                }
+
+                currentPage = nextPage;
                 loadData();
             });
         }

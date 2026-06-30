@@ -3,32 +3,16 @@
 @section('page_title', 'Add Menu Category - Dianne\'s Seafood House')
 
 @section('content')
-<main>
-    <header class="page-header page-header-dark bg-gradient-primary-to-secondary pb-10">
-        <div class="container-xl px-4">
-            <div class="page-header-content pt-4">
-                <div class="row align-items-center justify-content-between">
-                    <div class="col-auto mt-4">
-                        <h1 class="page-header-title">
-                            <div class="page-header-icon"><i data-feather="tag"></i></div>
-                            Add Menu Category
-                        </h1>
-                        <div class="page-header-subtitle">Create a new category for organizing menu items</div>
-                    </div>
-                    <div class="col-auto mt-4">
-                        <a class="btn btn-light text-primary" href="{{ route('menu-categories.index') }}">
-                            <i class="me-1" data-feather="arrow-left"></i> Back
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </header>
+    <x-page-header title="Add Menu Category" subtitle="Create a new category for organizing menu items" icon="tag">
+        <a class="btn btn-primary" href="{{ route('menu-categories.index') }}">
+            <i class="me-1" data-lucide="arrow-left"></i> Back
+        </a>
+    </x-page-header>
 
-    <div class="container-xl px-4 mt-n10">
+    <div class="container-xl px-4">
         @include('layouts.alerts')
         <div class="card mb-4">
-            <div class="card-header"><i class="me-1" data-feather="edit-3"></i> Category Details</div>
+            <div class="card-header"><i class="me-1" data-lucide="edit-3"></i> Category Details</div>
             <div class="card-body">
                 <form action="{{ route('menu-categories.store') }}" method="POST">
                     @csrf
@@ -64,11 +48,10 @@
                     </div>
                     <div class="d-flex justify-content-end gap-2">
                         <a href="{{ route('menu-categories.index') }}" class="btn btn-secondary text-light">Cancel</a>
-                        <button type="submit" class="btn btn-primary"><i data-feather="save" class="me-1"></i> Save Category</button>
+                        <button type="submit" class="btn btn-primary"><i data-lucide="save" class="me-1"></i> Save Category</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
-</main>
 @endsection
