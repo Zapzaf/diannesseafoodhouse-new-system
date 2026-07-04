@@ -3,6 +3,13 @@
 @section('page_title', 'Production Details - Dianne Seafood House')
 
 @section('content')
+    @php
+        $scrapItems = $production->wastageReports->flatMap->items->values();
+        $totalInputQuantity = $production->inputs->sum(fn ($input) => (float) $input->quantity_used);
+        $totalOutputQuantity = $production->outputs->sum(fn ($output) => (float) $output->quantity_produced);
+        $totalScrapQuantity = $scrapItems->sum(fn ($item) => (float) $item->quantity_lost);
+    @endphp
+
     <x-page-header :title="'Production #' . $production->id" :subtitle="'Branch: ' . ($production->branch?->name ?? 'N/A')" icon="settings">
         <a href="{{ route('productions.index') }}" class="btn btn-light text-primary">
             <i data-lucide="arrow-left" class="me-1"></i> Back
@@ -11,6 +18,47 @@
 
     <div class="container-xl px-4">
         @include('layouts.alerts')
+
+        <div class="row g-4 mb-4">
+            <div class="col-md-6 col-xl-3">
+                <div class="card shadow-sm h-100 detail-stat-card">
+                    <div class="card-body">
+                        <span class="detail-stat-label">Status</span>
+                        <div class="detail-stat-value text-capitalize">{{ str_replace('_', ' ', $production->status) }}</div>
+                        <div class="detail-stat-meta">
+                            {{ $production->finished_at ? 'Finished ' . $production->finished_at->format('M d, Y h:i A') : 'Still in progress' }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-xl-3">
+                <div class="card shadow-sm h-100 detail-stat-card">
+                    <div class="card-body">
+                        <span class="detail-stat-label">Created By</span>
+                        <div class="detail-stat-value">{{ $production->creator?->name ?? 'N/A' }}</div>
+                        <div class="detail-stat-meta">Started {{ $production->created_at?->format('M d, Y h:i A') ?? 'N/A' }}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-xl-3">
+                <div class="card shadow-sm h-100 detail-stat-card">
+                    <div class="card-body">
+                        <span class="detail-stat-label">Outputs</span>
+                        <div class="detail-stat-value">{{ $production->outputs->count() }}</div>
+                        <div class="detail-stat-meta">{{ number_format($totalOutputQuantity, 2) }} total produced</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-xl-3">
+                <div class="card shadow-sm h-100 detail-stat-card">
+                    <div class="card-body">
+                        <span class="detail-stat-label">Scrap Records</span>
+                        <div class="detail-stat-value">{{ $scrapItems->count() }}</div>
+                        <div class="detail-stat-meta">{{ number_format($totalScrapQuantity, 2) }} total scrap logged</div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <div class="row g-4 mb-4">
             <div class="col-lg-12">
@@ -33,7 +81,7 @@
                                         </td>
                                         <td>
                                             @if($input->delivery_item_id)
-                                            <span class="badge bg-warning text-dark">Delivery</span>
+                                            <span class="badge bg-warning text-white">Delivery</span>
                                             <div class="small text-muted mt-1">
                                                 Batch {{ $input->deliveryItem?->delivery?->reference_number ?? ('#' . $input->deliveryItem?->delivery_id) }}
                                             </div>
@@ -48,10 +96,116 @@
                                 </tbody>
                             </table>
                         </div>
+                        <div class="detail-table-footer">
+                            Total input quantity: <strong>{{ number_format($totalInputQuantity, 2) }}</strong>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
+
+        @if($production->outputs->isNotEmpty())
+        <div class="row g-4 mb-4">
+            <div class="col-lg-12">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header fw-semibold">Finished Outputs</div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-striped mb-0" data-no-table-enhance="1">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Item</th>
+                                        <th>Quantity Produced</th>
+                                        <th>Unit</th>
+                                        <th>Allocated To</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($production->outputs as $output)
+                                    <tr>
+                                        <td>
+                                            {{ $output->item?->name ?? 'Unavailable item' }}
+                                            @if($output->item)
+                                            <div class="small text-muted">#{{ $output->item->id }} - {{ $output->item?->category?->location?->name ?? 'N/A' }} / {{ $output->item?->category?->name ?? 'N/A' }}</div>
+                                            @endif
+                                        </td>
+                                        <td>{{ number_format((float) $output->quantity_produced, 2) }}</td>
+                                        <td>{{ $output->unit ?: ($output->item?->unit ?? 'N/A') }}</td>
+                                        <td class="text-capitalize">{{ $output->allocated_to ?? 'inventory' }}</td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="detail-table-footer">
+                            Total output quantity: <strong>{{ number_format($totalOutputQuantity, 2) }}</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        @endif
+
+        @if($scrapItems->isNotEmpty())
+        <div class="row g-4 mb-4">
+            <div class="col-lg-12">
+                <div class="card shadow-sm h-100">
+                    <div class="card-header fw-semibold">Scrap Details</div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-striped mb-0" data-no-table-enhance="1">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Scrap Name</th>
+                                        <th>Source Item</th>
+                                        <th>Qty Lost</th>
+                                        <th>Converted To</th>
+                                        <th>Converted Qty</th>
+                                        <th>Reason</th>
+                                        <th>Logged At</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($scrapItems as $scrapItem)
+                                    <tr>
+                                        <td>{{ $scrapItem->scrap_name ?: 'Scrap Conversion' }}</td>
+                                        <td>{{ $scrapItem->item?->name ?? 'N/A' }}</td>
+                                        <td>
+                                            {{ number_format((float) $scrapItem->quantity_lost, 2) }}
+                                            {{ $scrapItem->quantity_lost_unit ?? $scrapItem->item?->unit }}
+                                        </td>
+                                        <td>{{ $scrapItem->convertedItem?->name ?? 'Not converted' }}</td>
+                                        <td>
+                                            @if($scrapItem->converted_quantity)
+                                                {{ number_format((float) $scrapItem->converted_quantity, 2) }}
+                                                {{ $scrapItem->convertedItem?->unit }}
+                                            @else
+                                                —
+                                            @endif
+                                        </td>
+                                        <td>{{ $scrapItem->reason ?: '—' }}</td>
+                                        <td>{{ $scrapItem->created_at?->format('M d, Y h:i A') ?? 'N/A' }}</td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="detail-table-footer">
+                            Scrap rows: <strong>{{ $scrapItems->count() }}</strong> |
+                            Total scrap quantity: <strong>{{ number_format($totalScrapQuantity, 2) }}</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        @elseif($production->status === 'finished')
+        <div class="card shadow-sm mb-4">
+            <div class="card-header fw-semibold">Scrap Details</div>
+            <div class="card-body text-muted">
+                No scrap records were logged for this production.
+            </div>
+        </div>
+        @endif
 
         @if($production->status !== 'finished')
         <div class="card shadow-sm mb-4 production-finish-card">
@@ -118,6 +272,9 @@
                     <div class="table-responsive production-form-table-wrap">
                         <table class="table align-middle production-form-table production-waste-table" id="wastage-items-table" data-no-table-enhance="1">
                             <colgroup>
+                                <col class="production-col-scrap-name">
+                                <col class="production-col-scrap-qty">
+                                <col class="production-col-scrap-unit">
                                 <col class="production-col-convert">
                                 <col class="production-col-converted">
                                 <col class="production-col-convert-unit">
@@ -125,6 +282,9 @@
                             </colgroup>
                             <thead>
                                 <tr>
+                                    <th>Scrap Name</th>
+                                    <th>Scrap Qty</th>
+                                    <th>Scrap Unit</th>
                                     <th>Convert To</th>
                                     <th>Convert Qty</th>
                                     <th>Convert Unit</th>
@@ -133,6 +293,12 @@
                             </thead>
                             <tbody>
                                 <tr>
+                                    <td><input type="text" name="wastage[0][scrap_name]" class="form-control" data-field="scrap_name" placeholder="e.g. fish trim"></td>
+                                    <td><input type="number" step="0.01" min="0.01" name="wastage[0][quantity_lost]" class="form-control" data-field="quantity_lost"></td>
+                                    <td>
+                                        <input type="text" class="form-control unit-display" value="{{ $scrapUnit ?? 'Production unit' }}" disabled>
+                                        <input type="hidden" name="wastage[0][quantity_lost_unit]" value="{{ $scrapUnit }}" data-field="quantity_lost_unit">
+                                    </td>
                                     <td>
                                         <div class="item-picker">
                                             <input type="search" class="form-control item-picker-search" placeholder="Search item (optional)" autocomplete="off">
@@ -163,6 +329,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const itemOptions = @json($items->map(fn ($item) => ['id' => $item->id, 'unit' => $item->unit, 'label' => '#' . $item->id . ' - ' . $item->name . ' (' . ($item->category?->location?->name ?? 'N/A') . ' / ' . ($item->category?->name ?? 'N/A') . ')'])->values());
+    const scrapUnit = @json($scrapUnit ?? '');
     let activePickerInput = null;
 
     function bindDynamicTable(tableId, addButtonId, rowFactory, inputKeys) {
@@ -229,12 +396,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
     bindDynamicTable('wastage-items-table', 'add-wastage-row', function () {
         return `
+            <td><input type="text" class="form-control" data-field="scrap_name" placeholder="e.g. fish trim"></td>
+            <td><input type="number" step="0.01" min="0.01" class="form-control" data-field="quantity_lost"></td>
+            <td><input type="text" class="form-control unit-display" value="${escapeHtml(scrapUnit || 'Production unit')}" disabled><input type="hidden" value="${escapeHtml(scrapUnit)}" data-field="quantity_lost_unit"></td>
             <td><div class="item-picker"><input type="search" class="form-control item-picker-search" placeholder="Search item (optional)" autocomplete="off"><input type="hidden" data-field="convert_to_item_id"><div class="item-picker-results d-none"></div></div></td>
             <td><input type="number" step="0.01" min="0.01" class="form-control" data-field="converted_quantity"></td>
             <td><input type="text" class="form-control unit-display" value="Select Convert To" data-wastage-unit-display="convert" disabled></td>
             <td class="table-actions-cell text-center"><button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Remove"><i data-lucide="trash-2"></i></button></td>
         `;
-    }, ['convert_to_item_id', 'converted_quantity']);
+    }, ['scrap_name', 'quantity_lost', 'quantity_lost_unit', 'convert_to_item_id', 'converted_quantity']);
 
     document.addEventListener('input', function (event) {
         if (!event.target.classList.contains('item-picker-search')) return;
@@ -356,6 +526,39 @@ document.addEventListener('DOMContentLoaded', function () {
     padding: 1rem;
 }
 
+.detail-stat-card .card-body {
+    padding: 1rem 1.1rem;
+}
+
+.detail-stat-label {
+    display: inline-block;
+    margin-bottom: .45rem;
+    color: var(--text-muted);
+    font-size: .78rem;
+    font-weight: 800;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+.detail-stat-value {
+    color: var(--text-main);
+    font-size: 1.35rem;
+    font-weight: 800;
+    line-height: 1.2;
+}
+
+.detail-stat-meta {
+    margin-top: .45rem;
+    color: var(--text-muted);
+    font-size: .88rem;
+}
+
+.detail-table-footer {
+    margin-top: .9rem;
+    color: var(--text-muted);
+    font-size: .9rem;
+}
+
 .production-form-table-wrap {
     border: 1px solid var(--border-color);
     border-radius: 10px;
@@ -369,7 +572,7 @@ document.addEventListener('DOMContentLoaded', function () {
 }
 
 .production-waste-table {
-    min-width: 700px;
+    min-width: 1140px;
 }
 
 .production-form-table thead th {
@@ -408,7 +611,10 @@ document.addEventListener('DOMContentLoaded', function () {
 .production-col-qty { width: 29%; }
 .production-col-unit { width: 29%; }
 .production-col-action { width: 96px; }
-.production-col-convert { width: 340px; }
+.production-col-scrap-name { width: 220px; }
+.production-col-scrap-qty { width: 150px; }
+.production-col-scrap-unit { width: 150px; }
+.production-col-convert { width: 280px; }
 .production-col-converted { width: 160px; }
 .production-col-convert-unit { width: 170px; }
 

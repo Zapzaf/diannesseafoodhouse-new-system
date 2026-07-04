@@ -46,7 +46,7 @@ class SaleManagementController extends Controller
                 ->with(['items.item', 'user', 'branch'])
                 ->when($branchId, fn ($query, $branchId) => $query->where('branch_id', $branchId))
                 ->latest()
-                ->paginate((int) request('per_page', 12))->withQueryString(),
+                ->paginate($this->perPage(request(), 12))->withQueryString(),
             'branches' => Branch::query()->where('is_active', true)->orderBy('name')->get(),
             'items' => Item::query()
                 ->with(['category.location', 'branch'])

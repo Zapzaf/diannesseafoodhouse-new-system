@@ -73,12 +73,13 @@
                                 <th>Category</th>
                                 <th>Remaining Item</th>
                                 <th>Unit</th>
+                                <th>Unit Price</th>
                                 <th>Low Stock Threshold</th>
                                 <th>Supplier</th>
                                 <th class="table-actions-head">Actions</th>
                             </tr>
                         </thead>
-                        <tbody id="tableBody"><tr><td colspan="9" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></td></tr></tbody>
+                        <tbody id="tableBody"><tr><td colspan="10" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></td></tr></tbody>
                     </table>
                 </div>
             </div>
@@ -461,13 +462,16 @@ document.addEventListener('DOMContentLoaded', function() {
             { inputId: 'categoryFilter', param: 'location_id' },
             { inputId: 'subcategoryFilter', param: 'category_id' }
         ],
-        sortColumns: ['name', 'branch_name', 'location', 'category', 'quantity', 'unit', 'low_stock_threshold', ''],
+        sortColumns: ['name', 'branch_name', 'location', 'category', 'quantity', 'unit', 'unit_price', 'low_stock_threshold', ''],
         defaultSort: 'name',
         defaultDirection: 'asc',
         emptyMessage: 'No inventory items found.',
-        colspan: 9,
+        colspan: 10,
         renderRow: function(item, ctx) {
             const remaining = Number(item.remaining_item || 0);
+            const unitPrice = item.unit_price !== null && item.unit_price !== undefined
+                ? Number(item.unit_price)
+                : null;
             const threshold = Number(item.low_stock_threshold || 0);
             const lowStock = remaining <= threshold;
             const itemName = ctx.escapeHtml(item.name || '').replace(/"/g, "&quot;");
@@ -480,6 +484,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td>${ctx.escapeHtml(item.category || item.category_label || '—')}</td>
                     <td>${remaining}</td>
                     <td>${ctx.escapeHtml(item.unit || 'N/A')}</td>
+                    <td>${unitPrice !== null ? `₱${unitPrice.toFixed(2)}` : 'N/A'}</td>
                     <td>${threshold}</td>
                     <td>${ctx.escapeHtml(item.supplier_name || 'N/A')}</td>
                     <td class="table-actions-cell text-nowrap">

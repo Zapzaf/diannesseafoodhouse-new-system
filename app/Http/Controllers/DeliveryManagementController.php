@@ -103,7 +103,7 @@ class DeliveryManagementController extends Controller
             ->when($sort === 'total_cost', fn ($query) => $query->orderBy('total_cost', $direction))
             ->when(in_array($sort, ['reference_number', 'created_at', 'status'], true), fn ($query) => $query->orderBy("deliveries.{$sort}", $direction))
             ->orderBy('deliveries.created_at', 'desc')
-            ->paginate((int) request('per_page', 10))->withQueryString();
+            ->paginate($this->perPage(request(), 10))->withQueryString();
 
         return view('deliveries.index', [
             'deliveries' => $deliveries,
@@ -480,7 +480,7 @@ class DeliveryManagementController extends Controller
             ->when($sort === 'items_count', fn ($query) => $query->orderBy('items_count', $direction))
             ->when(in_array($sort, ['reference_number', 'created_at', 'status'], true), fn ($query) => $query->orderBy("deliveries.{$sort}", $direction))
             ->orderBy('deliveries.created_at', 'desc')
-            ->paginate((int) request('per_page', 10))->withQueryString();
+            ->paginate($this->perPage(request(), 10))->withQueryString();
 
         return view('deliveries.pending', [
             'deliveries' => $deliveries,

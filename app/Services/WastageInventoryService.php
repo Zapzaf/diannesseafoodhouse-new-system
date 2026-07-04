@@ -87,9 +87,9 @@ class WastageInventoryService
             $wastageItem = WastageItem::create([
                 'wastage_report_id' => $report->id,
                 'item_id' => null,
-                'scrap_name' => null,
-                'quantity_lost' => $row['converted_quantity'],
-                'quantity_lost_unit' => $convertedItem->unit,
+                'scrap_name' => $row['scrap_name'] ?? null,
+                'quantity_lost' => $row['quantity_lost'],
+                'quantity_lost_unit' => $row['quantity_lost_unit'] ?? null,
                 'reason' => null,
                 'convert_to_item_id' => $convertedItem->id,
                 'converted_quantity' => $row['converted_quantity'],

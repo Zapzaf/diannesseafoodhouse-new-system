@@ -28,7 +28,7 @@ class ProductionController extends Controller
             ProductionOrder::with(['inputs.item', 'outputs.item'])
                 ->when(! $request->user()->isAdmin(), fn ($query) => $query->where('branch_id', $request->user()->branch_id))
                 ->latest()
-                ->paginate((int) request('per_page', 20))
+                ->paginate($this->perPage(request(), 20))
                 ->withQueryString()
         );
     }

@@ -44,6 +44,7 @@
                             <th data-sort-key="quantity">Quantity</th>
                             <th data-sort-key="remaining_quantity">Remaining</th>
                             <th data-sort-key="transaction_price">Trans. Price</th>
+                            <th>Total</th>
                             <th data-sort-key="status">Status</th>
                             <th data-sort-key="reason">Reason</th>
                             <th data-sort-key="created_by">By</th>
@@ -81,6 +82,7 @@
                             <td>{{ number_format((float)$tx->quantity, 2) }}</td>
                             <td>{{ $tx->remaining_quantity !== null ? number_format((float)$tx->remaining_quantity, 2) : '—' }}</td>
                             <td class="text-muted small">{{ $tx->transaction_price !== null ? '₱' . number_format((float)$tx->transaction_price, 2) : '—' }}</td>
+                            <td class="fw-semibold small">{{ $tx->transaction_price !== null ? '₱' . number_format((float)$tx->transaction_price * (float)$tx->quantity, 2) : '—' }}</td>
                             <td>
                                 @if($tx->status === 'pending')
                                 <span class="badge-status badge-pending">PENDING</span>
@@ -95,7 +97,7 @@
                             <td class="text-muted small">{{ $tx->creator?->name ?? '—' }}</td>
                         </tr>
                         @empty
-                        <tr><td colspan="{{ auth()->user()?->isAdmin() ? 14 : 13 }}" class="text-center text-muted py-4">No transactions found.</td></tr>
+                        <tr><td colspan="{{ auth()->user()?->isAdmin() ? 15 : 14 }}" class="text-center text-muted py-4">No transactions found.</td></tr>
                         @endforelse
                     </tbody>
                 </table>

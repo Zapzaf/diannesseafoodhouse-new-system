@@ -97,6 +97,17 @@
                                     <input type="number" name="low_stock_threshold" class="form-control" value="{{ old('low_stock_threshold', 5) }}" min="0">
                                 </div>
                             </div>
+
+                            <div class="row g-3 mt-0">
+                                <div class="col-md-4">
+                                    <label class="form-label fw-semibold">Unit Price</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">PHP</span>
+                                        <input type="number" name="unit_price" class="form-control @error('unit_price') is-invalid @enderror" value="{{ old('unit_price') }}" min="0" step="0.01" placeholder="0.00">
+                                        @error('unit_price')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

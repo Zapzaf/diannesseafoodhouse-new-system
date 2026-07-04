@@ -23,7 +23,7 @@ class WastageReportController extends Controller
             WastageReport::with(['items.item', 'items.convertedItem'])
                 ->when(! $request->user()->isAdmin(), fn ($query) => $query->where('branch_id', $request->user()->branch_id))
                 ->latest()
-                ->paginate((int) request('per_page', 20))
+                ->paginate($this->perPage(request(), 20))
                 ->withQueryString()
         );
     }

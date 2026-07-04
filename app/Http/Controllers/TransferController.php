@@ -27,7 +27,7 @@ class TransferController extends Controller
                     });
                 })
                 ->latest()
-                ->paginate((int) request('per_page', 10))
+                ->paginate($this->perPage(request(), 10))
                 ->withQueryString()
         );
     }
@@ -116,6 +116,11 @@ class TransferController extends Controller
     {
         $transfer = Transfer::findOrFail($id);
         $this->ensureTransferAccess($request, $transfer);
+
+        if ($transfer->status !== 'pending') {
+            abort(422, 'Only pending transfers can be deleted.');
+        }
+
         $transfer->delete();
 
         return response()->json(status: 204);

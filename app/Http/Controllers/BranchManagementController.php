@@ -10,7 +10,7 @@ class BranchManagementController extends Controller
 {
     public function index()
     {
-        $branches = Branch::with('manager')->when(request('search'), fn($q, $s) => $q->where('name', 'like', "%$s%"))->orderBy('name')->paginate((int) request('per_page', 15))->withQueryString();
+        $branches = Branch::with('manager')->when(request('search'), fn($q, $s) => $q->where('name', 'like', "%$s%"))->orderBy('name')->paginate($this->perPage(request(), 15))->withQueryString();
 
         return view('branches.index', compact('branches'));
     }

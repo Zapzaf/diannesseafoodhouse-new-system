@@ -418,11 +418,41 @@
 
                     <!-- Finance Section -->
                     <div class="sidenav-menu-heading text-uppercase px-3 py-2 mt-2 small fw-bold text-white-50" style="font-size: 0.7rem; letter-spacing: 0.08em; opacity: 0.7;">Finance</div>
+
+                    <!-- Purchase & Disbursement Book -->
+                    @php
+                        $purchaseBookActive = request()->routeIs('purchase-vouchers.*')
+                            || request()->routeIs('petty-cash-vouchers.*')
+                            || request()->routeIs('check-vouchers.*')
+                            || request()->routeIs('check-register.*')
+                            || request()->routeIs('chart-of-accounts.*');
+                    @endphp
                     <li class="nav-item">
-                        <a class="nav-link {{ request()->routeIs('expenses.*') ? 'active' : '' }}" href="{{ route('expenses.index') }}">
-                            <i data-lucide="trending-down"></i>
-                            <span>Expenses</span>
+                        <a class="nav-link collapsed {{ $purchaseBookActive ? 'active' : '' }}" href="#" data-bs-toggle="collapse"
+                           data-bs-target="#collapsePurchaseBook" aria-expanded="{{ $purchaseBookActive ? 'true' : 'false' }}">
+                            <i data-lucide="book-text"></i>
+                            <span>Disbursements</span>
+                            <i data-lucide="chevron-down" class="ms-auto collapse-arrow" style="width: 14px; height: 14px;"></i>
                         </a>
+                        <div class="collapse {{ $purchaseBookActive ? 'show' : '' }} ps-3" id="collapsePurchaseBook">
+                           <ul class="nav flex-column mt-1 gap-1">
+                               <li class="nav-item">
+                                   <a class="nav-link py-1.5 px-3 {{ request()->routeIs('purchase-vouchers.*') ? 'active' : '' }}" href="{{ route('purchase-vouchers.index') }}">Purchase Vouchers (APV)</a>
+                               </li>
+                               <li class="nav-item">
+                                   <a class="nav-link py-1.5 px-3 {{ request()->routeIs('petty-cash-vouchers.*') ? 'active' : '' }}" href="{{ route('petty-cash-vouchers.index') }}">Petty Cash Vouchers (PCV)</a>
+                               </li>
+                               <li class="nav-item">
+                                   <a class="nav-link py-1.5 px-3 {{ request()->routeIs('check-vouchers.*') ? 'active' : '' }}" href="{{ route('check-vouchers.index') }}">Check Vouchers (CV)</a>
+                               </li>
+                               <li class="nav-item">
+                                   <a class="nav-link py-1.5 px-3 {{ request()->routeIs('check-register.*') ? 'active' : '' }}" href="{{ route('check-register.index') }}">Check Register</a>
+                               </li>
+                               <li class="nav-item">
+                                   <a class="nav-link py-1.5 px-3 {{ request()->routeIs('chart-of-accounts.*') ? 'active' : '' }}" href="{{ route('chart-of-accounts.index') }}">Chart of Accounts</a>
+                               </li>
+                           </ul>
+                        </div>
                     </li>
 
                     <!-- Reports & Analytics Section -->
@@ -447,6 +477,15 @@
                                </li>
                                <li class="nav-item">
                                    <a class="nav-link py-1.5 px-3 {{ request()->routeIs('reports.costing.*') ? 'active' : '' }}" href="{{ route('reports.costing.index') }}">Costing Report</a>
+                               </li>
+                               <li class="nav-item">
+                                   <a class="nav-link py-1.5 px-3 {{ request()->routeIs('reports.purchase-disbursement.summary') ? 'active' : '' }}" href="{{ route('reports.purchase-disbursement.summary') }}">Purchase &amp; Disbursement Summary</a>
+                               </li>
+                               <li class="nav-item">
+                                   <a class="nav-link py-1.5 px-3 {{ request()->routeIs('reports.purchase-disbursement.aging') ? 'active' : '' }}" href="{{ route('reports.purchase-disbursement.aging') }}">Unpaid APV Aging</a>
+                               </li>
+                               <li class="nav-item">
+                                   <a class="nav-link py-1.5 px-3 {{ request()->routeIs('reports.purchase-disbursement.petty-cash-fund') ? 'active' : '' }}" href="{{ route('reports.purchase-disbursement.petty-cash-fund') }}">Petty Cash Fund Status</a>
                                </li>
                            </ul>
                         </div>
@@ -520,7 +559,7 @@
                             </button>
                             
                             <div class="position-relative flex-grow-1" style="max-width: 320px; width: 100%; z-index: 1050;">
-                                <span class="position-absolute top-50 start-0 translate-middle-y ps-3 text-muted">
+                                <span class="position-absolute start-0 top-0 h-100 d-flex align-items-center ps-3 text-muted">
                                     <i data-lucide="search" style="width: 18px; height: 18px;"></i>
                                 </span>
                                 <input type="text" class="form-control ps-5 py-2 border-0 bg-light" id="globalSearch" placeholder="Search inventory, categories..." autocomplete="off">
@@ -774,23 +813,47 @@
                     });
 
                     // Add keyboard navigation support (Up/Down arrow & Enter)
-                    searchInput.addEventListener('keydown', (e) => {
+                    const searchWrapper = searchInput.closest('.position-relative') || searchInput.parentElement;
+                    searchWrapper.addEventListener('keydown', (e) => {
                         const items = Array.from(suggestionsContainer.querySelectorAll('a.dropdown-item'));
                         if (items.length === 0) return;
                         
-                        const activeIndex = items.findIndex(item => item === document.activeElement);
+                        const activeElement = document.activeElement;
                         
                         if (e.key === 'ArrowDown') {
                             e.preventDefault();
-                            const nextIndex = (activeIndex + 1) % items.length;
-                            items[nextIndex].focus();
+                            if (activeElement === searchInput) {
+                                items[0].focus();
+                            } else {
+                                const activeIndex = items.indexOf(activeElement);
+                                if (activeIndex !== -1) {
+                                    const nextIndex = (activeIndex + 1) % items.length;
+                                    items[nextIndex].focus();
+                                }
+                            }
                         } else if (e.key === 'ArrowUp') {
                             e.preventDefault();
-                            const prevIndex = (activeIndex - 1 + items.length) % items.length;
-                            items[prevIndex].focus();
+                            if (activeElement === searchInput) {
+                                items[items.length - 1].focus();
+                            } else {
+                                const activeIndex = items.indexOf(activeElement);
+                                if (activeIndex === 0) {
+                                    searchInput.focus();
+                                } else if (activeIndex !== -1) {
+                                    const prevIndex = (activeIndex - 1 + items.length) % items.length;
+                                    items[prevIndex].focus();
+                                }
+                            }
                         } else if (e.key === 'Escape') {
                             suggestionsContainer.classList.remove('show');
                             searchInput.focus();
+                        } else if (e.key === 'Enter') {
+                            if (activeElement === searchInput) {
+                                e.preventDefault();
+                                if (items.length > 0) {
+                                    window.location.href = items[0].href;
+                                }
+                            }
                         }
                     });
                 }

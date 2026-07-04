@@ -45,7 +45,7 @@ class MenuController extends Controller
             ->withCount('items')
             ->orderBy('category')
             ->orderBy('name')
-            ->paginate((int) request('per_page', 25))->withQueryString();
+            ->paginate($this->perPage(request(), 25))->withQueryString();
 
         return view('menu.index', compact('menus'));
     }

@@ -154,16 +154,16 @@
                                         @foreach($order->items as $item)
                                         <tr>
                                             <td>{{ $item->menu->name ?? 'N/A' }}<div class="small text-muted">Qty {{ $item->quantity }}</div></td>
-                                            <td class="text-end">PHP {{ number_format((float) $item->subtotal, 2) }}</td>
+                                            <td class="text-end">₱{{ number_format((float) $item->subtotal, 2) }}</td>
                                         </tr>
                                         @endforeach
                                     </tbody>
                                     <tfoot>
-                                        <tr class="fw-bold"><td>Subtotal</td><td class="text-end" id="previewSubtotal">PHP {{ number_format((float) $order->subtotal, 2) }}</td></tr>
-                                        <tr id="previewAdditionalRow"><td>Additional</td><td class="text-end" id="previewAdditional">PHP {{ number_format((float) $order->additional_charge_amount, 2) }}</td></tr>
-                                        <tr id="previewDiscountRow"><td>Discount</td><td class="text-end text-danger" id="previewDiscount">PHP {{ number_format((float) $order->discount_amount, 2) }}</td></tr>
-                                        <tr id="previewVatRow"><td>VAT</td><td class="text-end" id="previewVat">PHP {{ number_format((float) $order->vat_amount, 2) }}</td></tr>
-                                        <tr class="fw-bold"><td>Total</td><td class="text-end" id="previewTotal">PHP {{ number_format((float) $order->total_amount, 2) }}</td></tr>
+                                        <tr class="fw-bold"><td>Subtotal</td><td class="text-end" id="previewSubtotal">₱{{ number_format((float) $order->subtotal, 2) }}</td></tr>
+                                        <tr id="previewAdditionalRow"><td>Additional</td><td class="text-end" id="previewAdditional">₱{{ number_format((float) $order->additional_charge_amount, 2) }}</td></tr>
+                                        <tr id="previewDiscountRow"><td>Discount</td><td class="text-end text-danger" id="previewDiscount">₱{{ number_format((float) $order->discount_amount, 2) }}</td></tr>
+                                        <tr id="previewVatRow"><td>VAT</td><td class="text-end" id="previewVat">₱{{ number_format((float) $order->vat_amount, 2) }}</td></tr>
+                                        <tr class="fw-bold"><td>Total</td><td class="text-end" id="previewTotal">₱{{ number_format((float) $order->total_amount, 2) }}</td></tr>
                                     </tfoot>
                                 </table>
                             </div>
@@ -205,7 +205,7 @@
     var existingSrNames = @json($existingSrNames);
 
     function formatMoney(value) {
-        return 'PHP ' + Number(value || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return '₱' + Number(value || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
 
     function updateAdditionalChargeEmptyState() {
@@ -219,7 +219,7 @@
         var inputs = row.querySelectorAll('input, select');
 
         function syncPrefix() {
-            prefix.textContent = typeSelect.value === 'percentage' ? '%' : 'PHP';
+            prefix.textContent = typeSelect.value === 'percentage' ? '%' : '₱';
             recalcPreview();
         }
 
@@ -241,7 +241,7 @@
             '<div class="row g-2 align-items-end">' +
             '<div class="col-lg-5"><label class="form-label fw-semibold small mb-1">Label / Description</label><input type="text" name="additional_charges[' + index + '][label]" class="form-control additional-charge-label" maxlength="120" required></div>' +
             '<div class="col-lg-3"><label class="form-label fw-semibold small mb-1">Charge Type</label><select name="additional_charges[' + index + '][type]" class="form-select additional-charge-type" required><option value="fixed">Fixed Amount</option><option value="percentage">Percentage</option></select></div>' +
-            '<div class="col-lg-3"><label class="form-label fw-semibold small mb-1">Value</label><div class="input-group"><span class="input-group-text additional-charge-prefix">PHP</span><input type="number" name="additional_charges[' + index + '][value]" class="form-control additional-charge-value" min="0.01" step="0.01" required></div></div>' +
+            '<div class="col-lg-3"><label class="form-label fw-semibold small mb-1">Value</label><div class="input-group"><span class="input-group-text additional-charge-prefix">₱</span><input type="number" name="additional_charges[' + index + '][value]" class="form-control additional-charge-value" min="0.01" step="0.01" required></div></div>' +
             '<div class="col-lg-1 d-grid"><button type="button" class="btn btn-outline-danger remove-additional-charge" title="Remove charge"><i data-lucide="trash-2"></i></button></div>' +
             '</div>';
         additionalChargesList.appendChild(row);

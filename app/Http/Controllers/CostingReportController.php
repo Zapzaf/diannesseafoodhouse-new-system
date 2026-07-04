@@ -27,7 +27,7 @@ class CostingReportController extends Controller
             ->whereDate('created_at', '>=', $dateFrom)
             ->whereDate('created_at', '<=', $dateTo)
             ->latest()
-            ->paginate((int) $request->input('per_page', 20))
+            ->paginate($this->perPage($request, 20))
             ->withQueryString();
 
         $statusCounts = CostingReport::query()

@@ -254,6 +254,32 @@
 }
 
 
+/* Dark Mode overrides for Soft Backgrounds / Badges to ensure high readability and contrast */
+[data-bs-theme="dark"] .bg-primary-soft {
+    background-color: rgba(var(--primary-color-rgb), 0.16) !important;
+    color: #ff9e80 !important;
+}
+[data-bs-theme="dark"] .bg-success-soft {
+    background-color: rgba(16, 185, 129, 0.16) !important;
+    color: #34d399 !important;
+}
+[data-bs-theme="dark"] .bg-danger-soft {
+    background-color: rgba(244, 63, 94, 0.16) !important;
+    color: #fb7185 !important;
+}
+[data-bs-theme="dark"] .bg-warning-soft {
+    background-color: rgba(245, 158, 11, 0.16) !important;
+    color: #fbbf24 !important;
+}
+[data-bs-theme="dark"] .bg-info-soft {
+    background-color: rgba(14, 165, 233, 0.16) !important;
+    color: #38bdf8 !important;
+}
+[data-bs-theme="dark"] .bg-secondary-soft {
+    background-color: rgba(148, 163, 184, 0.18) !important;
+    color: #cbd5e1 !important;
+}
+
 
 /* Uniform Stroke for Modern Icons */
 svg.lucide,
@@ -382,6 +408,12 @@ body {
     color: var(--text-main);
     border-radius: 8px;
     padding: 0.6rem 0.9rem;
+}
+.form-select {
+    padding-right: 2.5rem !important;
+}
+.form-select-sm {
+    padding-right: 2rem !important;
 }
 .form-control::placeholder {
     color: var(--text-muted);
@@ -1028,7 +1060,7 @@ body {
 
 .dashboard-metrics-grid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 1rem;
 }
 
@@ -2979,10 +3011,30 @@ th.table-sortable:hover {
     border-bottom-color: rgba(100, 116, 139, 0.75) !important;
 }
 
-.badge.bg-primary-soft,
-.bg-primary-soft {
-    background-color: rgba(var(--primary-color-rgb), 0.12) !important;
+/* Soft Background / Badge Classes (Light Mode) */
+.badge.bg-primary-soft, .bg-primary-soft {
+    background-color: rgba(var(--primary-color-rgb), 0.1) !important;
     color: var(--primary-color) !important;
+}
+.badge.bg-success-soft, .bg-success-soft {
+    background-color: rgba(16, 185, 129, 0.1) !important;
+    color: #059669 !important;
+}
+.badge.bg-danger-soft, .bg-danger-soft {
+    background-color: rgba(244, 63, 94, 0.1) !important;
+    color: #e11d48 !important;
+}
+.badge.bg-warning-soft, .bg-warning-soft {
+    background-color: rgba(245, 158, 11, 0.1) !important;
+    color: #d97706 !important;
+}
+.badge.bg-info-soft, .bg-info-soft {
+    background-color: rgba(14, 165, 233, 0.1) !important;
+    color: #0284c7 !important;
+}
+.badge.bg-secondary-soft, .bg-secondary-soft {
+    background-color: rgba(100, 116, 139, 0.1) !important;
+    color: #475569 !important;
 }
 
 .table-wrapper {

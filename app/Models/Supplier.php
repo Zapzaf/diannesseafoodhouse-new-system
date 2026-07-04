@@ -17,9 +17,18 @@ class Supplier extends Model
         'phone',
         'email',
         'address',
+        'tin',
+        'is_vat_registered',
         'notes',
         'created_by',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'is_vat_registered' => 'boolean',
+        ];
+    }
 
     public function creator(): BelongsTo
     {
@@ -29,5 +38,10 @@ class Supplier extends Model
     public function deliveries(): HasMany
     {
         return $this->hasMany(Delivery::class);
+    }
+
+    public function purchaseVouchers(): HasMany
+    {
+        return $this->hasMany(PurchaseVoucher::class, 'vendor_id');
     }
 }

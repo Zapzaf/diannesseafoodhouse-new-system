@@ -38,7 +38,7 @@ class UserController extends Controller
             $sort = 'created_at';
         }
 
-        $users = $query->orderBy($sort, $direction)->paginate((int) $request->input('per_page', 10));
+        $users = $query->orderBy($sort, $direction)->paginate($this->perPage($request, 10));
 
         return response()->json($users);
     }
@@ -109,8 +109,12 @@ class UserController extends Controller
         return redirect()->route('users.index')->with('success', 'User updated successfully.');
     }
 
-    public function destroy(User $user)
+    public function destroy(Request $request, User $user)
     {
+        if ((int) $user->id === (int) $request->user()->id) {
+            return back()->with('error', 'You cannot delete your own account.');
+        }
+
         $user->delete();
 
         return redirect()->route('users.index')->with('success', 'User deleted successfully.');

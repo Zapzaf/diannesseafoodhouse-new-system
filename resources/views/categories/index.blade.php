@@ -31,7 +31,7 @@
             </div>
             <div class="card-body">
                 <div class="table-responsive">
-                    <table class="table table-bordered table-striped align-middle mb-0">
+                    <table class="table table-bordered table-striped align-middle mb-0 text-nowrap">
                         <thead class="table-dark">
                             <tr>
                                 <th style="min-width: 260px;">Hierarchy</th>
@@ -43,12 +43,12 @@
                         <tbody>
                             @forelse($locations as $location)
                             <tr class="table-light">
-                                <td class="fw-semibold">
+                                <td class="fw-semibold text-nowrap">
                                     <i data-lucide="map-pin" style="width:14px;height:14px;" class="me-1"></i>
                                     {{ $location->name }}
                                 </td>
-                                <td>{{ $location->branch?->name ?? 'N/A' }}</td>
-                                <td><span class="badge bg-secondary">Location</span></td>
+                                <td class="text-nowrap">{{ $location->branch?->name ?? 'N/A' }}</td>
+                                <td class="text-nowrap"><span class="badge bg-secondary">Location</span></td>
                                 <td class="table-actions-cell text-end">
                                     <a href="{{ route('categories.items.create', ['location_id' => $location->id]) }}" class="btn btn-sm btn-primary" title="Add Category" aria-label="Add Category">
                                         <i data-lucide="plus-circle" style="width:14px;height:14px;"></i>
@@ -70,13 +70,13 @@
 
                             @forelse($location->categories as $category)
                             <tr>
-                                <td class="ps-4">
+                                <td class="ps-4 text-nowrap">
                                     <span class="text-muted me-2">└─</span>
                                     <i data-lucide="folder" style="width:14px;height:14px;" class="me-1"></i>
                                     {{ $category->name }}
                                 </td>
-                                <td>{{ $category->branch?->name ?? $location->branch?->name ?? 'N/A' }}</td>
-                                <td><span class="badge bg-info text-white">Category</span></td>
+                                <td class="text-nowrap">{{ $category->branch?->name ?? $location->branch?->name ?? 'N/A' }}</td>
+                                <td class="text-nowrap"><span class="badge bg-info text-white">Category</span></td>
                                 <td class="table-actions-cell text-end">
                                     <a href="{{ route('categories.view', [$location, 'category_id' => $category->id]) }}" class="btn btn-sm btn-info text-white" title="View Category Items" aria-label="View Category Items">
                                         <i data-lucide="eye" style="width:14px;height:14px;"></i>

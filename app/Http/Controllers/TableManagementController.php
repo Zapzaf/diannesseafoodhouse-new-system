@@ -183,6 +183,16 @@ class TableManagementController extends Controller
     {
         $this->authorizeBranch($table->branch_id);
 
+        if ($table->current_order_id !== null) {
+            $currentOrder = MenuOrder::find($table->current_order_id);
+
+            if ($currentOrder && (string) $currentOrder->status === 'open') {
+                return response()->json([
+                    'message' => 'This table has an open order with an outstanding balance. Settle, cancel, or void the order before releasing the table.',
+                ], 422);
+            }
+        }
+
         DB::transaction(function () use ($table) {
             $table->lockForUpdate();
             $table->current_order_id = null;

@@ -15,7 +15,7 @@ class SupplierController extends Controller
     {
         $this->authorize('viewAny', Supplier::class);
 
-        return response()->json(Supplier::latest()->paginate((int) request('per_page', 20))->withQueryString());
+        return response()->json(Supplier::latest()->paginate($this->perPage(request(), 20))->withQueryString());
     }
 
     /**

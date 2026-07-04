@@ -47,9 +47,8 @@ class ReportController extends Controller
     public function transaction(Request $request): View
     {
         $branchId = $this->resolveBranchId($request);
-        $dateFrom = $request->input('date_from', now()->startOfMonth()->toDateString());
-        $dateTo = $request->input('date_to', now()->toDateString());
-        $type = $request->input('type', '');
+        [$dateFrom, $dateTo] = $this->validatedDateRange($request);
+        $type = $request->validate(['type' => ['nullable', 'in:in,out']])['type'] ?? '';
 
         $transactions = InventoryTransaction::query()
             ->with(['inventory.branch', 'creator'])
@@ -58,7 +57,7 @@ class ReportController extends Controller
             ->whereDate('created_at', '>=', $dateFrom)
             ->whereDate('created_at', '<=', $dateTo)
             ->latest()
-            ->paginate((int) request('per_page', 20))->withQueryString();
+            ->paginate($this->perPage(request(), 20))->withQueryString();
 
         $stockIn = InventoryTransaction::query()
             ->when($branchId, fn ($q, $id) => $q->whereHas('inventory', fn ($inner) => $inner->where('branch_id', $id)))
@@ -83,13 +82,12 @@ class ReportController extends Controller
     public function delivery(Request $request): View
     {
         $branchId = $this->resolveBranchId($request);
-        $dateFrom = $request->input('date_from', now()->startOfMonth()->toDateString());
-        $dateTo = $request->input('date_to', now()->toDateString());
-        $status = $request->input('status', '');
+        [$dateFrom, $dateTo] = $this->validatedDateRange($request);
+        $status = $request->validate(['status' => ['nullable', 'in:pending,received']])['status'] ?? '';
 
         $deliveryItemsQuery = $this->deliveryReportItemQuery($request, $branchId, $dateFrom, $dateTo, $status);
         $deliveryItems = (clone $deliveryItemsQuery)
-            ->paginate((int) request('per_page', 20))->withQueryString();
+            ->paginate($this->perPage(request(), 20))->withQueryString();
 
         $totalDeliveryCost = (clone $deliveryItemsQuery)->sum('delivery_items.price');
 
@@ -112,9 +110,8 @@ class ReportController extends Controller
     public function exportDelivery(Request $request)
     {
         $branchId = $this->resolveBranchId($request);
-        $dateFrom = $request->input('date_from', now()->startOfMonth()->toDateString());
-        $dateTo = $request->input('date_to', now()->toDateString());
-        $status = $request->input('status', '');
+        [$dateFrom, $dateTo] = $this->validatedDateRange($request);
+        $status = $request->validate(['status' => ['nullable', 'in:pending,received']])['status'] ?? '';
 
         $deliveryItemsQuery = $this->deliveryReportItemQuery($request, $branchId, $dateFrom, $dateTo, $status);
         $deliveryItems = (clone $deliveryItemsQuery)->get();
@@ -131,8 +128,7 @@ class ReportController extends Controller
     public function costing(Request $request): View
     {
         $branchId = $this->resolveBranchId($request);
-        $dateFrom = $request->input('date_from', now()->startOfMonth()->toDateString());
-        $dateTo = $request->input('date_to', now()->toDateString());
+        [$dateFrom, $dateTo] = $this->validatedDateRange($request);
 
         $latestUnitCostSub = InventoryTransaction::query()
             ->select('transaction_price')
@@ -181,6 +177,22 @@ class ReportController extends Controller
             'branches' => Branch::query()->where('is_active', true)->orderBy('name')->get(),
             'selectedBranchId' => $branchId,
         ]);
+    }
+
+    /**
+     * @return array{0: string, 1: string} [date_from, date_to]
+     */
+    private function validatedDateRange(Request $request): array
+    {
+        $validated = $request->validate([
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+        ]);
+
+        return [
+            $validated['date_from'] ?? now()->startOfMonth()->toDateString(),
+            $validated['date_to'] ?? now()->toDateString(),
+        ];
     }
 
     private function resolveBranchId(Request $request): ?int

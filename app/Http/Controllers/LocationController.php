@@ -12,7 +12,7 @@ class LocationController extends Controller
      */
     public function index()
     {
-        return response()->json(Location::with('categories')->latest()->paginate((int) request('per_page', 20))->withQueryString());
+        return response()->json(Location::with('categories')->latest()->paginate($this->perPage(request(), 20))->withQueryString());
     }
 
     /**

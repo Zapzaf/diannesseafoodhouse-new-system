@@ -129,9 +129,9 @@
                             <td>{{ strtoupper($payment->method) }}</td>
                             <td>
                                 @if($payment->discount_type && $payment->discount_type !== 'none')
-                                <span class="badge bg-warning text-dark">{{ $payment->discount_label }}</span>
+                                <span class="badge bg-warning text-white">{{ $payment->discount_label }}</span>
                                 @elseif($payment->discount_label !== 'None')
-                                <span class="badge bg-warning text-dark">{{ $payment->discount_label }}</span>
+                                <span class="badge bg-warning text-white">{{ $payment->discount_label }}</span>
                                 @else
                                 <span class="text-muted">—</span>
                                 @endif

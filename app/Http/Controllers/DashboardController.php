@@ -3,19 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Models\Branch;
-use App\Models\CashDisbursement;
 use App\Models\Category;
 use App\Models\DeliveryItem;
 use App\Models\InventoryTransaction;
 use App\Models\Item;
 use App\Models\MenuOrderPayment;
-use App\Models\NonVatablePurchase;
 use App\Models\ProductionInput;
 use App\Models\ProductionOrder;
 use App\Models\ProductionOutput;
 use App\Models\Sale;
 use App\Models\Supplier;
-use App\Models\VatablePurchase;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -26,7 +23,6 @@ class DashboardController extends Controller
     {
         $today = now()->startOfDay();
         $monthStart = now()->startOfMonth();
-        $monthKey = now()->format('Y-m');
         $branchId = $this->resolveBranchId($request);
         $selectedBranch = $branchId ? Branch::query()->find($branchId) : null;
         $analyticsPeriod = $this->resolveAnalyticsPeriod($request);
@@ -40,18 +36,6 @@ class DashboardController extends Controller
 
         $monthlyRevenue = (float) (clone $saleQuery)->where('created_at', '>=', $monthStart)->sum('grand_total')
             + (float) (clone $paymentQuery)->where('payment_date', '>=', $monthStart->toDateString())->sum('final_total');
-
-        $vatableExpenses = (float) $this->scopeToBranch(VatablePurchase::query(), $branchId)
-            ->where('month_year', $monthKey)
-            ->sum('gross_amount');
-        $nonVatableExpenses = (float) $this->scopeToBranch(NonVatablePurchase::query(), $branchId)
-            ->where('month_year', $monthKey)
-            ->sum('gross_amount');
-        $cashDisbursements = (float) $this->scopeToBranch(CashDisbursement::query(), $branchId)
-            ->where('month_year', $monthKey)
-            ->sum('amount');
-
-        $monthlyExpenses = $vatableExpenses + $nonVatableExpenses + $cashDisbursements;
 
         $itemQuery = $this->scopeToBranch(Item::query(), $branchId);
         $categoryQuery = $this->scopeToBranch(Category::query(), $branchId);
@@ -88,12 +72,6 @@ class DashboardController extends Controller
             ];
         });
 
-        $expenseBreakdown = collect([
-            ['category' => 'Vatable Purchases', 'total' => $vatableExpenses],
-            ['category' => 'Non-Vatable Purchases', 'total' => $nonVatableExpenses],
-            ['category' => 'Cash Disbursements', 'total' => $cashDisbursements],
-        ])->filter(fn (array $row) => $row['total'] > 0)->values();
-
         $itemCount = (clone $itemQuery)->count();
         $outOfStockCount = (clone $itemQuery)->where('quantity', '<=', 0)->count();
         $stockHealthPercent = $itemCount > 0
@@ -106,8 +84,6 @@ class DashboardController extends Controller
         return view('dashboard', [
             'dailyRevenue' => $dailyRevenue,
             'monthlyRevenue' => $monthlyRevenue,
-            'monthlyExpenses' => $monthlyExpenses,
-            'netIncome' => $monthlyRevenue - $monthlyExpenses,
             'categoryCount' => (clone $categoryQuery)->count(),
             'supplierCount' => Supplier::query()->count(),
             'branchCount' => Branch::query()->where('is_active', true)->count(),
@@ -117,7 +93,6 @@ class DashboardController extends Controller
             'lowStockCount' => $lowStockCount,
             'lowStockItems' => $lowStockItems,
             'revenueChart' => $revenueChart->toArray(),
-            'expenseBreakdown' => $expenseBreakdown,
             'analyticsPeriod' => $analyticsPeriod,
             'analyticsRangeLabel' => $analyticsRange['label'],
             'inventoryAnalytics' => $inventoryAnalytics,

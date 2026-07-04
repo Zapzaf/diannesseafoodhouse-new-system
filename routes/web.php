@@ -3,6 +3,9 @@
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\BranchManagementController;
 use App\Http\Controllers\CategoryManagementController;
+use App\Http\Controllers\ChartOfAccountController;
+use App\Http\Controllers\CheckRegisterController;
+use App\Http\Controllers\CheckVoucherController;
 use App\Http\Controllers\CostingReportController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeliveryManagementController;
@@ -11,7 +14,10 @@ use App\Http\Controllers\MenuCategoryController;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\MenuOrderController;
 use App\Http\Controllers\PaymentsController;
+use App\Http\Controllers\PettyCashVoucherController;
 use App\Http\Controllers\ProductionManagementController;
+use App\Http\Controllers\PurchaseDisbursementReportController;
+use App\Http\Controllers\PurchaseVoucherController;
 use App\Http\Controllers\TableManagementController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SaleManagementController;
@@ -50,7 +56,7 @@ Route::middleware('guest')->group(function (): void {
 		$request->session()->regenerate();
 
 		return redirect()->route('dashboard');
-	})->name('login.attempt');
+	})->middleware('throttle:5,1')->name('login.attempt');
 });
 
 Route::post('/logout', function (Request $request) {
@@ -96,7 +102,7 @@ Route::middleware('auth')->group(function (): void {
 		Route::get('/pending', [InventoryController::class, 'transactionsPending'])->name('pending');
 	});
 
-	Route::prefix('users')->name('users.')->group(function (): void {
+	Route::prefix('users')->name('users.')->middleware('role:admin')->group(function (): void {
 		Route::get('/', [UserController::class, 'index'])->name('index');
 		Route::get('/data', [UserController::class, 'data'])->name('data');
 		Route::get('/create', [UserController::class, 'create'])->name('create');
@@ -111,7 +117,11 @@ Route::middleware('auth')->group(function (): void {
 	Route::get('/profile-photos/{user}', [AccountController::class, 'showProfilePhoto'])->name('profile-photos.show');
 
 	Route::post('/branch/select', function (Request $request) {
-		$request->session()->put('selected_branch_id', $request->input('branch_id') ?: null);
+		$validated = $request->validate([
+			'branch_id' => ['nullable', 'exists:branches,id'],
+		]);
+
+		$request->session()->put('selected_branch_id', $validated['branch_id'] ?? null);
 
 		return back();
 	})->name('branch.select');
@@ -247,7 +257,7 @@ Route::middleware('auth')->group(function (): void {
         Route::get('/{payment}', [PaymentsController::class, 'show'])->name('show');
     });
 
-	Route::prefix('branches')->name('branches.')->group(function (): void {
+	Route::prefix('branches')->name('branches.')->middleware('role:admin')->group(function (): void {
 		Route::get('/', [BranchManagementController::class, 'index'])->name('index');
 		Route::get('/create', [BranchManagementController::class, 'create'])->name('create');
 		Route::post('/', [BranchManagementController::class, 'store'])->name('store');
@@ -275,23 +285,54 @@ Route::middleware('auth')->group(function (): void {
 	Route::get('/settings', [SettingsController::class, 'show'])->name('settings.show');
 	Route::put('/settings/branch', [SettingsController::class, 'updateBranch'])->name('settings.branch.update');
 
-    Route::prefix('expenses')->name('expenses.')->group(function () {
-        Route::get('/', [\App\Http\Controllers\ExpenseController::class, 'index'])->name('index');
-        Route::post('/import', [\App\Http\Controllers\ExpenseController::class, 'import'])->name('import');
-        Route::get('/export/{monthYear}', [\App\Http\Controllers\ExpenseController::class, 'export'])->name('export');
-        Route::post('/{monthYear}/vatable', [\App\Http\Controllers\ExpenseController::class, 'storeVatable'])->name('vatable.store');
-        Route::put('/{monthYear}/vatable/{vatable}', [\App\Http\Controllers\ExpenseController::class, 'updateVatable'])->name('vatable.update');
-        Route::delete('/{monthYear}/vatable/{vatable}', [\App\Http\Controllers\ExpenseController::class, 'destroyVatable'])->name('vatable.destroy');
-        Route::post('/{monthYear}/non-vatable', [\App\Http\Controllers\ExpenseController::class, 'storeNonVatable'])->name('nonvatable.store');
-        Route::put('/{monthYear}/non-vatable/{nonVatable}', [\App\Http\Controllers\ExpenseController::class, 'updateNonVatable'])->name('nonvatable.update');
-        Route::delete('/{monthYear}/non-vatable/{nonVatable}', [\App\Http\Controllers\ExpenseController::class, 'destroyNonVatable'])->name('nonvatable.destroy');
-        Route::post('/{monthYear}/disbursements', [\App\Http\Controllers\ExpenseController::class, 'storeDisbursement'])->name('disbursement.store');
-        Route::put('/{monthYear}/disbursements/{disbursement}', [\App\Http\Controllers\ExpenseController::class, 'updateDisbursement'])->name('disbursement.update');
-        Route::delete('/{monthYear}/disbursements/{disbursement}', [\App\Http\Controllers\ExpenseController::class, 'destroyDisbursement'])->name('disbursement.destroy');
+	Route::prefix('chart-of-accounts')->name('chart-of-accounts.')->middleware('role:admin')->group(function (): void {
+		Route::get('/', [ChartOfAccountController::class, 'index'])->name('index');
+		Route::get('/create', [ChartOfAccountController::class, 'create'])->name('create');
+		Route::post('/', [ChartOfAccountController::class, 'store'])->name('store');
+		Route::post('/{chartOfAccount}/toggle-active', [ChartOfAccountController::class, 'toggleActive'])->name('toggle-active');
+	});
 
-        // Show must be last (wildcard)
-        Route::get('/{monthYear}', [\App\Http\Controllers\ExpenseController::class, 'show'])->name('show');
-    });
+	Route::prefix('purchase-vouchers')->name('purchase-vouchers.')->middleware('role:admin')->group(function (): void {
+		Route::get('/', [PurchaseVoucherController::class, 'index'])->name('index');
+		Route::get('/create', [PurchaseVoucherController::class, 'create'])->name('create');
+		Route::post('/', [PurchaseVoucherController::class, 'store'])->name('store');
+		Route::get('/{purchaseVoucher}', [PurchaseVoucherController::class, 'show'])->name('show');
+		Route::get('/{purchaseVoucher}/edit', [PurchaseVoucherController::class, 'edit'])->name('edit');
+		Route::put('/{purchaseVoucher}', [PurchaseVoucherController::class, 'update'])->name('update');
+		Route::delete('/{purchaseVoucher}', [PurchaseVoucherController::class, 'destroy'])->name('destroy');
+	});
+
+	Route::prefix('petty-cash-vouchers')->name('petty-cash-vouchers.')->middleware('role:admin')->group(function (): void {
+		Route::get('/', [PettyCashVoucherController::class, 'index'])->name('index');
+		Route::get('/create', [PettyCashVoucherController::class, 'create'])->name('create');
+		Route::post('/', [PettyCashVoucherController::class, 'store'])->name('store');
+		Route::get('/{pettyCashVoucher}', [PettyCashVoucherController::class, 'show'])->name('show');
+		Route::get('/{pettyCashVoucher}/edit', [PettyCashVoucherController::class, 'edit'])->name('edit');
+		Route::put('/{pettyCashVoucher}', [PettyCashVoucherController::class, 'update'])->name('update');
+		Route::delete('/{pettyCashVoucher}', [PettyCashVoucherController::class, 'destroy'])->name('destroy');
+	});
+
+	Route::prefix('check-vouchers')->name('check-vouchers.')->middleware('role:admin')->group(function (): void {
+		Route::get('/', [CheckVoucherController::class, 'index'])->name('index');
+		Route::get('/create', [CheckVoucherController::class, 'create'])->name('create');
+		Route::post('/', [CheckVoucherController::class, 'store'])->name('store');
+		Route::get('/unreplenished-pcvs', [CheckVoucherController::class, 'unreplenishedPcvs'])->name('unreplenished-pcvs');
+		Route::get('/unpaid-apvs', [CheckVoucherController::class, 'unpaidApvs'])->name('unpaid-apvs');
+		Route::get('/{checkVoucher}', [CheckVoucherController::class, 'show'])->name('show');
+		Route::post('/{checkVoucher}/issue-check', [CheckVoucherController::class, 'issueCheck'])->name('issue-check');
+	});
+
+	Route::prefix('check-register')->name('check-register.')->middleware('role:admin')->group(function (): void {
+		Route::get('/', [CheckRegisterController::class, 'index'])->name('index');
+		Route::post('/{checkRegister}/mark-cleared', [CheckRegisterController::class, 'markCleared'])->name('mark-cleared');
+		Route::post('/{checkRegister}/void', [CheckRegisterController::class, 'void'])->name('void');
+	});
+
+	Route::prefix('reports/purchase-disbursement')->name('reports.purchase-disbursement.')->middleware('role:admin')->group(function (): void {
+		Route::get('/summary', [PurchaseDisbursementReportController::class, 'summary'])->name('summary');
+		Route::get('/aging', [PurchaseDisbursementReportController::class, 'unpaidApvAging'])->name('aging');
+		Route::get('/petty-cash-fund', [PurchaseDisbursementReportController::class, 'pettyCashFund'])->name('petty-cash-fund');
+	});
 
 	Route::get('/global-search-suggestions', function (Request $request) {
 		$query = trim($request->query('q'));

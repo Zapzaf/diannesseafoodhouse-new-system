@@ -1,24 +1,22 @@
 <?php
 
 use App\Models\Branch;
-use App\Models\CashDisbursement;
 use App\Models\Category;
 use App\Models\Delivery;
 use App\Models\DeliveryItem;
 use App\Models\InventoryTransaction;
 use App\Models\Item;
 use App\Models\Location;
-use App\Models\NonVatablePurchase;
 use App\Models\ProductionInput;
 use App\Models\ProductionOrder;
+use App\Models\ProductionOutput;
 use App\Models\Supplier;
 use App\Models\Transfer;
 use App\Models\User;
-use App\Models\VatablePurchase;
+use App\Models\WastageItem;
 use App\Models\WastageReport;
 use App\Exports\DeliveryReportExport;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Route;
 use Maatwebsite\Excel\Facades\Excel;
 
 uses(RefreshDatabase::class);
@@ -549,6 +547,9 @@ it('finishes production with scrap conversion when the input comes from a delive
             'unit' => 'kg',
         ]],
         'wastage' => [[
+            'scrap_name' => 'Fish trim',
+            'quantity_lost' => 1,
+            'quantity_lost_unit' => 'kg',
             'convert_to_item_id' => $output->id,
             'converted_quantity' => 0.5,
         ]],
@@ -561,6 +562,9 @@ it('finishes production with scrap conversion when the input comes from a delive
 
     $this->assertDatabaseHas('wastage_items', [
         'item_id' => null,
+        'scrap_name' => 'Fish trim',
+        'quantity_lost' => 1,
+        'quantity_lost_unit' => 'kg',
         'convert_to_item_id' => $output->id,
         'converted_quantity' => 0.5,
     ]);
@@ -587,6 +591,9 @@ it('rejects production scrap conversion without convert qty', function () {
             'unit' => 'kg',
         ]],
         'wastage' => [[
+            'scrap_name' => 'Fish trim',
+            'quantity_lost' => 1,
+            'quantity_lost_unit' => 'kg',
             'convert_to_item_id' => $output->id,
         ]],
     ])->assertSessionHasErrors('wastage.0.converted_quantity');
@@ -617,6 +624,9 @@ it('rejects production scrap conversion without convert to item', function () {
             'unit' => 'kg',
         ]],
         'wastage' => [[
+            'scrap_name' => 'Fish trim',
+            'quantity_lost' => 1,
+            'quantity_lost_unit' => 'kg',
             'converted_quantity' => 0.5,
         ]],
     ])->assertSessionHasErrors('wastage.0.convert_to_item_id');
@@ -624,6 +634,103 @@ it('rejects production scrap conversion without convert to item', function () {
     expect($production->fresh()->status)->toBe('in_progress')
         ->and(WastageReport::query()->count())->toBe(0)
         ->and((float) $output->fresh()->quantity)->toBe(0.0);
+});
+
+it('shows one row for each scrap waste item on the scrap list', function () {
+    [$manager, $branch, , $input, $output] = makeDeliveryProductionContext();
+
+    $production = ProductionOrder::create([
+        'branch_id' => $branch->id,
+        'status' => 'finished',
+        'created_by' => $manager->id,
+    ]);
+
+    $report = WastageReport::create([
+        'production_order_id' => $production->id,
+        'branch_id' => $branch->id,
+        'created_by' => $manager->id,
+    ]);
+
+    WastageItem::create([
+        'wastage_report_id' => $report->id,
+        'item_id' => $input->id,
+        'scrap_name' => 'Fish trim',
+        'quantity_lost' => 1,
+        'quantity_lost_unit' => 'kg',
+        'reason' => 'Processing scrap',
+    ]);
+
+    WastageItem::create([
+        'wastage_report_id' => $report->id,
+        'item_id' => null,
+        'quantity_lost' => 0.5,
+        'quantity_lost_unit' => 'kg',
+        'convert_to_item_id' => $output->id,
+        'converted_quantity' => 0.5,
+    ]);
+
+    $response = $this->actingAs($manager)
+        ->get(route('scrap.index'))
+        ->assertOk()
+        ->assertSee('2 record(s)')
+        ->assertSee('Fish trim')
+        ->assertSee('Scrap Conversion')
+        ->assertSee('Cleaned Fish')
+        ->assertDontSee('wasteModal', false);
+
+    expect(substr_count($response->getContent(), '<tr>'))->toBeGreaterThanOrEqual(3);
+});
+
+it('shows finished production outputs and scrap details on the production view', function () {
+    [$manager, $branch, , $input, $output] = makeDeliveryProductionContext();
+
+    $production = ProductionOrder::create([
+        'branch_id' => $branch->id,
+        'status' => 'finished',
+        'created_by' => $manager->id,
+        'finished_at' => now(),
+    ]);
+
+    ProductionInput::create([
+        'production_order_id' => $production->id,
+        'item_id' => $input->id,
+        'quantity_used' => 3,
+        'unit' => 'kg',
+    ]);
+
+    ProductionOutput::create([
+        'production_order_id' => $production->id,
+        'item_id' => $output->id,
+        'quantity_produced' => 2,
+        'unit' => 'kg',
+        'allocated_to' => 'inventory',
+    ]);
+
+    $report = WastageReport::create([
+        'production_order_id' => $production->id,
+        'branch_id' => $branch->id,
+        'created_by' => $manager->id,
+    ]);
+
+    WastageItem::create([
+        'wastage_report_id' => $report->id,
+        'item_id' => $input->id,
+        'scrap_name' => 'Fish trim',
+        'quantity_lost' => 1,
+        'quantity_lost_unit' => 'kg',
+        'convert_to_item_id' => $output->id,
+        'converted_quantity' => 0.5,
+        'reason' => 'Cutting cleanup',
+    ]);
+
+    $this->actingAs($manager)
+        ->get(route('productions.show', $production))
+        ->assertOk()
+        ->assertSee('Finished Outputs')
+        ->assertSee('Scrap Details')
+        ->assertSee('Fish trim')
+        ->assertSee('Cutting cleanup')
+        ->assertSee('Cleaned Fish');
 });
 
 it('validates and completes an inventory branch transfer through delivery approval', function () {
@@ -702,84 +809,4 @@ it('rejects a transfer quantity greater than available stock', function () {
     ])->assertSessionHasErrors('quantity');
 
     $this->assertDatabaseCount('transfers', 0);
-});
-
-it('allows users to manually create expense records', function () {
-    [$manager, $branch] = makeDeliveryProductionContext();
-
-    expect(Route::has('expenses.index'))->toBeTrue()
-        ->and(Route::has('expenses.import'))->toBeTrue()
-        ->and(Route::has('expenses.export'))->toBeTrue()
-        ->and(Route::has('expenses.show'))->toBeTrue()
-        ->and(Route::has('expenses.vatable.store'))->toBeTrue()
-        ->and(Route::has('expenses.vatable.update'))->toBeTrue()
-        ->and(Route::has('expenses.vatable.destroy'))->toBeTrue()
-        ->and(Route::has('expenses.nonvatable.store'))->toBeTrue()
-        ->and(Route::has('expenses.nonvatable.update'))->toBeTrue()
-        ->and(Route::has('expenses.nonvatable.destroy'))->toBeTrue()
-        ->and(Route::has('expenses.disbursement.store'))->toBeTrue()
-        ->and(Route::has('expenses.disbursement.update'))->toBeTrue()
-        ->and(Route::has('expenses.disbursement.destroy'))->toBeTrue();
-
-    $this->actingAs($manager)
-        ->post(route('expenses.vatable.store', '2026-06'), [
-            'date' => '2026-06-10',
-            'vendor_name' => 'Seafood Supplies',
-            'address' => 'Harbor',
-            'si_number' => 'SI-001',
-            'tin' => '123-456',
-            'gross_amount' => 1120,
-            'vat' => 120,
-            'net_purchases' => 1000,
-        ])
-        ->assertRedirect(route('expenses.show', '2026-06').'?tab=vatable');
-
-    $this->actingAs($manager)
-        ->post(route('expenses.nonvatable.store', '2026-06'), [
-            'date' => '2026-06-11',
-            'vendor_name' => 'Market Vendor',
-            'gross_amount' => 350,
-        ])
-        ->assertRedirect(route('expenses.show', '2026-06').'?tab=nonvatable');
-
-    $this->actingAs($manager)
-        ->post(route('expenses.disbursement.store', '2026-06'), [
-            'date' => '2026-06-12',
-            'check_number' => 'CHK-001',
-            'payee' => 'Utility Provider',
-            'amount' => 800,
-            'reference' => 'Electric bill',
-        ])
-        ->assertRedirect(route('expenses.show', '2026-06').'?tab=disbursements');
-
-    expect(VatablePurchase::query()->where('vendor_name', 'Seafood Supplies')->exists())->toBeTrue()
-        ->and(NonVatablePurchase::query()->where('vendor_name', 'Market Vendor')->exists())->toBeTrue()
-        ->and(CashDisbursement::query()->where('payee', 'Utility Provider')->exists())->toBeTrue();
-
-    $admin = User::factory()->create(['role' => 'admin', 'branch_id' => null]);
-
-    $this->actingAs($admin)
-        ->withSession(['selected_branch_id' => null])
-        ->post(route('expenses.vatable.store', '2026-06'), [
-            'date' => '2026-06-13',
-            'vendor_name' => 'All Branch Vendor',
-            'gross_amount' => 100,
-            'vat' => 12,
-            'net_purchases' => 88,
-        ])
-        ->assertSessionHasErrors('branch_id');
-
-    $this->actingAs($admin)
-        ->withSession(['selected_branch_id' => null])
-        ->post(route('expenses.vatable.store', '2026-06'), [
-            'branch_id' => $branch->id,
-            'date' => '2026-06-13',
-            'vendor_name' => 'Selected Branch Vendor',
-            'gross_amount' => 100,
-            'vat' => 12,
-            'net_purchases' => 88,
-        ])
-        ->assertRedirect(route('expenses.show', '2026-06').'?tab=vatable');
-
-    expect(VatablePurchase::query()->where('vendor_name', 'Selected Branch Vendor')->value('branch_id'))->toBe($branch->id);
 });

@@ -83,7 +83,7 @@ class InventoryController extends Controller
 
         $sort = (string) $request->input('sort', 'name');
         $direction = strtolower((string) $request->input('direction', 'asc')) === 'desc' ? 'desc' : 'asc';
-        $sortable = ['name', 'category', 'location', 'branch_name', 'quantity', 'unit', 'low_stock_threshold', 'created_at'];
+        $sortable = ['name', 'category', 'location', 'branch_name', 'quantity', 'unit', 'unit_price', 'low_stock_threshold', 'created_at'];
         if (! in_array($sort, $sortable, true)) {
             $sort = 'name';
         }
@@ -106,7 +106,7 @@ class InventoryController extends Controller
             $query->orderBy('items.'.$sort, $direction);
         }
 
-        $rows = $query->paginate((int) $request->input('per_page', 10));
+        $rows = $query->paginate($this->perPage($request, 10));
 
         $rows->getCollection()->transform(function (Item $item): array {
             return [
@@ -119,6 +119,7 @@ class InventoryController extends Controller
                 'branch_id' => $item->branch_id,
                 'remaining_item' => $item->quantity,
                 'unit' => $item->unit,
+                'unit_price' => $item->unit_price,
                 'low_stock_threshold' => $item->low_stock_threshold,
                 'supplier_name' => null,
                 'allows_decimal_quantity' => InventoryQuantity::allowsDecimals($item->unit),
@@ -229,6 +230,7 @@ class InventoryController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'category_id' => ['required', 'exists:categories,id'],
             'unit' => ['nullable', 'string', 'max:32'],
+            'unit_price' => ['nullable', 'numeric', 'min:0'],
             'low_stock_threshold' => ['nullable', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string'],
             'sku' => ['nullable', 'string', 'max:120', Rule::unique('items', 'sku')->ignore($inventory->id)],
@@ -262,7 +264,7 @@ class InventoryController extends Controller
             'quantity' => InventoryQuantity::validationRules($inventory->unit),
             'reason' => ['nullable', 'string', 'max:255'],
             'custom_reason' => ['nullable', 'required_if:reason,Others', 'string', 'max:255'],
-            'transaction_date' => ['nullable', 'date'],
+            'transaction_date' => ['nullable', 'date', 'before_or_equal:now'],
         ], InventoryQuantity::validationMessages($inventory->unit));
 
         $quantity = (float) $validated['quantity'];
@@ -301,7 +303,7 @@ class InventoryController extends Controller
             'quantity' => [...InventoryQuantity::validationRules($inventory->unit), 'max:'.(float) $inventory->quantity],
             'reason' => ['required', 'string', 'max:255'],
             'custom_reason' => ['nullable', 'required_if:reason,Others', 'string', 'max:255'],
-            'transaction_date' => ['nullable', 'date'],
+            'transaction_date' => ['nullable', 'date', 'before_or_equal:now'],
         ], InventoryQuantity::validationMessages($inventory->unit));
 
         $quantity = (float) $validated['quantity'];
@@ -388,7 +390,7 @@ class InventoryController extends Controller
             )
             ->when(in_array($sort, ['log_id', 'transaction_date', 'item_id', 'type', 'beginning_quantity', 'quantity', 'remaining_quantity', 'transaction_price', 'status', 'reason'], true), fn ($query) => $query->orderBy("inventory_transactions.{$sort}", $direction))
             ->orderBy('inventory_transactions.transaction_date', 'desc')
-            ->paginate((int) request('per_page', 10))->withQueryString();
+            ->paginate($this->perPage(request(), 10))->withQueryString();
 
         return view('transactions.index', compact('transactions'));
     }
@@ -416,7 +418,7 @@ class InventoryController extends Controller
             'items.*.quantity' => ['required', 'numeric', 'gt:0'],
             'type' => ['required', 'in:in,out'],
             'reason' => ['required', 'string', 'max:255'],
-            'transaction_date' => ['nullable', 'date'],
+            'transaction_date' => ['nullable', 'date', 'before_or_equal:now'],
         ]);
 
         $errors = [];
@@ -496,7 +498,7 @@ class InventoryController extends Controller
                     ->orWhere('reason', 'like', "%$s%");
             }))
             ->latest()
-            ->paginate((int) request('per_page', 20))->withQueryString();
+            ->paginate($this->perPage(request(), 20))->withQueryString();
 
         return view('transactions.pending', compact('transactions'));
     }

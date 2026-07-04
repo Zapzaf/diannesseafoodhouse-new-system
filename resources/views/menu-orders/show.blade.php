@@ -95,7 +95,7 @@
                     <div class="card-body d-flex justify-content-between align-items-center">
                         <div>
                             <div class="stat-label">Balance</div>
-                            <div class="stat-value {{ (float) $menuOrder->balance > 0 ? 'text-danger' : 'text-success' }}">PHP {{ number_format((float) $menuOrder->balance, 2) }}</div>
+                             <div class="stat-value {{ (float) $menuOrder->balance > 0 ? 'text-danger' : 'text-success' }}">₱{{ number_format((float) $menuOrder->balance, 2) }}</div>
                         </div>
                         <div class="icon-circle"><i data-lucide="dollar-sign"></i></div>
                     </div>
@@ -176,17 +176,17 @@
                                             <div class="small text-muted">Line #{{ $loop->iteration }}</div>
                                         </td>
                                         <td class="text-end fw-semibold">{{ $item->quantity }}</td>
-                                        <td class="text-end">PHP {{ number_format((float) $item->unit_price, 2) }}</td>
-                                        <td class="text-end fw-semibold">PHP {{ number_format((float) $item->subtotal, 2) }}</td>
-                                        <td class="text-end text-muted">PHP {{ number_format((float) $item->cost, 2) }}</td>
-                                        <td class="text-end {{ (float) $item->profit >= 0 ? 'text-success' : 'text-danger' }}">PHP {{ number_format((float) $item->profit, 2) }}</td>
+                                        <td class="text-end">₱{{ number_format((float) $item->unit_price, 2) }}</td>
+                                        <td class="text-end fw-semibold">₱{{ number_format((float) $item->subtotal, 2) }}</td>
+                                        <td class="text-end text-muted">₱{{ number_format((float) $item->cost, 2) }}</td>
+                                        <td class="text-end {{ (float) $item->profit >= 0 ? 'text-success' : 'text-danger' }}">₱{{ number_format((float) $item->profit, 2) }}</td>
                                         <td>
                                             @if($item->inventory_deducted)
                                                 <span class="badge bg-success">
                                                     <i data-lucide="check" style="width:11px;height:11px;"></i> Deducted
                                                 </span>
                                             @elseif($item->menu && $item->menu->items->isEmpty())
-                                                <span class="badge bg-warning text-dark">No Recipe</span>
+                                                <span class="badge bg-warning text-white">No Recipe</span>
                                             @else
                                                 <span class="badge bg-secondary text-white">Pending</span>
                                             @endif
@@ -217,7 +217,7 @@
                         <div class="tab-pane fade menu-order-tab-pane" id="payment-history-pane" role="tabpanel" aria-labelledby="payment-history-tab" tabindex="0">
                             <div class="tab-pane-summary">
                                 <span>{{ $paymentCount }} payment record(s)</span>
-                                <span>Paid PHP {{ number_format((float) $menuOrder->amount_paid, 2) }}</span>
+                                <span>Paid ₱{{ number_format((float) $menuOrder->amount_paid, 2) }}</span>
                             </div>
                             <div class="table-responsive">
                             <table class="table table-hover align-middle" data-no-table-enhance="1">
@@ -238,9 +238,9 @@
                                     <tr>
                                         <td>{{ $payment->payment_date?->format('M d, Y') }}</td>
                                         <td><span class="badge bg-secondary text-white">{{ ucfirst((string) $payment->method) }}</span></td>
-                                        <td class="text-end text-success fw-semibold">PHP {{ number_format((float) $payment->amount, 2) }}</td>
-                                        <td class="text-end">PHP {{ number_format((float) $payment->amount_tendered, 2) }}</td>
-                                        <td class="text-end text-danger">PHP {{ number_format((float) $payment->change_amount, 2) }}</td>
+                                        <td class="text-end text-success fw-semibold">₱{{ number_format((float) $payment->amount, 2) }}</td>
+                                        <td class="text-end">₱{{ number_format((float) $payment->amount_tendered, 2) }}</td>
+                                        <td class="text-end text-danger">₱{{ number_format((float) $payment->change_amount, 2) }}</td>
                                         <td>{{ $payment->reference_number ?: '-' }}</td>
                                         <td class="fw-semibold">{{ $payment->or_number ?: '-' }}</td>
                                         <td class="text-center">
@@ -267,12 +267,12 @@
                         <div class="card-body">
                             <div class="billing-row">
                                 <span>Menu Subtotal</span>
-                                <strong>PHP {{ number_format((float) $menuOrder->subtotal, 2) }}</strong>
+                                <strong>₱{{ number_format((float) $menuOrder->subtotal, 2) }}</strong>
                             </div>
                             @if(!empty($additionalCharges))
                             <div class="billing-row">
                                 <span>Additional Charges</span>
-                                <strong>PHP {{ number_format((float) $menuOrder->additional_charge_amount, 2) }}</strong>
+                                <strong>₱{{ number_format((float) $menuOrder->additional_charge_amount, 2) }}</strong>
                             </div>
                             <div class="billing-breakdown">
                                 @foreach($additionalCharges as $charge)
@@ -283,7 +283,7 @@
                                             ({{ number_format((float) ($charge['value'] ?? 0), 2) }}%)
                                         @endif
                                     </span>
-                                    <span>PHP {{ number_format((float) ($charge['amount'] ?? 0), 2) }}</span>
+                                    <span>₱{{ number_format((float) ($charge['amount'] ?? 0), 2) }}</span>
                                 </div>
                                 @endforeach
                             </div>
@@ -291,26 +291,26 @@
                             @if($showDiscountSummary)
                             <div class="billing-row text-danger">
                                 <span>Discount</span>
-                                <strong>- PHP {{ number_format((float) $menuOrder->discount_amount, 2) }}</strong>
+                                <strong>- ₱{{ number_format((float) $menuOrder->discount_amount, 2) }}</strong>
                             </div>
                             @endif
                             @if($showVatSummary)
                             <div class="billing-row">
                                 <span>VAT ({{ number_format((float) $menuOrder->vat_rate, 2) }}%)</span>
-                                <strong>PHP {{ number_format((float) $menuOrder->vat_amount, 2) }}</strong>
+                                <strong>₱{{ number_format((float) $menuOrder->vat_amount, 2) }}</strong>
                             </div>
                             @endif
                             <div class="billing-total">
                                 <span>Total</span>
-                                <strong>PHP {{ number_format((float) $menuOrder->total_amount, 2) }}</strong>
+                                <strong>₱{{ number_format((float) $menuOrder->total_amount, 2) }}</strong>
                             </div>
                             <div class="billing-row text-success">
                                 <span>Amount Paid</span>
-                                <strong>PHP {{ number_format((float) $menuOrder->amount_paid, 2) }}</strong>
+                                <strong>₱{{ number_format((float) $menuOrder->amount_paid, 2) }}</strong>
                             </div>
                             <div class="billing-balance {{ (float) $menuOrder->balance > 0 ? 'is-due' : 'is-paid' }}">
                                 <span>Balance</span>
-                                <strong>PHP {{ number_format((float) $menuOrder->balance, 2) }}</strong>
+                                <strong>₱{{ number_format((float) $menuOrder->balance, 2) }}</strong>
                             </div>
                         </div>
                     </section>
@@ -366,7 +366,7 @@
                                 <div class="mb-3">
                                     <label class="form-label fw-bold">Amount Tendered <span class="text-danger">*</span></label>
                                     <div class="input-group">
-                                        <span class="input-group-text">PHP</span>
+                                        <span class="input-group-text">₱</span>
                                         <input type="number" name="amount_tendered" id="amountTendered" class="form-control @error('amount_tendered') is-invalid @enderror" value="{{ old('amount_tendered', $balance) }}" min="0.01" step="0.01" required data-balance="{{ $balance }}">
                                     </div>
                                     @error('amount_tendered')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
@@ -375,11 +375,11 @@
                                 <div class="change-preview mb-3" id="changeDisplay" style="display:none;">
                                     <div class="d-flex justify-content-between">
                                         <span>Balance Due</span>
-                                        <strong>PHP {{ number_format((float) $menuOrder->balance, 2) }}</strong>
+                                        <strong>₱{{ number_format((float) $menuOrder->balance, 2) }}</strong>
                                     </div>
                                     <div class="d-flex justify-content-between mt-1">
                                         <span>Change</span>
-                                        <strong id="changeAmt">PHP 0.00</strong>
+                                        <strong id="changeAmt">₱0.00</strong>
                                     </div>
                                 </div>
                                 <div class="mb-3">
@@ -468,7 +468,7 @@
 
         if (tendered > balance) {
             changeDisplay.style.display = '';
-            changeAmt.textContent = 'PHP ' + change.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            changeAmt.textContent = '₱' + change.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         } else {
             changeDisplay.style.display = 'none';
         }

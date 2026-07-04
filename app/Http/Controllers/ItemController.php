@@ -23,7 +23,7 @@ class ItemController extends Controller
             $query->where('branch_id', $request->user()->branch_id);
         }
 
-        return response()->json($query->latest()->paginate((int) request('per_page', 10))->withQueryString());
+        return response()->json($query->latest()->paginate($this->perPage(request(), 10))->withQueryString());
     }
 
     /**
@@ -82,6 +82,7 @@ class ItemController extends Controller
             'sku' => ['nullable', 'string', 'max:120', Rule::unique('items', 'sku')->ignore($item->id)],
             'category_id' => ['sometimes', 'exists:categories,id'],
             'unit' => ['nullable', 'string', 'max:32'],
+            'unit_price' => ['nullable', 'numeric', 'min:0'],
             'low_stock_threshold' => ['nullable', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string'],
         ]);

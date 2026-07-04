@@ -5,8 +5,6 @@
 @section('content')
     @php
         $scopeLabel = $selectedBranchName ?: 'All Branches';
-        $expenseLabels = $expenseBreakdown->pluck('category')->values();
-        $expenseAmounts = $expenseBreakdown->pluck('total')->map(fn ($value) => (float) $value)->values();
         $analyticsPeriodOptions = [
             'days' => 'Days',
             'week' => 'Week',
@@ -58,7 +56,7 @@
                 <div class="dashboard-metric-icon"><i data-lucide="wallet"></i></div>
                 <div class="dashboard-metric-body">
                     <span>Daily Revenue</span>
-                    <strong>PHP {{ number_format($dailyRevenue, 2) }}</strong>
+                    <strong>₱{{ number_format($dailyRevenue, 2) }}</strong>
                     <small>Recorded today</small>
                 </div>
             </article>
@@ -67,28 +65,11 @@
                 <div class="dashboard-metric-icon"><i data-lucide="trending-up"></i></div>
                 <div class="dashboard-metric-body">
                     <span>Monthly Revenue</span>
-                    <strong>PHP {{ number_format($monthlyRevenue, 2) }}</strong>
+                    <strong>₱{{ number_format($monthlyRevenue, 2) }}</strong>
                     <small>{{ now()->format('F Y') }}</small>
                 </div>
             </article>
 
-            <article class="dashboard-metric-card metric-expense">
-                <div class="dashboard-metric-icon"><i data-lucide="file-text"></i></div>
-                <div class="dashboard-metric-body">
-                    <span>Monthly Expenses</span>
-                    <strong>PHP {{ number_format($monthlyExpenses, 2) }}</strong>
-                    <small>Purchases and disbursements</small>
-                </div>
-            </article>
-
-            <article class="dashboard-metric-card metric-income">
-                <div class="dashboard-metric-icon"><i data-lucide="{{ $netIncome >= 0 ? 'dollar-sign' : 'alert-circle' }}"></i></div>
-                <div class="dashboard-metric-body">
-                    <span>Net Income</span>
-                    <strong class="{{ $netIncome >= 0 ? 'text-success' : 'text-danger' }}">PHP {{ number_format($netIncome, 2) }}</strong>
-                    <small>{{ $netIncome >= 0 ? 'Positive balance' : 'Needs review' }}</small>
-                </div>
-            </article>
         </section>
 
         <section class="dashboard-operations-grid mb-4">
@@ -137,7 +118,7 @@
         </section>
 
         <section class="row g-4 mb-4 dashboard-chart-row">
-            <div class="col-xl-8">
+            <div class="col-xl-12">
                 <div class="dashboard-panel h-100">
                     <div class="dashboard-panel-header">
                         <div>
@@ -148,20 +129,6 @@
                     </div>
                     <div class="dashboard-chart-container dashboard-chart-large">
                         <canvas id="revenueChart"></canvas>
-                    </div>
-                </div>
-            </div>
-            <div class="col-xl-4">
-                <div class="dashboard-panel h-100">
-                    <div class="dashboard-panel-header">
-                        <div>
-                            <h5>Expense Breakdown</h5>
-                            <span>{{ now()->format('F Y') }}</span>
-                        </div>
-                        <i data-lucide="pie-chart"></i>
-                    </div>
-                    <div class="dashboard-chart-container dashboard-chart-donut">
-                        <canvas id="expenseChart"></canvas>
                     </div>
                 </div>
             </div>
@@ -322,22 +289,19 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     let revenueChartInst = null;
-    let expenseChartInst = null;
     let inventoryTransactionsChartInst = null;
     let deliveryUnitsChartInst = null;
     let productionTrendsChartInst = null;
 
     const revenueLabels = @json(array_column($revenueChart, 'label'));
     const revenueAmounts = @json(array_column($revenueChart, 'amount'));
-    const expenseLabels = @json($expenseLabels);
-    const expenseAmounts = @json($expenseAmounts);
     const inventoryAnalytics = @json($inventoryAnalytics);
     const deliveryAnalytics = @json($deliveryAnalytics);
     const productionAnalytics = @json($productionAnalytics);
     const themePrimary = '#f07c59';
 
     function moneyLabel(value) {
-        return 'PHP ' + Number(value || 0).toLocaleString(undefined, {
+        return '₱' + Number(value || 0).toLocaleString(undefined, {
             minimumFractionDigits: 2,
             maximumFractionDigits: 2
         });
@@ -350,17 +314,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const panelColor = isDark ? '#151c2c' : '#ffffff';
 
         if (revenueChartInst) revenueChartInst.destroy();
-        if (expenseChartInst) expenseChartInst.destroy();
         if (inventoryTransactionsChartInst) inventoryTransactionsChartInst.destroy();
         if (deliveryUnitsChartInst) deliveryUnitsChartInst.destroy();
         if (productionTrendsChartInst) productionTrendsChartInst.destroy();
 
         const revenueCanvas = document.getElementById('revenueChart');
-        const expenseCanvas = document.getElementById('expenseChart');
         const inventoryCanvas = document.getElementById('inventoryTransactionsChart');
         const deliveryCanvas = document.getElementById('deliveryUnitsChart');
         const productionCanvas = document.getElementById('productionTrendsChart');
-        if (!revenueCanvas || !expenseCanvas || !inventoryCanvas || !deliveryCanvas || !productionCanvas || !window.Chart) return;
+        if (!revenueCanvas || !inventoryCanvas || !deliveryCanvas || !productionCanvas || !window.Chart) return;
 
         const revenueCtx = revenueCanvas.getContext('2d');
         const trendGradient = revenueCtx.createLinearGradient(0, 0, 0, 320);
@@ -415,52 +377,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         ticks: {
                             color: textColor,
                             font: { family: 'Plus Jakarta Sans', size: 11 },
-                            callback: (value) => value >= 1000 ? 'PHP ' + (value / 1000) + 'k' : 'PHP ' + value
-                        }
-                    }
-                }
-            }
-        });
-
-        const hasExpenses = expenseAmounts.length > 0;
-        expenseChartInst = new Chart(expenseCanvas.getContext('2d'), {
-            type: 'doughnut',
-            data: {
-                labels: hasExpenses ? expenseLabels : ['No expenses'],
-                datasets: [{
-                    data: hasExpenses ? expenseAmounts : [1],
-                    backgroundColor: hasExpenses
-                        ? ['#f07c59', '#0ea5e9', '#10b981', '#f59e0b']
-                        : [isDark ? '#253044' : '#e2e8f0'],
-                    borderWidth: 2,
-                    borderColor: panelColor
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                cutout: '72%',
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: {
-                            color: textColor,
-                            boxWidth: 10,
-                            boxHeight: 10,
-                            usePointStyle: true,
-                            font: { family: 'Plus Jakarta Sans', size: 11 }
-                        }
-                    },
-                    tooltip: {
-                        enabled: hasExpenses,
-                        padding: 12,
-                        backgroundColor: isDark ? '#0f172a' : '#ffffff',
-                        titleColor: isDark ? '#ffffff' : '#0f172a',
-                        bodyColor: isDark ? '#e2e8f0' : '#475569',
-                        borderColor: isDark ? '#1e293b' : '#e2e8f0',
-                        borderWidth: 1,
-                        callbacks: {
-                            label: (context) => 'Total: ' + moneyLabel(context.raw)
+                            callback: (value) => value >= 1000 ? '₱' + (value / 1000) + 'k' : '₱' + value
                         }
                     }
                 }

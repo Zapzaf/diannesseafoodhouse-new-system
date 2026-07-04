@@ -53,7 +53,7 @@
                             @if($grossMargin !== null)
                             <dt class="col-sm-5">Gross Margin</dt>
                             <dd class="col-sm-7">
-                                <span class="badge {{ $grossMargin >= 50 ? 'bg-success' : ($grossMargin >= 20 ? 'bg-warning text-dark' : 'bg-danger') }}">
+                                <span class="badge {{ $grossMargin >= 50 ? 'bg-success' : ($grossMargin >= 20 ? 'bg-warning text-white' : 'bg-danger') }}">
                                     {{ number_format($grossMargin, 1) }}%
                                 </span>
                             </dd>

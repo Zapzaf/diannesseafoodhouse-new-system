@@ -80,7 +80,7 @@ class ProductionManagementController extends Controller
         return view('productions.index', [
             'productions' => $productionsQuery
                 ->orderBy('production_orders.created_at', 'desc')
-                ->paginate((int) request('per_page', 12))->withQueryString(),
+                ->paginate($this->perPage(request(), 12))->withQueryString(),
             'branches' => Branch::query()->where('is_active', true)->orderBy('name')->get(),
             'items' => Item::query()
                 ->with(['category.location', 'branch'])
@@ -172,10 +172,29 @@ class ProductionManagementController extends Controller
             abort(403, 'This production order is outside your active branch.');
         }
 
-        $production->load(['branch', 'creator', 'inputs.item', 'inputs.deliveryItem.item', 'inputs.deliveryItem.sourceItem', 'inputs.deliveryItem.delivery.supplier', 'outputs.item', 'wastageReports.items.item', 'wastageReports.items.convertedItem']);
+        $production->load([
+            'branch',
+            'creator',
+            'inputs.item.category.location',
+            'inputs.deliveryItem.item.category.location',
+            'inputs.deliveryItem.sourceItem.category.location',
+            'inputs.deliveryItem.delivery.supplier',
+            'outputs.item.category.location',
+            'wastageReports.items.item',
+            'wastageReports.items.convertedItem',
+        ]);
+        $scrapUnit = $production->inputs
+            ->map(fn ($input) => $input->item?->unit
+                ?? $input->deliveryItem?->item?->unit
+                ?? $input->deliveryItem?->sourceItem?->unit
+                ?? $input->unit)
+            ->filter()
+            ->first();
+
         return view('productions.show', [
             'production' => $production,
             'items' => Item::query()->with(['category.location'])->where('branch_id', $production->branch_id)->orderBy('name')->get(),
+            'scrapUnit' => $scrapUnit,
         ]);
     }
 
@@ -281,7 +300,10 @@ class ProductionManagementController extends Controller
             }
 
             $wastageRows = collect($validated['wastage'] ?? [])
-                ->filter(fn (array $row): bool => ! empty($row['convert_to_item_id']) || ! empty($row['converted_quantity']))
+                ->filter(fn (array $row): bool => ! empty($row['scrap_name'])
+                    || ! empty($row['quantity_lost'])
+                    || ! empty($row['convert_to_item_id'])
+                    || ! empty($row['converted_quantity']))
                 ->values();
 
             if ($wastageRows->isNotEmpty()) {
@@ -364,7 +386,7 @@ class ProductionManagementController extends Controller
         return view('productions.processing', [
             'productions' => $productionsQuery
                 ->orderBy('production_orders.created_at', 'desc')
-                ->paginate((int) request('per_page', 12))->withQueryString(),
+                ->paginate($this->perPage(request(), 12))->withQueryString(),
             'branches' => Branch::query()->where('is_active', true)->orderBy('name')->get(),
         ]);
     }
@@ -388,14 +410,20 @@ class ProductionManagementController extends Controller
             'outputs.*.quantity_produced' => ['required', 'numeric', 'gt:0'],
             'outputs.*.unit' => ['nullable', 'string', 'max:32'],
             'wastage' => ['nullable', 'array'],
-            'wastage.*.convert_to_item_id' => ['nullable', 'exists:items,id', 'required_with:wastage.*.converted_quantity'],
-            'wastage.*.converted_quantity' => ['nullable', 'numeric', 'gt:0', 'required_with:wastage.*.convert_to_item_id'],
+            'wastage.*.scrap_name' => ['nullable', 'string', 'max:255', 'required_with:wastage.*.quantity_lost,wastage.*.convert_to_item_id,wastage.*.converted_quantity'],
+            'wastage.*.quantity_lost' => ['nullable', 'numeric', 'gt:0', 'required_with:wastage.*.scrap_name,wastage.*.convert_to_item_id,wastage.*.converted_quantity'],
+            'wastage.*.quantity_lost_unit' => ['nullable', 'string', 'max:32', 'required_with:wastage.*.quantity_lost'],
+            'wastage.*.convert_to_item_id' => ['nullable', 'exists:items,id', 'required_with:wastage.*.scrap_name,wastage.*.quantity_lost,wastage.*.converted_quantity'],
+            'wastage.*.converted_quantity' => ['nullable', 'numeric', 'gt:0', 'required_with:wastage.*.scrap_name,wastage.*.quantity_lost,wastage.*.convert_to_item_id'],
         ];
     }
 
     private function finishProductionMessages(): array
     {
         return [
+            'wastage.*.scrap_name.required_with' => 'Scrap Name is required for every scrap conversion row.',
+            'wastage.*.quantity_lost.required_with' => 'Scrap Qty is required for every scrap conversion row.',
+            'wastage.*.quantity_lost_unit.required_with' => 'Scrap Unit is required for every scrap conversion row.',
             'wastage.*.convert_to_item_id.required_with' => 'Convert To is required for every scrap conversion row.',
             'wastage.*.converted_quantity.required_with' => 'Convert Qty is required for every scrap conversion row.',
         ];

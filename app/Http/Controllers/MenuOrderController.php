@@ -468,9 +468,9 @@ class MenuOrderController extends Controller
         $user = auth()->user();
         $data = $request->validate([
             'amount'           => 'required|numeric|min:0.01',
-            'amount_tendered'  => 'required|numeric|min:0.01',
+            'amount_tendered'  => 'required|numeric|min:0.01|gte:amount',
             'method'           => 'required|in:cash,gcash,card,bank',
-            'payment_date'     => 'required|date',
+            'payment_date'     => 'required|date|before_or_equal:now',
             'reference_number' => 'nullable|string|max:100',
             'notes'            => 'nullable|string',
         ]);
@@ -494,9 +494,7 @@ class MenuOrderController extends Controller
             $applied = min($amount, $balance);
             $change  = max(0, $tendered - $applied);
 
-            $orNumber = 'OR-' . str_pad((string) ((MenuOrderPayment::max('id') ?? 0) + 1), 6, '0', STR_PAD_LEFT);
-
-            MenuOrderPayment::create([
+            $payment = MenuOrderPayment::create([
                 'branch_id'               => $lockedOrder->branch_id,
                 'menu_order_id'           => $lockedOrder->id,
                 'amount'                  => $applied,
@@ -515,10 +513,15 @@ class MenuOrderController extends Controller
                 'is_vat_exempt'           => round((float) $lockedOrder->total_vat_exempt, 2) > 0,
                 'method'                  => $data['method'],
                 'reference_number'        => $data['reference_number'] ?? null,
-                'or_number'               => $orNumber,
                 'payment_date'            => $data['payment_date'],
                 'notes'                   => $data['notes'] ?? null,
                 'received_by'             => $user->id,
+            ]);
+
+            // Derive the OR number from the payment's own ID so concurrent
+            // payments can never produce duplicate numbers.
+            $payment->update([
+                'or_number' => 'OR-' . str_pad((string) $payment->id, 6, '0', STR_PAD_LEFT),
             ]);
 
             $amountPaid = round((float) $lockedOrder->payments()->sum('amount'), 2);

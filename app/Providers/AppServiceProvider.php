@@ -3,10 +3,12 @@
 namespace App\Providers;
 
 use App\Models\Category;
+use App\Models\CheckRegister;
 use App\Models\Delivery;
 use App\Models\Item;
 use App\Models\Location;
 use App\Models\Supplier;
+use App\Observers\CheckRegisterObserver;
 use App\Policies\CategoryPolicy;
 use App\Policies\DeliveryPolicy;
 use App\Policies\ItemPolicy;
@@ -35,5 +37,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Supplier::class, SupplierPolicy::class);
         Gate::policy(Location::class, LocationPolicy::class);
         Gate::policy(Category::class, CategoryPolicy::class);
+
+        CheckRegister::observe(CheckRegisterObserver::class);
     }
 }

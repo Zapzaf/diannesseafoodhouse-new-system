@@ -27,7 +27,7 @@ class StoreItemRequest extends FormRequest
             'category_id' => ['required', 'exists:categories,id'],
             'branch_id' => ['nullable', 'exists:branches,id'],
             'unit' => ['nullable', 'string', 'max:32'],
-
+            'unit_price' => ['nullable', 'numeric', 'min:0'],
             'low_stock_threshold' => ['nullable', 'numeric', 'min:0'],
             'supplier_name' => ['nullable', 'string', 'max:255'],
             'supplier_contact' => ['nullable', 'string', 'max:255'],

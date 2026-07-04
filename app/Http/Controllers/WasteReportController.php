@@ -44,7 +44,7 @@ class WasteReportController extends Controller
             })
             ->latest('report_date')
             ->latest()
-            ->paginate((int) $request->input('per_page', 15))
+            ->paginate($this->perPage($request, 15))
             ->withQueryString();
 
         return view('waste-reports.index', [

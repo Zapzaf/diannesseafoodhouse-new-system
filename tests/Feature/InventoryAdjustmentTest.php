@@ -140,12 +140,44 @@ it('shows reason dropdowns for quick inventory adjustments', function () {
     $this->actingAs($this->user)
         ->get(route('inventory.index'))
         ->assertOk()
+        ->assertSee('Unit Price')
         ->assertSee('id="stockInReasonSelect"', false)
         ->assertSee('id="deductReasonSelect"', false)
         ->assertSee('<option value="Sales">Sales</option>', false)
         ->assertSee('<option value="Withdrawal">Withdrawal</option>', false)
         ->assertSee('<option value="Others">Others</option>', false)
         ->assertSee('name="custom_reason"', false);
+});
+
+it('returns unit price in the inventory table data', function () {
+    $item = inventoryAdjustmentItem($this, 'Priced Table Shrimp', 'kg');
+    $item->update(['unit_price' => 189.50]);
+
+    $this->actingAs($this->user)
+        ->withSession(['selected_branch_id' => $this->branch->id])
+        ->getJson(route('inventory.data'))
+        ->assertOk()
+        ->assertJsonPath('data.0.name', 'Priced Table Shrimp')
+        ->assertJsonPath('data.0.unit_price', '189.5000');
+});
+
+it('updates inventory item unit price from the edit form', function () {
+    $item = inventoryAdjustmentItem($this, 'Editable Price Shrimp', 'kg');
+
+    $this->actingAs($this->user)
+        ->put(route('inventory.update', $item), [
+            'name' => $item->name,
+            'category_id' => $item->category_id,
+            'unit' => $item->unit,
+            'unit_price' => '245.75',
+            'low_stock_threshold' => $item->low_stock_threshold,
+            'notes' => 'Updated item price',
+            'sku' => $item->sku,
+        ])
+        ->assertRedirect(route('inventory.index'))
+        ->assertSessionHas('success');
+
+    expect((float) $item->fresh()->unit_price)->toBe(245.75);
 });
 
 it('uses the custom others reason for quick inventory adjustments', function () {

@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class AccountController extends Controller
 {
@@ -24,7 +25,8 @@ class AccountController extends Controller
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
             'password' => ['nullable', 'string', 'min:8', 'confirmed'],
             'profile_photo' => ['nullable', 'image', 'max:4096'],
-            'profile_photo_cropped' => ['nullable', 'string'],
+            // ~4 MB of image data becomes ~5.6 MB of base64; cap the payload accordingly.
+            'profile_photo_cropped' => ['nullable', 'string', 'max:6000000'],
         ]);
 
         $payload = [
@@ -39,11 +41,17 @@ class AccountController extends Controller
         if (! empty($validated['profile_photo_cropped']) && str_starts_with($validated['profile_photo_cropped'], 'data:image/')) {
             $base64 = preg_replace('/^data:image\/(png|jpeg|jpg);base64,/', '', $validated['profile_photo_cropped']);
             $binary = base64_decode((string) $base64, true);
-            if ($binary !== false) {
-                $path = 'profiles/' . $user->id . '-' . now()->timestamp . '.jpg';
-                Storage::disk('public')->put($path, $binary);
-                $payload['profile_photo_path'] = $path;
+            $imageInfo = $binary !== false ? @getimagesizefromstring($binary) : false;
+
+            if ($imageInfo === false || ! in_array($imageInfo[2], [IMAGETYPE_JPEG, IMAGETYPE_PNG], true)) {
+                throw ValidationException::withMessages([
+                    'profile_photo_cropped' => 'The cropped photo must be a valid JPEG or PNG image.',
+                ]);
             }
+
+            $path = 'profiles/' . $user->id . '-' . now()->timestamp . '.jpg';
+            Storage::disk('public')->put($path, $binary);
+            $payload['profile_photo_path'] = $path;
         } elseif ($request->hasFile('profile_photo')) {
             $payload['profile_photo_path'] = $request->file('profile_photo')->store('profiles', 'public');
         }

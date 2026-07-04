@@ -13,7 +13,7 @@ class CategoryController extends Controller
      */
     public function index()
     {
-        return response()->json(Category::with(['location', 'branch'])->latest()->paginate((int) request('per_page', 20))->withQueryString());
+        return response()->json(Category::with(['location', 'branch'])->latest()->paginate($this->perPage(request(), 20))->withQueryString());
     }
 
     /**
