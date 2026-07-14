@@ -9,6 +9,7 @@ use App\Http\Controllers\CheckVoucherController;
 use App\Http\Controllers\CostingReportController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeliveryManagementController;
+use App\Http\Controllers\FeedbackController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\MenuCategoryController;
 use App\Http\Controllers\MenuController;
@@ -268,8 +269,17 @@ Route::middleware('auth')->group(function (): void {
 	});
 
 	// Reports routes (from nav)
+	Route::prefix('feedback')->name('feedback.')->group(function (): void {
+		Route::get('/', [FeedbackController::class, 'index'])->name('index');
+		Route::get('/create', [FeedbackController::class, 'create'])->name('create');
+		Route::post('/', [FeedbackController::class, 'store'])->name('store');
+		Route::get('/{feedback}', [FeedbackController::class, 'show'])->name('show');
+		Route::delete('/{feedback}', [FeedbackController::class, 'destroy'])->name('destroy');
+	});
+
 	Route::prefix('reports')->name('reports.')->group(function (): void {
 		Route::get('/inventory', [ReportController::class, 'inventory'])->name('inventory.index');
+		Route::get('/feedback', [ReportController::class, 'feedback'])->name('feedback.index');
 		Route::get('/transactions', [ReportController::class, 'transaction'])->name('transaction.index');
 		Route::get('/deliveries', [ReportController::class, 'delivery'])->name('delivery.index');
 		Route::get('/deliveries/export', [ReportController::class, 'exportDelivery'])->name('delivery.export');

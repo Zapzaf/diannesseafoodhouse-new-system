@@ -393,6 +393,26 @@
                         </div>
                     </li>
 
+                    <!-- Feedback -->
+                    <li class="nav-item">
+                        <a class="nav-link collapsed {{ request()->routeIs('feedback.*') ? 'active' : '' }}" href="#" data-bs-toggle="collapse"
+                           data-bs-target="#collapseFeedback" aria-expanded="{{ request()->routeIs('feedback.*') ? 'true' : 'false' }}">
+                            <i data-lucide="message-square"></i>
+                            <span>Feedback</span>
+                            <i data-lucide="chevron-down" class="ms-auto collapse-arrow" style="width: 14px; height: 14px;"></i>
+                        </a>
+                        <div class="collapse {{ request()->routeIs('feedback.*') ? 'show' : '' }} ps-3" id="collapseFeedback">
+                           <ul class="nav flex-column mt-1 gap-1">
+                               <li class="nav-item">
+                                   <a class="nav-link py-1.5 px-3 {{ request()->routeIs('feedback.index') ? 'active' : '' }}" href="{{ route('feedback.index') }}">List Feedback</a>
+                               </li>
+                               <li class="nav-item">
+                                   <a class="nav-link py-1.5 px-3 {{ request()->routeIs('feedback.create') ? 'active' : '' }}" href="{{ route('feedback.create') }}">Record Feedback</a>
+                               </li>
+                           </ul>
+                        </div>
+                    </li>
+
                     <!-- Partners Section -->
                     <div class="sidenav-menu-heading text-uppercase px-3 py-2 mt-2 small fw-bold text-white-50" style="font-size: 0.7rem; letter-spacing: 0.08em; opacity: 0.7;">Partners</div>
                     
@@ -477,6 +497,9 @@
                                </li>
                                <li class="nav-item">
                                    <a class="nav-link py-1.5 px-3 {{ request()->routeIs('reports.costing.*') ? 'active' : '' }}" href="{{ route('reports.costing.index') }}">Costing Report</a>
+                               </li>
+                               <li class="nav-item">
+                                   <a class="nav-link py-1.5 px-3 {{ request()->routeIs('reports.feedback.*') ? 'active' : '' }}" href="{{ route('reports.feedback.index') }}">Feedback Report</a>
                                </li>
                                <li class="nav-item">
                                    <a class="nav-link py-1.5 px-3 {{ request()->routeIs('reports.purchase-disbursement.summary') ? 'active' : '' }}" href="{{ route('reports.purchase-disbursement.summary') }}">Purchase &amp; Disbursement Summary</a>

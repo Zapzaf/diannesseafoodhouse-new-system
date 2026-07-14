@@ -1,0 +1,57 @@
+[
+    {
+        "name": "Appetizers",
+        "branch_id": null,
+        "description": ""
+    },
+    {
+        "name": "Main Course - Beef",
+        "branch_id": null,
+        "description": ""
+    },
+    {
+        "name": "Main Course - Chicken",
+        "branch_id": null,
+        "description": ""
+    },
+    {
+        "name": "Vegetables",
+        "branch_id": null,
+        "description": ""
+    },
+    {
+        "name": "Main Course - Fish",
+        "branch_id": null,
+        "description": ""
+    },
+    {
+        "name": "Main Course - Pork",
+        "branch_id": null,
+        "description": ""
+    },
+    {
+        "name": "Main Course - Crab",
+        "branch_id": null,
+        "description": ""
+    },
+    {
+        "name": "Main Course - Shrimp",
+        "branch_id": null,
+        "description": ""
+    },
+    {
+        "name": "Main Course – Grilled/Sizzling",
+        "branch_id": null,
+        "description": ""
+    },
+    {
+        "name": "Noodles",
+        "branch_id": null,
+        "description": ""
+    },
+    {
+        "name": "Rice",
+        "branch_id": null,
+        "description": ""
+    }
+]

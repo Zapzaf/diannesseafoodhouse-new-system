@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             SupplierSeeder::class,
             InventorySeeder::class,
             ChartOfAccountSeeder::class,
+            FeedbackSeeder::class,
         ]);
     }
 }

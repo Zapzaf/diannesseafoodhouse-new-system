@@ -6,6 +6,7 @@ use App\Exports\DeliveryReportExport;
 use App\Models\Branch;
 use App\Models\Delivery;
 use App\Models\DeliveryItem;
+use App\Models\Feedback;
 use App\Models\InventoryTransaction;
 use App\Models\Item;
 use Illuminate\Database\Eloquent\Builder;
@@ -176,6 +177,62 @@ class ReportController extends Controller
         return view('reports.costing', compact('items', 'dateFrom', 'dateTo') + [
             'branches' => Branch::query()->where('is_active', true)->orderBy('name')->get(),
             'selectedBranchId' => $branchId,
+        ]);
+    }
+
+    public function feedback(Request $request): View
+    {
+        $branchId = $this->resolveBranchId($request);
+        [$dateFrom, $dateTo] = $this->validatedDateRange($request);
+
+        $baseQuery = Feedback::query()
+            ->when($branchId, fn ($q, $id) => $q->where('branch_id', $id))
+            ->when(! $request->user()->isAdmin(), fn ($q) => $q->where('branch_id', $request->user()->branch_id))
+            ->whereDate('date', '>=', $dateFrom)
+            ->whereDate('date', '<=', $dateTo);
+
+        $totalResponses = (clone $baseQuery)->count();
+
+        $averagesRow = (clone $baseQuery)
+            ->selectRaw(implode(', ', array_map(
+                fn (string $field) => "AVG({$field}) as {$field}",
+                array_keys(Feedback::RATING_FIELDS)
+            )))
+            ->first();
+
+        $averages = [];
+        foreach (Feedback::RATING_FIELDS as $field => $label) {
+            $averages[$field] = $averagesRow?->{$field} !== null ? round((float) $averagesRow->{$field}, 2) : null;
+        }
+
+        $ratedAverages = array_filter($averages, fn ($value) => $value !== null);
+        $overallAverage = $ratedAverages !== []
+            ? round(array_sum($ratedAverages) / count($ratedAverages), 2)
+            : null;
+
+        $experienceDistribution = (clone $baseQuery)
+            ->selectRaw('overall_experience as rating, COUNT(*) as total')
+            ->groupBy('overall_experience')
+            ->pluck('total', 'rating');
+
+        $feedback = (clone $baseQuery)
+            ->with('branch')
+            ->latest('date')
+            ->latest()
+            ->paginate($this->perPage($request, 20))
+            ->withQueryString();
+
+        return view('reports.feedback', [
+            'branches' => Branch::query()->where('is_active', true)->orderBy('name')->get(),
+            'selectedBranchId' => $branchId,
+            'feedback' => $feedback,
+            'ratingFields' => Feedback::RATING_FIELDS,
+            'averages' => $averages,
+            'overallAverage' => $overallAverage,
+            'totalResponses' => $totalResponses,
+            'experienceDistribution' => $experienceDistribution,
+            'dateFrom' => $dateFrom,
+            'dateTo' => $dateTo,
         ]);
     }
 
