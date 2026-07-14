@@ -496,6 +496,16 @@ body {
     z-index: 1001;
     border-right: 1px solid rgba(255, 255, 255, 0.05);
 }
+/* Desktop collapsed sidebar (state persisted in localStorage) */
+@media (min-width: 992px) {
+    html.sidebar-collapsed .sidebar {
+        flex-basis: 0;
+        min-width: 0;
+        max-width: 0;
+        overflow: hidden;
+        border-right: 0;
+    }
+}
 .sidebar .sidebar-header {
     padding: 1.5rem 1.25rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);

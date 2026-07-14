@@ -86,10 +86,15 @@
 
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Low Stock Notification Recipients</label>
-                        <textarea name="recipients" rows="2" class="form-control @error('recipients_list.*') is-invalid @enderror"
-                                  placeholder="manager@example.com, owner@example.com">{{ old('recipients', $setting->recipients ?? '') }}</textarea>
+                        <div id="recipientChips" class="form-control d-flex flex-wrap align-items-center gap-2 @error('recipients_list.*') is-invalid @enderror" style="height: auto; min-height: 42px; cursor: text;">
+                            <input type="email" id="recipientInput" class="border-0 bg-transparent flex-grow-1 p-0"
+                                   style="outline: none; min-width: 180px; color: inherit;"
+                                   placeholder="Type an email and press Enter...">
+                        </div>
+                        <input type="hidden" name="recipients" id="recipientsHidden" value="{{ old('recipients', $setting->recipients ?? '') }}">
+                        <div class="invalid-feedback d-block" id="recipientError" style="display:none !important;"></div>
                         @error('recipients_list.*')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
-                        <div class="form-text">One or more email addresses separated by commas. Leave empty to notify the branch manager's account email.</div>
+                        <div class="form-text">Press <kbd>Enter</kbd> (or comma) to add each address. Leave empty to notify the branch manager's account email.</div>
                     </div>
 
                     <div class="form-check form-switch mb-4">
@@ -124,3 +129,91 @@
         </div>
     </div>
 @endsection
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const wrapper = document.getElementById('recipientChips');
+    const input = document.getElementById('recipientInput');
+    const hidden = document.getElementById('recipientsHidden');
+    const errorEl = document.getElementById('recipientError');
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+    let emails = (hidden.value || '').split(',').map((e) => e.trim()).filter(Boolean);
+
+    function sync() {
+        hidden.value = emails.join(', ');
+        wrapper.querySelectorAll('.recipient-chip').forEach((chip) => chip.remove());
+        emails.forEach((email, index) => {
+            const chip = document.createElement('span');
+            chip.className = 'recipient-chip badge d-inline-flex align-items-center gap-1';
+            chip.style.cssText = 'background: rgba(var(--primary-color-rgb, 240, 124, 89), .15); color: var(--primary-color, #f07c59); font-size: .8rem; font-weight: 600; padding: .4rem .6rem; border-radius: 999px;';
+            chip.appendChild(document.createTextNode(email));
+            const remove = document.createElement('button');
+            remove.type = 'button';
+            remove.setAttribute('aria-label', 'Remove ' + email);
+            remove.style.cssText = 'border: 0; background: transparent; color: inherit; line-height: 1; padding: 0; font-size: 1rem; cursor: pointer;';
+            remove.innerHTML = '&times;';
+            remove.addEventListener('click', function () {
+                emails.splice(index, 1);
+                sync();
+                input.focus();
+            });
+            chip.appendChild(remove);
+            wrapper.insertBefore(chip, input);
+        });
+    }
+
+    function showError(message) {
+        errorEl.textContent = message;
+        errorEl.style.setProperty('display', 'block', 'important');
+        wrapper.classList.add('is-invalid');
+    }
+
+    function clearError() {
+        errorEl.style.setProperty('display', 'none', 'important');
+        wrapper.classList.remove('is-invalid');
+    }
+
+    function commit() {
+        const value = input.value.trim().replace(/,+$/, '');
+        if (value === '') return true;
+        if (!emailPattern.test(value)) {
+            showError('"' + value + '" is not a valid email address.');
+            return false;
+        }
+        if (!emails.includes(value.toLowerCase())) {
+            emails.push(value.toLowerCase());
+        }
+        input.value = '';
+        clearError();
+        sync();
+        return true;
+    }
+
+    input.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter' || event.key === ',') {
+            event.preventDefault();
+            commit();
+        } else if (event.key === 'Backspace' && input.value === '' && emails.length > 0) {
+            emails.pop();
+            sync();
+        } else {
+            clearError();
+        }
+    });
+
+    input.addEventListener('blur', commit);
+    wrapper.addEventListener('click', function () { input.focus(); });
+
+    // Capture whatever is still typed in the box when the form submits.
+    input.closest('form').addEventListener('submit', function (event) {
+        if (!commit()) {
+            event.preventDefault();
+            input.focus();
+        }
+    });
+
+    sync();
+});
+</script>
+@endpush

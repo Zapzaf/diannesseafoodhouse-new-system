@@ -6,6 +6,10 @@
             (function() {
                 const currentTheme = localStorage.getItem('theme') || 'light';
                 document.documentElement.setAttribute('data-bs-theme', currentTheme);
+                // Restore the desktop sidebar collapsed state before paint
+                if (localStorage.getItem('sidebar-collapsed') === '1') {
+                    document.documentElement.classList.add('sidebar-collapsed');
+                }
             })();
         </script>
         <meta name="csrf-token" content="{{ csrf_token() }}">
@@ -74,6 +78,24 @@
         <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
         
         <link href="{{ asset('css/style.css') }}?v={{ filemtime(public_path('css/style.css')) }}" rel="stylesheet" />
+        @php
+            try {
+                $customSidebarLight = \App\Models\AppSetting::get('sidebar_bg_light');
+                $customSidebarDark = \App\Models\AppSetting::get('sidebar_bg_dark');
+            } catch (\Throwable $e) {
+                $customSidebarLight = $customSidebarDark = null;
+            }
+        @endphp
+        @if($customSidebarLight || $customSidebarDark)
+        <style>
+            @if($customSidebarLight)
+            :root { --bg-sidebar: {{ $customSidebarLight }}; }
+            @endif
+            @if($customSidebarDark)
+            [data-bs-theme="dark"] { --bg-sidebar: {{ $customSidebarDark }}; }
+            @endif
+        </style>
+        @endif
         @stack('styles')
     </head>
     <body class="bg-body text-main">
@@ -577,7 +599,7 @@
                     <div class="d-flex align-items-center justify-content-between">
                         <!-- Left: Sidebar Toggler and Title/Search placeholder -->
                         <div class="d-flex align-items-center gap-3 flex-grow-1 me-3">
-                            <button class="btn btn-outline-secondary d-lg-none py-1.5 px-2 border-opacity-10" id="sidebarToggle">
+                            <button class="btn btn-outline-secondary py-1.5 px-2 border-opacity-10" id="sidebarToggle" title="Toggle sidebar">
                                 <i data-lucide="menu" style="width: 20px; height: 20px;"></i>
                             </button>
                             
@@ -702,7 +724,13 @@
                 if(sidebarToggle) {
                     sidebarToggle.addEventListener('click', (e) => {
                         e.preventDefault();
-                        sidebar.classList.toggle('active');
+                        if (window.matchMedia('(min-width: 992px)').matches) {
+                            // Desktop: collapse/expand and remember the choice
+                            const collapsed = document.documentElement.classList.toggle('sidebar-collapsed');
+                            localStorage.setItem('sidebar-collapsed', collapsed ? '1' : '0');
+                        } else {
+                            sidebar.classList.toggle('active');
+                        }
                     });
                 }
                 if(sidebarClose) {

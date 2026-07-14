@@ -299,6 +299,7 @@ Route::middleware('auth')->group(function (): void {
 	// Settings route (from nav)
 	Route::get('/settings', [SettingsController::class, 'show'])->name('settings.show');
 	Route::put('/settings/branch', [SettingsController::class, 'updateBranch'])->name('settings.branch.update');
+	Route::put('/settings/appearance', [SettingsController::class, 'updateAppearance'])->name('settings.appearance.update');
 
 	Route::prefix('chart-of-accounts')->name('chart-of-accounts.')->middleware('role:admin')->group(function (): void {
 		Route::get('/', [ChartOfAccountController::class, 'index'])->name('index');

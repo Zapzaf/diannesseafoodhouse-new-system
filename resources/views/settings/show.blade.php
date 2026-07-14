@@ -248,6 +248,45 @@
         </div>
     </div>
 
+    @if(auth()->user()->isAdmin())
+    {{-- Appearance --}}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header fw-semibold"><i data-lucide="palette" class="me-1"></i> Appearance</div>
+        <div class="card-body">
+            <form action="{{ route('settings.appearance.update') }}" method="POST" class="row g-3 align-items-end">
+                @csrf
+                @method('PUT')
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Sidebar Color — Light Mode</label>
+                    <div class="d-flex gap-2 align-items-center">
+                        <input type="color" name="sidebar_bg_light" class="form-control form-control-color @error('sidebar_bg_light') is-invalid @enderror"
+                               value="{{ old('sidebar_bg_light', $sidebarBgLight) }}" title="Sidebar background in light mode">
+                        <code class="text-muted small">{{ $sidebarBgLight }}</code>
+                    </div>
+                    @error('sidebar_bg_light')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Sidebar Color — Dark Mode</label>
+                    <div class="d-flex gap-2 align-items-center">
+                        <input type="color" name="sidebar_bg_dark" class="form-control form-control-color @error('sidebar_bg_dark') is-invalid @enderror"
+                               value="{{ old('sidebar_bg_dark', $sidebarBgDark) }}" title="Sidebar background in dark mode">
+                        <code class="text-muted small">{{ $sidebarBgDark }}</code>
+                    </div>
+                    @error('sidebar_bg_dark')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+                </div>
+                <div class="col-md-4 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">Save Appearance</button>
+                    <button type="submit" name="reset" value="1" class="btn btn-outline-secondary"
+                            onclick="return confirm('Reset sidebar colors to the system defaults?')">Reset to Defaults</button>
+                </div>
+                <div class="col-12">
+                    <div class="form-text">Applies to everyone. Each theme keeps its own sidebar color.</div>
+                </div>
+            </form>
+        </div>
+    </div>
+    @endif
+
     {{-- Quick Links --}}
     <div class="row g-4">
         <div class="col-md-6">

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AppSetting;
 use App\Models\Branch;
 use App\Models\Item;
 use App\Models\User;
@@ -27,6 +28,8 @@ class SettingsController extends Controller
         $selectedBranch = $branches->firstWhere('id', $selectedBranchId);
 
         return view('settings.show', [
+            'sidebarBgLight' => AppSetting::get('sidebar_bg_light', '#1e2530'),
+            'sidebarBgDark' => AppSetting::get('sidebar_bg_dark', '#0f131c'),
             'totalBranches' => Branch::count(),
             'totalUsers' => User::count(),
             'totalItems' => Item::count(),
@@ -73,5 +76,30 @@ class SettingsController extends Controller
         return redirect()
             ->route('settings.show', ['branch_id' => $branch->id])
             ->with('success', 'Branch settings updated successfully.');
+    }
+
+    public function updateAppearance(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()?->isAdmin(), 403);
+
+        if ($request->boolean('reset')) {
+            AppSetting::set('sidebar_bg_light', null);
+            AppSetting::set('sidebar_bg_dark', null);
+
+            return redirect()->route('settings.show')->with('success', 'Sidebar colors reset to defaults.');
+        }
+
+        $validated = $request->validate([
+            'sidebar_bg_light' => ['required', 'regex:/^#[0-9a-fA-F]{6}$/'],
+            'sidebar_bg_dark' => ['required', 'regex:/^#[0-9a-fA-F]{6}$/'],
+        ], [
+            'sidebar_bg_light.regex' => 'The light mode color must be a valid hex color (e.g. #1e2530).',
+            'sidebar_bg_dark.regex' => 'The dark mode color must be a valid hex color (e.g. #0f131c).',
+        ]);
+
+        AppSetting::set('sidebar_bg_light', strtolower($validated['sidebar_bg_light']));
+        AppSetting::set('sidebar_bg_dark', strtolower($validated['sidebar_bg_dark']));
+
+        return redirect()->route('settings.show')->with('success', 'Appearance settings updated successfully.');
     }
 }
