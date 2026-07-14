@@ -511,7 +511,8 @@ class InventoryController extends Controller
             ->whereColumn('quantity', '<=', 'low_stock_threshold')
             ->when($branchId, fn ($query, $branchId) => $query->where('branch_id', $branchId))
             ->orderBy('quantity')
-            ->get();
+            ->paginate($this->perPage($request, 20))
+            ->withQueryString();
 
         return view('inventory.low-stock', compact('items'));
     }

@@ -24,7 +24,7 @@
     @else
     <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
         <i data-lucide="alert-triangle" class="me-2 flex-shrink-0"></i>
-        <div><strong>{{ $items->count() }} item(s)</strong> require immediate restocking.</div>
+        <div><strong>{{ $items->total() }} item(s)</strong> require immediate restocking.</div>
     </div>
 
     <div class="card shadow-sm">
@@ -45,9 +45,9 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach($items as $index => $item)
+                        @foreach($items as $item)
                         <tr>
-                            <td>{{ $index + 1 }}</td>
+                            <td>{{ $items->firstItem() + $loop->index }}</td>
                             <td class="fw-semibold">{{ $item->name }}</td>
                             <td>{{ $item->branch?->name ?? '—' }}</td>
                             <td>{{ $item->category?->location?->name ?? '—' }}</td>
@@ -71,6 +71,11 @@
                 </table>
             </div>
         </div>
+        @if($items->hasPages())
+        <div class="card-footer d-flex justify-content-center">
+            {{ $items->appends(request()->query())->links('pagination::bootstrap-5') }}
+        </div>
+        @endif
     </div>
     @endif
 </div>

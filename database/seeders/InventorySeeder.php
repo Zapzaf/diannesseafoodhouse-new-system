@@ -48,12 +48,22 @@ class InventorySeeder extends Seeder
                     'unit' => $data['unit'] ?: null,
                     'quantity' => (float) $data['quantity'],
                     'unit_price' => null,
-                    'low_stock_threshold' => 0,
+                    'low_stock_threshold' => $this->resolveLowStockThreshold($data),
                     'notes' => $this->makeNotes($data),
                     'created_by' => $creator->id,
                 ]
             );
         }
+    }
+
+    /**
+     * Default to 5 when the threshold is missing, null, or 0.
+     */
+    private function resolveLowStockThreshold(array $data): float
+    {
+        $threshold = (float) ($data['low_stock_threshold'] ?? 0);
+
+        return $threshold > 0 ? $threshold : 5.0;
     }
 
     private function makeNotes(array $data): string

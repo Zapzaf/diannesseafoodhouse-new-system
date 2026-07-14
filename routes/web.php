@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AccountController;
+use App\Http\Controllers\BranchMailSettingController;
 use App\Http\Controllers\BranchManagementController;
 use App\Http\Controllers\CategoryManagementController;
 use App\Http\Controllers\ChartOfAccountController;
@@ -266,6 +267,9 @@ Route::middleware('auth')->group(function (): void {
 		Route::get('/{branch}/edit', [BranchManagementController::class, 'edit'])->name('edit');
 		Route::put('/{branch}', [BranchManagementController::class, 'update'])->name('update');
 		Route::delete('/{branch}', [BranchManagementController::class, 'destroy'])->name('destroy');
+		Route::get('/{branch}/mail-settings', [BranchMailSettingController::class, 'edit'])->name('mail-settings.edit');
+		Route::post('/{branch}/mail-settings', [BranchMailSettingController::class, 'update'])->name('mail-settings.update');
+		Route::post('/{branch}/mail-settings/test', [BranchMailSettingController::class, 'test'])->name('mail-settings.test');
 	});
 
 	// Reports routes (from nav)

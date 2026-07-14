@@ -56,6 +56,9 @@
                                     <a href="{{ route('branches.edit', $branch) }}" class="btn btn-sm btn-outline-primary">
                                         <i data-lucide="edit"></i>
                                     </a>
+                                    <a href="{{ route('branches.mail-settings.edit', $branch) }}" class="btn btn-sm btn-outline-info" title="Mail Settings">
+                                        <i data-lucide="mail"></i>
+                                    </a>
                                     <form method="POST" action="{{ route('branches.destroy', $branch) }}" class="d-inline"
                                           onsubmit="return confirm('Delete branch {{ addslashes($branch->name) }}? This cannot be undone.')">
                                         @csrf

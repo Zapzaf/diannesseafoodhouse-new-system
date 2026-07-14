@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\SendLowStockEmail;
 use App\Jobs\SendLowStockSms;
 use App\Models\Item;
 use App\Models\User;
@@ -46,10 +47,16 @@ class InventoryService
 
         $manager = $item->branch?->manager;
 
-        if (! $manager instanceof User || empty($manager->phone)) {
+        if (! $manager instanceof User) {
             return;
         }
 
-        SendLowStockSms::dispatch($item->id);
+        if (! empty($manager->phone)) {
+            SendLowStockSms::dispatch($item->id);
+        }
+
+        if (! empty($manager->email)) {
+            SendLowStockEmail::dispatch($item->id);
+        }
     }
 }

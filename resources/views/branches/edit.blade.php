@@ -2,6 +2,9 @@
 @section('page_title', 'Edit Branch - ' . $branch->name)
 @section('content')
     <x-page-header :title="'Edit Branch — ' . $branch->name" subtitle="Update branch details and manager assignment" icon="edit">
+        <a href="{{ route('branches.mail-settings.edit', $branch) }}" class="btn btn-light text-primary">
+            <i data-lucide="mail" class="me-1"></i> Mail Settings
+        </a>
         <a href="{{ route('branches.index') }}" class="btn btn-light text-primary">
             <i data-lucide="arrow-left" class="me-1"></i> Back to Branches
         </a>
