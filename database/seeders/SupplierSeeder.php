@@ -5,48 +5,41 @@ namespace Database\Seeders;
 use App\Models\Supplier;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use JsonException;
 
 class SupplierSeeder extends Seeder
 {
+    /**
+     * @throws JsonException
+     */
     public function run(): void
     {
-        $creator = User::where('role', 'admin')->firstOrFail();
+        $creator = User::query()->where('role', 'admin')->firstOrFail();
+        $suppliers = json_decode(
+            file_get_contents(database_path('seeders/data/suppliers-from-excel.json')),
+            true,
+            flags: JSON_THROW_ON_ERROR
+        );
 
-        $suppliers = [
-            [
-                'name' => 'Pacific Fresh Catch Trading',
-                'contact_person' => 'Mario Santos',
-                'phone' => '09181234567',
-                'email' => 'orders@pacificfresh.local',
-                'address' => 'Navotas Fish Port, Metro Manila',
-                'notes' => 'Daily seafood supplier.',
-            ],
-            [
-                'name' => 'Island Poultry & Meat Supply',
-                'contact_person' => 'Elena Cruz',
-                'phone' => '09182345678',
-                'email' => 'sales@islandpoultry.local',
-                'address' => 'Malabon, Metro Manila',
-                'notes' => 'Chicken and pork wholesale.',
-            ],
-            [
-                'name' => 'Golden Pantry Goods',
-                'contact_person' => 'Rico Dela Pena',
-                'phone' => '09183456789',
-                'email' => 'support@goldenpantry.local',
-                'address' => 'Quezon City, Metro Manila',
-                'notes' => 'Dry and canned goods.',
-            ],
-        ];
-
-        foreach ($suppliers as $supplier) {
-            Supplier::updateOrCreate(
-                ['name' => $supplier['name']],
+        foreach ($suppliers as $data) {
+            Supplier::query()->updateOrCreate(
+                ['name' => $data['name']],
                 [
-                    ...$supplier,
+                    'contact_person' => $this->nullable($data['contact_person']),
+                    'phone' => $this->nullable($data['phone']),
+                    'email' => $this->nullable($data['email']),
+                    'address' => $this->nullable($data['address']),
+                    'tin' => $this->nullable($data['tin']),
+                    'is_vat_registered' => (bool) $data['is_vat_registered'],
+                    'notes' => $this->nullable($data['notes']),
                     'created_by' => $creator->id,
                 ]
             );
         }
+    }
+
+    private function nullable(?string $value): ?string
+    {
+        return blank($value) || in_array($value, ['None', 'N/A'], true) ? null : $value;
     }
 }
