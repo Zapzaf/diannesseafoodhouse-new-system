@@ -94,6 +94,7 @@ Route::middleware('auth')->group(function (): void {
 		Route::get('/', [InventoryController::class, 'index'])->name('index');
 		Route::get('/create', [InventoryController::class, 'create'])->name('create');
 		Route::get('/low-stock', [InventoryController::class, 'lowStock'])->name('low-stock');
+		Route::post('/low-stock/send-email', [InventoryController::class, 'sendLowStockEmails'])->name('low-stock.send-email');
 	});
 
 	// Transactions routes (from nav)

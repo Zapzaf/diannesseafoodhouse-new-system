@@ -72,6 +72,8 @@ document.addEventListener('DOMContentLoaded', function() {
         emptyMessage: 'No menu items found.',
         colspan: 8,
         renderRow: function(menu, ctx) {
+            const description = menu.menu_description || '';
+            const shortDescription = description.length > 32 ? description.slice(0, 32) + '...' : description;
             const ingredientText = Number(menu.items_count || 0) > 0
                 ? `<span class="text-muted small">${menu.items_count} ingredient(s)</span>`
                 : '<span class="text-warning small">No ingredients</span>';
@@ -79,7 +81,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return `<tr>
                     <td>${ctx.index}</td>
                     <td class="fw-semibold">${ctx.escapeHtml(menu.name)}</td>
-                    <td class="text-muted small" style="max-width:200px;">${ctx.escapeHtml(menu.menu_description || '—')}</td>
+                    <td class="text-muted small text-nowrap" title="${ctx.escapeHtml(description)}">${ctx.escapeHtml(shortDescription || '—')}</td>
                     <td><span class="badge bg-secondary">${ctx.escapeHtml(menu.category || menu.category_label || '\u2014')}</span></td>
                     <td>\u20B1${Number(menu.selling_price || 0).toFixed(2)}</td>
                     <td>${ingredientText}</td>

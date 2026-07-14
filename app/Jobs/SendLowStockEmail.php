@@ -12,7 +12,10 @@ class SendLowStockEmail implements ShouldQueue
 {
     use Queueable;
 
-    public function __construct(public int $itemId)
+    /**
+     * @param bool $force Skip the per-branch enable/disable check (manual sends).
+     */
+    public function __construct(public int $itemId, public bool $force = false)
     {
     }
 
@@ -25,14 +28,19 @@ class SendLowStockEmail implements ShouldQueue
         }
 
         $branch = $item->branch;
-        $managerEmail = $branch?->manager?->email;
 
-        if (empty($managerEmail) || ! $branchMailer->notificationsEnabled($branch)) {
+        if (! $this->force && ! $branchMailer->notificationsEnabled($branch)) {
+            return;
+        }
+
+        $recipients = $branchMailer->recipientsFor($branch);
+
+        if ($recipients === []) {
             return;
         }
 
         $branchMailer->mailerFor($branch)
-            ->to($managerEmail, $branch?->manager?->name)
+            ->to($recipients)
             ->send(new LowStockAlert($item));
     }
 }

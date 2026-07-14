@@ -24,6 +24,25 @@ class BranchMailerService
     }
 
     /**
+     * Recipient addresses for low stock notifications: the branch's
+     * configured recipient list, falling back to the branch manager's email.
+     *
+     * @return array<int, string>
+     */
+    public function recipientsFor(?Branch $branch): array
+    {
+        $configured = $branch?->mailSetting?->recipientList() ?? [];
+
+        if ($configured !== []) {
+            return $configured;
+        }
+
+        $managerEmail = $branch?->manager?->email;
+
+        return filled($managerEmail) ? [$managerEmail] : [];
+    }
+
+    /**
      * Resolve the mailer for a branch: its own active SMTP configuration
      * when one exists, otherwise the default mailer from .env.
      */

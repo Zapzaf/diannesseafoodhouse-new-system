@@ -47,16 +47,12 @@ class InventoryService
 
         $manager = $item->branch?->manager;
 
-        if (! $manager instanceof User) {
-            return;
-        }
-
-        if (! empty($manager->phone)) {
+        if ($manager instanceof User && ! empty($manager->phone)) {
             SendLowStockSms::dispatch($item->id);
         }
 
-        if (! empty($manager->email)) {
-            SendLowStockEmail::dispatch($item->id);
-        }
+        // The job resolves recipients (configured list or manager email)
+        // and exits quietly when there are none or emails are disabled.
+        SendLowStockEmail::dispatch($item->id);
     }
 }

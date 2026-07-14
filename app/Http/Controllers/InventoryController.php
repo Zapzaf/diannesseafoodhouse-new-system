@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Exports\ItemsExport;
 use App\Http\Requests\StoreItemRequest;
+use App\Jobs\SendLowStockEmail;
 use App\Models\Branch;
 use App\Models\Category;
 use App\Models\Delivery;
@@ -507,14 +508,61 @@ class InventoryController extends Controller
     {
         $branchId = $this->resolveBranchId($request);
 
+        $filters = $request->validate([
+            'location_id' => ['nullable', 'integer', 'exists:locations,id'],
+            'category_id' => ['nullable', 'integer', 'exists:categories,id'],
+        ]);
+        $locationId = $filters['location_id'] ?? null;
+        $categoryId = $filters['category_id'] ?? null;
+
         $items = Item::with(['category.location', 'branch'])
             ->whereColumn('quantity', '<=', 'low_stock_threshold')
             ->when($branchId, fn ($query, $branchId) => $query->where('branch_id', $branchId))
+            ->when($locationId, fn ($query, $id) => $query->whereHas('category', fn ($inner) => $inner->where('location_id', $id)))
+            ->when($categoryId, fn ($query, $id) => $query->where('category_id', $id))
             ->orderBy('quantity')
             ->paginate($this->perPage($request, 20))
             ->withQueryString();
 
-        return view('inventory.low-stock', compact('items'));
+        $locations = Location::query()
+            ->when($branchId, fn ($query, $id) => $query->where('branch_id', $id))
+            ->orderBy('name')
+            ->get();
+
+        $categories = Category::query()
+            ->when($branchId, fn ($query, $id) => $query->where('branch_id', $id))
+            ->when($locationId, fn ($query, $id) => $query->where('location_id', $id))
+            ->orderBy('name')
+            ->get();
+
+        return view('inventory.low-stock', compact('items', 'locations', 'categories', 'locationId', 'categoryId'));
+    }
+
+    public function sendLowStockEmails(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'item_ids' => ['required', 'array', 'min:1'],
+            'item_ids.*' => ['integer', 'exists:items,id'],
+        ]);
+
+        $branchId = $this->resolveBranchId($request);
+
+        $items = Item::query()
+            ->whereIn('id', $validated['item_ids'])
+            ->whereColumn('quantity', '<=', 'low_stock_threshold')
+            ->when($branchId, fn ($query, $id) => $query->where('branch_id', $id))
+            ->when(! $request->user()->isAdmin(), fn ($query) => $query->where('branch_id', $request->user()->branch_id))
+            ->get();
+
+        if ($items->isEmpty()) {
+            return back()->with('error', 'No eligible low stock items were selected.');
+        }
+
+        foreach ($items as $item) {
+            SendLowStockEmail::dispatch($item->id, force: true);
+        }
+
+        return back()->with('success', 'Low stock email queued for '.$items->count().' item(s).');
     }
 
     public function export(Request $request)

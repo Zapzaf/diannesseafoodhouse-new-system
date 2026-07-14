@@ -84,6 +84,14 @@
                         </div>
                     </div>
 
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Low Stock Notification Recipients</label>
+                        <textarea name="recipients" rows="2" class="form-control @error('recipients_list.*') is-invalid @enderror"
+                                  placeholder="manager@example.com, owner@example.com">{{ old('recipients', $setting->recipients ?? '') }}</textarea>
+                        @error('recipients_list.*')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+                        <div class="form-text">One or more email addresses separated by commas. Leave empty to notify the branch manager's account email.</div>
+                    </div>
+
                     <div class="form-check form-switch mb-4">
                         <input class="form-check-input" type="checkbox" id="isActive" name="is_active" value="1"
                                @checked(old('is_active', $setting->is_active ?? true))>

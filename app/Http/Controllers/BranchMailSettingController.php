@@ -89,7 +89,17 @@ class BranchMailSettingController extends Controller
      */
     private function validated(Request $request, array $extraRules = []): array
     {
-        return $request->validate([
+        // Normalize the comma-separated recipients into an array so each
+        // address gets validated individually.
+        $request->merge([
+            'recipients_list' => collect(explode(',', (string) $request->input('recipients')))
+                ->map(fn (string $email) => trim($email))
+                ->filter()
+                ->values()
+                ->all(),
+        ]);
+
+        $validated = $request->validate([
             'mailer' => ['required', 'string', 'in:smtp,log'],
             'host' => ['nullable', 'string', 'max:255'],
             'port' => ['nullable', 'integer', 'between:1,65535'],
@@ -98,8 +108,16 @@ class BranchMailSettingController extends Controller
             'encryption' => ['nullable', 'string', 'in:tls,ssl'],
             'from_address' => ['nullable', 'email', 'max:255'],
             'from_name' => ['nullable', 'string', 'max:255'],
+            'recipients_list' => ['nullable', 'array'],
+            'recipients_list.*' => ['email:rfc'],
             'is_active' => ['nullable', 'boolean'],
-        ] + $extraRules);
+        ] + $extraRules, [
+            'recipients_list.*.email' => 'Recipient ":input" is not a valid email address.',
+        ]);
+
+        $validated['recipients'] = implode(', ', $validated['recipients_list'] ?? []);
+
+        return $validated;
     }
 
     /**
@@ -116,6 +134,7 @@ class BranchMailSettingController extends Controller
             'encryption' => $validated['encryption'] ?? null,
             'from_address' => $validated['from_address'] ?? null,
             'from_name' => $validated['from_name'] ?? null,
+            'recipients' => filled($validated['recipients']) ? $validated['recipients'] : null,
             'is_active' => (bool) ($validated['is_active'] ?? false),
         ];
     }

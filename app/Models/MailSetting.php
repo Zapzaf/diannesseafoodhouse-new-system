@@ -17,6 +17,7 @@ class MailSetting extends Model
         'encryption',
         'from_address',
         'from_name',
+        'recipients',
         'is_active',
     ];
 
@@ -33,6 +34,21 @@ class MailSetting extends Model
     public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class);
+    }
+
+    /**
+     * The configured low stock notification recipients as a clean array.
+     *
+     * @return array<int, string>
+     */
+    public function recipientList(): array
+    {
+        return collect(explode(',', (string) $this->recipients))
+            ->map(fn (string $email) => trim($email))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
     }
 
     /**
