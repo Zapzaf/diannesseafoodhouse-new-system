@@ -4425,3 +4425,214 @@ th.table-sortable {
     background-size: 11px 8px !important;
     display: inline-block !important;
 }
+
+/* ============================================================
+   Sidebar Theme & Polish
+   Light mode gets a proper light sidebar; dark mode keeps its
+   deep tone. Everything is variable-driven so the admin's
+   custom sidebar colors keep working.
+   ============================================================ */
+:root {
+    --bg-sidebar: #ffffff;
+    --bg-sidebar-hover: rgba(15, 23, 42, 0.055);
+    --bg-sidebar-active: rgba(240, 124, 89, 0.12);
+    --text-sidebar: #5b6577;
+    --text-sidebar-strong: #1e293b;
+    --text-sidebar-muted: #94a3b8;
+    --sidebar-border: #e8edf3;
+    --sidebar-shadow: 0 0 24px rgba(15, 23, 42, 0.05);
+}
+
+[data-bs-theme="dark"] {
+    --bg-sidebar: #0f131c;
+    --bg-sidebar-hover: rgba(255, 255, 255, 0.05);
+    --bg-sidebar-active: rgba(240, 124, 89, 0.18);
+    --text-sidebar: #94a3b8;
+    --text-sidebar-strong: #f8fafc;
+    --text-sidebar-muted: rgba(148, 163, 184, 0.7);
+    --sidebar-border: rgba(255, 255, 255, 0.06);
+    --sidebar-shadow: none;
+}
+
+/* Container */
+.sidebar {
+    border-right: 1px solid var(--sidebar-border);
+    box-shadow: var(--sidebar-shadow);
+}
+.sidebar .sidebar-header {
+    border-bottom: 1px solid var(--sidebar-border);
+    padding: 1.35rem 1.25rem;
+}
+.sidebar-footer {
+    border-top: 1px solid var(--sidebar-border);
+}
+
+/* Re-theme utility classes hard-coded in the sidebar markup */
+.sidebar .text-white {
+    color: var(--text-sidebar-strong) !important;
+}
+.sidebar .text-white-50 {
+    color: var(--text-sidebar-muted) !important;
+}
+.sidebar .sidenav-menu-heading {
+    color: var(--text-sidebar-muted) !important;
+    font-size: 0.68rem !important;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    opacity: 1 !important;
+    padding-top: 1.1rem !important;
+    padding-bottom: 0.35rem !important;
+}
+.sidebar .branch-select-input {
+    color: var(--text-sidebar-strong) !important;
+}
+.sidebar .branch-select-input:focus {
+    color: var(--text-sidebar-strong) !important;
+}
+
+/* Nav links: typography, spacing, alignment */
+.sidebar .nav-link {
+    font-size: 0.875rem;
+    font-weight: 500;
+    padding: 0.66rem 0.9rem;
+    margin: 0.14rem 0.75rem;
+    gap: 0.7rem;
+    border-radius: 10px;
+    color: var(--text-sidebar);
+    transition: background-color 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
+}
+.sidebar .nav-link i,
+.sidebar .nav-link svg,
+.sidebar .nav-link .lucide {
+    width: 19px !important;
+    height: 19px !important;
+    stroke-width: 1.75;
+    flex-shrink: 0;
+    color: currentColor;
+    transition: transform 0.25s ease;
+}
+
+/* Hover */
+.sidebar .nav-link:hover {
+    background-color: var(--bg-sidebar-hover);
+    color: var(--text-sidebar-strong);
+}
+.sidebar .nav-link:hover i,
+.sidebar .nav-link:hover svg {
+    transform: translateX(2px);
+}
+
+/* Active: distinct, with a soft fade-in on page load */
+.sidebar .nav-link.active {
+    background-color: var(--primary-color);
+    color: #ffffff !important;
+    font-weight: 600;
+    box-shadow: 0 6px 16px rgba(var(--primary-color-rgb), 0.28);
+    animation: sidebar-active-fade 0.4s ease;
+}
+@keyframes sidebar-active-fade {
+    from {
+        background-color: transparent;
+        box-shadow: none;
+    }
+}
+
+/* Collapse chevron: rotate smoothly, never jitter on hover */
+.sidebar .nav-link .collapse-arrow {
+    margin-left: auto;
+    opacity: 0.65;
+    transition: transform 0.25s ease;
+}
+.sidebar .nav-link:hover .collapse-arrow {
+    transform: none;
+}
+.sidebar .nav-link[aria-expanded="true"] .collapse-arrow {
+    transform: rotate(180deg) !important;
+}
+
+/* Nested submenu: guide line + tighter rhythm */
+.sidebar .collapse > .nav,
+.sidebar .collapsing > .nav {
+    border-left: 1px solid var(--sidebar-border);
+    margin-left: 1.65rem;
+    padding-left: 0.35rem;
+}
+.sidebar .collapse .nav-link,
+.sidebar .collapsing .nav-link {
+    font-size: 0.83rem;
+    padding: 0.45rem 0.75rem;
+    margin: 0.05rem 0.4rem 0.05rem 0;
+}
+.sidebar .collapse .nav-link.active,
+.sidebar .collapsing .nav-link.active {
+    background-color: var(--bg-sidebar-active);
+    color: var(--primary-color) !important;
+    box-shadow: none;
+}
+
+/* Footer profile hover */
+.sidebar .hover-bg-sidebar {
+    transition: background-color 0.25s ease;
+}
+.sidebar .hover-bg-sidebar:hover {
+    background-color: var(--bg-sidebar-hover);
+}
+
+/* Themed thin scrollbar for the nav area */
+.sidebar > .nav {
+    scrollbar-width: thin;
+    scrollbar-color: var(--sidebar-border) transparent;
+}
+.sidebar > .nav::-webkit-scrollbar {
+    width: 6px;
+}
+.sidebar > .nav::-webkit-scrollbar-thumb {
+    background: var(--sidebar-border);
+    border-radius: 999px;
+}
+.sidebar > .nav::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+/* ============================================================
+   Table selection checkboxes
+   Clearly visible in light and dark themes, brand-colored
+   when checked, comfortable hit size.
+   ============================================================ */
+.table .form-check-input {
+    width: 1.15rem;
+    height: 1.15rem;
+    cursor: pointer;
+    border: 1.5px solid #94a3b8;
+    background-color: #ffffff;
+    transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+[data-bs-theme="dark"] .table .form-check-input {
+    border-color: rgba(148, 163, 184, 0.7);
+    background-color: rgba(255, 255, 255, 0.08);
+}
+.table thead.table-dark .form-check-input {
+    border-color: rgba(255, 255, 255, 0.65);
+    background-color: rgba(255, 255, 255, 0.12);
+}
+.table .form-check-input:hover {
+    border-color: var(--primary-color);
+}
+.table .form-check-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(var(--primary-color-rgb), 0.25);
+}
+.table .form-check-input:checked,
+.table .form-check-input:indeterminate {
+    background-color: var(--primary-color) !important;
+    border-color: var(--primary-color) !important;
+}
+
+/* Hide the paginator's built-in "Showing X to Y of Z results" text —
+   card footers already print their own summary on the left. */
+.custom-pagination-wrapper nav p.small {
+    display: none !important;
+}
+.custom-pagination-wrapper nav .d-none.flex-sm-fill {
+    justify-content: flex-end !important;
+}

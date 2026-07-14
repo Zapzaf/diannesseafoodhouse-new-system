@@ -12,6 +12,25 @@
     <link rel="manifest" href="{{ asset('assets/icons/site.webmanifest') }}">
     <link href="{{ asset('css/styles-old.css') }}" rel="stylesheet" />
     <link href="{{ asset('css/style.css') }}" rel="stylesheet" />
+    <style>
+        /* Typing animation for the brand tagline */
+        #loginTagline {
+            min-height: 1.2em; /* reserve the line so the layout doesn't shift while typing */
+        }
+        .typing-cursor {
+            display: inline-block;
+            width: 3px;
+            height: 0.95em;
+            margin-left: 4px;
+            vertical-align: -0.12em;
+            background: currentColor;
+            border-radius: 2px;
+            animation: cursor-blink 1s steps(1) infinite;
+        }
+        @keyframes cursor-blink {
+            50% { opacity: 0; }
+        }
+    </style>
 </head>
 <body class="login-page">
 <div class="login-container">
@@ -20,7 +39,9 @@
             <div class="login-brand-image" style="background-image: linear-gradient(135deg, rgba(14, 19, 30, 0.82), rgba(14, 19, 30, 0.46)), url('{{ asset('assets/img/backgrounds/login-background.jpg') }}');"></div>
             <div class="login-brand-content">
                 <p class="login-kicker">Dianne Seafood House</p>
-                <h1>Operations made calmer.</h1>
+                <h1 id="loginTagline" aria-label="Operations made calmer.">
+                    <span id="typedTagline"></span><span class="typing-cursor" aria-hidden="true"></span>
+                </h1>
                 <p>Track inventory, production, expenses, and restaurant activity in one focused workspace.</p>
                 <div class="login-feature-row">
                     <span>Inventory</span>
@@ -61,6 +82,35 @@
         </div>
     </div>
 </div>
+<script>
+    (() => {
+        // Type the tagline once per page load, then leave the cursor blinking.
+        const target = document.getElementById('typedTagline');
+        if (!target) return;
+
+        const text = 'Operations made calmer.';
+
+        let index = 0;
+        const type = () => {
+            target.textContent = text.slice(0, ++index);
+            if (index < text.length) {
+                setTimeout(type, 55 + Math.random() * 60);
+            } else {
+                // Pause with the full sentence, then erase and type again.
+                setTimeout(erase, 7000);
+            }
+        };
+        const erase = () => {
+            target.textContent = text.slice(0, --index);
+            if (index > 0) {
+                setTimeout(erase, 28);
+            } else {
+                setTimeout(type, 500);
+            }
+        };
+        setTimeout(type, 400);
+    })();
+</script>
 <script>
     (() => {
         const form = document.querySelector('[data-login-form]');

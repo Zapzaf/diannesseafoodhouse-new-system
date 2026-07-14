@@ -22,45 +22,44 @@
         </div>
     </div>
     @else
-    @if($items->total() > 0)
-    <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
-        <i data-lucide="alert-triangle" class="me-2 flex-shrink-0"></i>
-        <div><strong>{{ $items->total() }} item(s)</strong> require immediate restocking.</div>
-    </div>
-    @endif
-
     <div class="card shadow-sm">
         <div class="card-header fw-semibold d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div><i data-lucide="alert-triangle" class="me-1" style="width: 16px; height: 16px;"></i> Low Stock Items</div>
-            <form method="GET" action="{{ route('items.low-stock') }}" class="d-flex gap-2 align-items-center flex-wrap">
-                <select name="location_id" class="form-select form-select-sm" style="width: auto;" onchange="this.form.category_id.value=''; this.form.submit()">
+            <form method="GET" action="{{ route('items.low-stock') }}" class="d-flex gap-2 align-items-stretch flex-wrap">
+                <select name="location_id" data-role="location-filter" class="form-select" style="width: auto;" onchange="this.form.elements['category_id'].selectedIndex = 0; this.form.submit()">
                     <option value="">All Locations</option>
                     @foreach($locations as $location)
                     <option value="{{ $location->id }}" @selected((int) $locationId === $location->id)>{{ $location->name }}</option>
                     @endforeach
                 </select>
-                <select name="category_id" class="form-select form-select-sm" style="width: auto;" onchange="this.form.submit()">
+                <select name="category_id" data-role="category-filter" class="form-select" style="width: auto;" onchange="this.form.submit()">
                     <option value="">All Categories</option>
                     @foreach($categories as $category)
                     <option value="{{ $category->id }}" @selected((int) $categoryId === $category->id)>{{ $category->name }}</option>
                     @endforeach
                 </select>
-                <select name="per_page" class="form-select form-select-sm" style="width: auto;" onchange="this.form.submit()">
+                <select name="per_page" class="form-select" style="width: auto;" onchange="this.form.submit()">
                     @foreach([5, 10, 20, 50, 100] as $size)
-                    <option value="{{ $size }}" {{ (int) request('per_page', 20) === $size ? 'selected' : '' }}>{{ $size }}</option>
+                    <option value="{{ $size }}" {{ (int) request('per_page', 10) === $size ? 'selected' : '' }}>{{ $size }}</option>
                     @endforeach
                 </select>
                 @if($locationId || $categoryId)
-                <a href="{{ route('items.low-stock') }}" class="btn btn-sm btn-outline-secondary">Reset</a>
+                <a href="{{ route('items.low-stock') }}" class="btn btn-outline-secondary d-flex align-items-center py-0">Reset</a>
                 @endif
             </form>
         </div>
         <form method="POST" action="{{ route('items.low-stock.send-email') }}" id="lowStockEmailForm">
             @csrf
             <div class="card-body">
+                @if($items->total() > 0)
+                <div class="alert alert-warning d-flex align-items-center mb-3" role="alert">
+                    <i data-lucide="alert-triangle" class="me-2 flex-shrink-0"></i>
+                    <div><strong>{{ $items->total() }} item(s)</strong> require immediate restocking{{ $locationId || $categoryId ? ' for the selected filters' : '' }}.</div>
+                </div>
+                @endif
                 <div id="bulkEmailBar" class="d-none mb-3">
-                    <button type="submit" class="btn btn-primary btn-sm">
-                        <i data-lucide="mail" class="me-1" style="width:14px;height:14px;"></i>
+                    <button type="submit" class="btn btn-primary">
+                        <i data-lucide="mail" class="me-1" style="width:16px;height:16px;"></i>
                         Send Low Stock Email (<span id="selectedCount">0</span>)
                     </button>
                 </div>
@@ -68,8 +67,8 @@
                     <table class="table table-striped table-bordered align-middle mb-0">
                         <thead class="table-dark">
                             <tr>
-                                <th style="width: 32px;">
-                                    <input type="checkbox" class="form-check-input" id="selectAll" aria-label="Select all visible items">
+                                <th style="width: 36px;" class="text-center align-middle" data-no-sort="1">
+                                    <input type="checkbox" class="form-check-input m-0" id="selectAll" aria-label="Select all visible items" style="cursor: pointer;">
                                 </th>
                                 <th>#</th>
                                 <th>Item Name</th>
@@ -84,8 +83,8 @@
                         <tbody>
                             @forelse($items as $item)
                             <tr>
-                                <td>
-                                    <input type="checkbox" class="form-check-input item-checkbox" name="item_ids[]" value="{{ $item->id }}" aria-label="Select {{ $item->name }}">
+                                <td class="text-center">
+                                    <input type="checkbox" class="form-check-input item-checkbox m-0" name="item_ids[]" value="{{ $item->id }}" aria-label="Select {{ $item->name }}" style="cursor: pointer;">
                                 </td>
                                 <td>{{ $items->firstItem() + $loop->index }}</td>
                                 <td class="fw-semibold">{{ $item->name }}</td>
@@ -133,27 +132,48 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    const selectAll = document.getElementById('selectAll');
-    const checkboxes = Array.from(document.querySelectorAll('.item-checkbox'));
-    const bulkBar = document.getElementById('bulkEmailBar');
-    const countEl = document.getElementById('selectedCount');
-
-    if (!selectAll || checkboxes.length === 0) return;
+    // The global AJAX-table system replaces the whole card when a filter,
+    // per-page size, or pagination link changes. All listeners here are
+    // delegated to `document` and query the DOM at event time, so the
+    // selection UI keeps working across every swap.
 
     function refresh() {
-        const selected = checkboxes.filter((box) => box.checked).length;
+        const boxes = Array.from(document.querySelectorAll('.item-checkbox'));
+        const selectAll = document.getElementById('selectAll');
+        const bulkBar = document.getElementById('bulkEmailBar');
+        const countEl = document.getElementById('selectedCount');
+        if (!bulkBar || !countEl) return;
+
+        const selected = boxes.filter((box) => box.checked).length;
         countEl.textContent = selected;
         bulkBar.classList.toggle('d-none', selected === 0);
-        selectAll.checked = selected === checkboxes.length;
-        selectAll.indeterminate = selected > 0 && selected < checkboxes.length;
+        if (selectAll) {
+            selectAll.checked = boxes.length > 0 && selected === boxes.length;
+            selectAll.indeterminate = selected > 0 && selected < boxes.length;
+        }
     }
 
-    selectAll.addEventListener('change', function () {
-        checkboxes.forEach((box) => { box.checked = selectAll.checked; });
-        refresh();
+    document.addEventListener('change', function (event) {
+        if (event.target.id === 'selectAll') {
+            document.querySelectorAll('.item-checkbox').forEach((box) => {
+                box.checked = event.target.checked;
+            });
+            refresh();
+        } else if (event.target.classList && event.target.classList.contains('item-checkbox')) {
+            refresh();
+        }
     });
 
-    checkboxes.forEach((box) => box.addEventListener('change', refresh));
+    // Changing the location resets the category filter. Runs in the capture
+    // phase so it executes before the AJAX-table handler serializes the form.
+    document.addEventListener('change', function (event) {
+        if (event.target.matches && event.target.matches('[data-role="location-filter"]')) {
+            const category = event.target.form && event.target.form.querySelector('[data-role="category-filter"]');
+            if (category) category.selectedIndex = 0;
+        }
+    }, true);
+
+    refresh();
 });
 </script>
 @endpush

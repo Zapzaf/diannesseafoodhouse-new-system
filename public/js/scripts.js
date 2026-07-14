@@ -490,6 +490,11 @@
                 return;
             }
 
+            // Never enhance selection/checkbox columns or headers that opt out.
+            if (th.dataset.noSort === '1' || th.querySelector('input[type="checkbox"]')) {
+                return;
+            }
+
             if (isServerPageSortTable && !(th.dataset.sortKey || '').trim()) {
                 return;
             }

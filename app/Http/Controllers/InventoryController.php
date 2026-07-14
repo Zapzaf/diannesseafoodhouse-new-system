@@ -521,7 +521,7 @@ class InventoryController extends Controller
             ->when($locationId, fn ($query, $id) => $query->whereHas('category', fn ($inner) => $inner->where('location_id', $id)))
             ->when($categoryId, fn ($query, $id) => $query->where('category_id', $id))
             ->orderBy('quantity')
-            ->paginate($this->perPage($request, 20))
+            ->paginate($this->perPage($request, 10))
             ->withQueryString();
 
         $locations = Location::query()

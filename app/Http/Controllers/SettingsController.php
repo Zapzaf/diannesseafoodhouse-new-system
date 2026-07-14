@@ -28,7 +28,7 @@ class SettingsController extends Controller
         $selectedBranch = $branches->firstWhere('id', $selectedBranchId);
 
         return view('settings.show', [
-            'sidebarBgLight' => AppSetting::get('sidebar_bg_light', '#1e2530'),
+            'sidebarBgLight' => AppSetting::get('sidebar_bg_light', '#ffffff'),
             'sidebarBgDark' => AppSetting::get('sidebar_bg_dark', '#0f131c'),
             'totalBranches' => Branch::count(),
             'totalUsers' => User::count(),

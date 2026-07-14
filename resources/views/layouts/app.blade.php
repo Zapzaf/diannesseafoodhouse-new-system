@@ -600,7 +600,8 @@
                         <!-- Left: Sidebar Toggler and Title/Search placeholder -->
                         <div class="d-flex align-items-center gap-3 flex-grow-1 me-3">
                             <button class="btn btn-outline-secondary py-1.5 px-2 border-opacity-10" id="sidebarToggle" title="Toggle sidebar">
-                                <i data-lucide="menu" style="width: 20px; height: 20px;"></i>
+                                <i data-lucide="panel-left" class="d-none d-lg-inline-block" style="width: 20px; height: 20px;"></i>
+                                <i data-lucide="menu" class="d-lg-none" style="width: 20px; height: 20px;"></i>
                             </button>
                             
                             <div class="position-relative flex-grow-1" style="max-width: 320px; width: 100%; z-index: 1050;">
@@ -713,7 +714,7 @@
 
         <!-- Scripts -->
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
-        <script src="{{ asset('js/scripts.js') }}"></script>
+        <script src="{{ asset('js/scripts.js') }}?v={{ filemtime(public_path('js/scripts.js')) }}"></script>
         <script>
             document.addEventListener('DOMContentLoaded', () => {
                 // Responsive Sidebar Toggle logic
@@ -739,6 +740,16 @@
                         sidebar.classList.remove('active');
                     });
                 }
+
+                // Fade the active state onto the clicked menu item right away,
+                // so the highlight transitions smoothly before navigation.
+                sidebar.querySelectorAll('.nav-link[href]:not([data-bs-toggle])').forEach((link) => {
+                    link.addEventListener('click', () => {
+                        if (link.classList.contains('active')) return;
+                        sidebar.querySelectorAll('.nav-link.active').forEach((active) => active.classList.remove('active'));
+                        link.classList.add('active');
+                    });
+                });
 
                 // Theme Toggler logic
                 const themeToggler = document.getElementById('themeToggler');
