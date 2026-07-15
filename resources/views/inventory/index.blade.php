@@ -120,6 +120,13 @@
                         <div class="form-text" id="stockInQuantityHelp"></div>
                     </div>
                     <div class="mb-3">
+                        <label class="form-label fw-semibold">Transaction Price <span class="text-muted fw-normal">(automatic)</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text">₱</span>
+                            <input type="text" id="stockInPrice" class="form-control" placeholder="Enter a quantity" disabled>
+                        </div>
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label fw-semibold">Transaction Date</label>
                         <input type="datetime-local" name="transaction_date" class="form-control" value="{{ now()->format('Y-m-d\TH:i') }}">
                     </div>
@@ -195,6 +202,13 @@
                         <label class="form-label fw-semibold">Quantity</label>
                         <input type="number" name="quantity" id="deductQuantity" class="form-control" min="1" step="1" required>
                         <div class="form-text" id="deductQuantityHelp"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Transaction Price <span class="text-muted fw-normal">(automatic)</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text">₱</span>
+                            <input type="text" id="deductPrice" class="form-control" placeholder="Enter a quantity" disabled>
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Transaction Date</label>
@@ -299,19 +313,42 @@ function configureQuantityInput(inputId, helpId, unit, allowsDecimals, maximum =
         : `${unit || 'This unit'} accepts whole-number quantities only.`;
 }
 
-function showStockIn(id, name, unit, allowsDecimals) {
+function configureAutoPrice(qtyInputId, priceInputId, unitPrice) {
+    const qtyInput = document.getElementById(qtyInputId);
+    const priceInput = document.getElementById(priceInputId);
+    const price = unitPrice !== '' && unitPrice !== null && unitPrice !== undefined
+        ? Number(unitPrice)
+        : null;
+
+    function refresh() {
+        if (price === null || isNaN(price)) {
+            priceInput.value = 'No item price set';
+            return;
+        }
+        const qty = parseFloat(qtyInput.value) || 0;
+        priceInput.value = (qty > 0 ? price * qty : price).toFixed(2);
+    }
+
+    // Rebind cleanly each time the modal opens for a different item.
+    qtyInput.oninput = refresh;
+    refresh();
+}
+
+function showStockIn(id, name, unit, allowsDecimals, unitPrice) {
     document.getElementById('modalItemName').textContent = name;
     document.getElementById('stockInForm').action = '{{ url('/inventory') }}/' + id + '/stock-in';
     configureQuantityInput('stockInQuantity', 'stockInQuantityHelp', unit, allowsDecimals);
+    configureAutoPrice('stockInQuantity', 'stockInPrice', unitPrice);
     resetReasonDropdown('stockInReasonSelect', 'stockInCustomReason', 'stockInCustomReasonWrapper');
     new bootstrap.Modal(document.getElementById('stockInModal')).show();
 }
 
-function showDeductStock(id, name, remainingStock, unit, allowsDecimals) {
+function showDeductStock(id, name, remainingStock, unit, allowsDecimals, unitPrice) {
     document.getElementById('deductItemName').textContent = name;
     document.getElementById('deductRemainingStock').textContent = remainingStock;
     document.getElementById('deductStockForm').action = '{{ url('/inventory') }}/' + id + '/deduct';
     configureQuantityInput('deductQuantity', 'deductQuantityHelp', unit, allowsDecimals, remainingStock);
+    configureAutoPrice('deductQuantity', 'deductPrice', unitPrice);
     resetReasonDropdown('deductReasonSelect', 'deductCustomReason', 'deductCustomReasonWrapper');
     new bootstrap.Modal(document.getElementById('deductStockModal')).show();
 }
@@ -501,8 +538,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td>${ctx.escapeHtml(item.supplier_name || 'N/A')}</td>
                     <td class="text-muted small text-nowrap">${ctx.escapeHtml(item.last_transaction_at || '—')}</td>
                     <td class="table-actions-cell text-nowrap">
-                            <button type="button" class="btn btn-sm btn-outline-success stockin-btn" data-id="${item.id}" data-name="${itemName}" data-unit="${ctx.escapeHtml(item.unit || '')}" data-allows-decimals="${item.allows_decimal_quantity ? '1' : '0'}"><i data-lucide="plus-circle"></i></button>
-                            <button type="button" class="btn btn-sm btn-outline-warning deduct-btn" data-id="${item.id}" data-name="${itemName}" data-remaining="${remaining}" data-unit="${ctx.escapeHtml(item.unit || '')}" data-allows-decimals="${item.allows_decimal_quantity ? '1' : '0'}"><i data-lucide="minus-circle"></i></button>
+                            <button type="button" class="btn btn-sm btn-outline-success stockin-btn" data-id="${item.id}" data-name="${itemName}" data-unit="${ctx.escapeHtml(item.unit || '')}" data-price="${unitPrice !== null ? unitPrice : ''}" data-allows-decimals="${item.allows_decimal_quantity ? '1' : '0'}"><i data-lucide="plus-circle"></i></button>
+                            <button type="button" class="btn btn-sm btn-outline-warning deduct-btn" data-id="${item.id}" data-name="${itemName}" data-remaining="${remaining}" data-unit="${ctx.escapeHtml(item.unit || '')}" data-price="${unitPrice !== null ? unitPrice : ''}" data-allows-decimals="${item.allows_decimal_quantity ? '1' : '0'}"><i data-lucide="minus-circle"></i></button>
                             <button type="button" class="btn btn-sm btn-outline-info transfer-btn" data-id="${item.id}" data-name="${itemName}" data-remaining="${remaining}" data-branch-name="${branchName}" data-branch-id="${item.branch_id || ''}" title="Transfer to another branch"><i data-lucide="send"></i></button>
                             <a href="{{ url('/inventory') }}/${item.id}/edit" class="btn btn-sm btn-outline-primary"><i data-lucide="edit-2"></i></a>
                             <button type="button" class="btn btn-sm btn-outline-danger inventory-delete-btn" data-delete-url="{{ url('/inventory') }}/${item.id}" data-token="${csrf}" title="Delete item"><i data-lucide="trash-2"></i></button></td>
@@ -571,9 +608,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!btn) return;
         
         if (btn.classList.contains('stockin-btn')) {
-            showStockIn(btn.dataset.id, btn.dataset.name, btn.dataset.unit, btn.dataset.allowsDecimals);
+            showStockIn(btn.dataset.id, btn.dataset.name, btn.dataset.unit, btn.dataset.allowsDecimals, btn.dataset.price);
         } else if (btn.classList.contains('deduct-btn')) {
-            showDeductStock(btn.dataset.id, btn.dataset.name, btn.dataset.remaining, btn.dataset.unit, btn.dataset.allowsDecimals);
+            showDeductStock(btn.dataset.id, btn.dataset.name, btn.dataset.remaining, btn.dataset.unit, btn.dataset.allowsDecimals, btn.dataset.price);
         } else if (btn.classList.contains('transfer-btn')) {
             showTransfer(btn.dataset.id, btn.dataset.name, btn.dataset.remaining, btn.dataset.branchName, btn.dataset.branchId);
         }

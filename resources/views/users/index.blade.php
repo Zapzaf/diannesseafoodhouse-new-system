@@ -1,34 +1,36 @@
 @extends('layouts.app')
 @section('page_title', 'Users')
 @section('content')
-<main>
     <x-page-header title="Users" subtitle="Manage staff access, roles, and branch assignments" icon="user-check">
         <a href="{{ route('users.create') }}" class="btn btn-light text-primary">
             <i data-lucide="plus-circle" class="me-1"></i> Add User
         </a>
     </x-page-header>
 
-<div class="container-xl px-4 mt-n10">
+<div class="container-xl px-4">
     @include('layouts.alerts')
     <div class="card shadow-sm">
-        <div class="card-header d-flex flex-column flex-lg-row justify-content-between align-items-start align-items-lg-center gap-2">
-            <div><i class="me-1" data-lucide="users"></i> All Users</div>
-            <div class="d-flex flex-wrap gap-2 w-100 justify-content-start justify-content-lg-end">
-                <select id="roleFilter" class="form-select form-select-sm" style="flex: 1 1 160px; min-width: 150px;">
+        <div class="card-header fw-semibold d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div class="text-nowrap"><i class="me-1" data-lucide="users" style="width: 16px; height: 16px;"></i> All Users</div>
+            <div class="d-flex gap-2 align-items-center flex-wrap">
+                <select id="roleFilter" class="form-select form-select-sm" style="width: auto;">
                     <option value="">All Roles</option>
                     <option value="admin">Admin</option>
                     <option value="branch_manager">Branch Manager</option>
                     <option value="staff">Staff</option>
                 </select>
-                <input type="text" id="searchInput" class="form-control form-control-sm" placeholder="Search users..." style="flex: 1 1 220px; min-width: 180px;">
+                <div class="input-group input-group-sm" style="max-width: 250px;">
+                    <input type="text" id="searchInput" class="form-control" placeholder="Search users...">
+                    <span class="input-group-text"><i data-lucide="search" style="width: 14px; height: 14px;"></i></span>
+                </div>
             </div>
         </div>
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-bordered table-striped" id="usersTable" data-server-sort="1">
+                <table class="table table-bordered table-striped align-middle" id="usersTable" data-server-sort="1">
                     <thead class="table-dark">
                         <tr>
-                            <th>#</th>
+                            <th style="width: 56px;">#</th>
                             <th>Name</th>
                             <th>Email</th>
                             <th>Role</th>
@@ -41,7 +43,9 @@
                         <tr>
                             <td colspan="7" class="text-center py-4">
                                 <div class="spinner-border text-primary" role="status">
-                                    <span class="visually-hidden">Loading...</span></td>
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </td>
                         </tr>
                     </tbody>
                 </table>
@@ -49,13 +53,12 @@
         </div>
         <div class="card-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
             <div id="tableInfo" class="text-muted small"></div>
-            <nav aria-label="Users pagination">
+            <nav aria-label="Users pagination" class="custom-pagination-wrapper">
                 <ul id="pagination" class="pagination pagination-sm mb-0"></ul>
             </nav>
         </div>
     </div>
 </div>
-</main>
 @endsection
 
 @push('scripts')
@@ -196,7 +199,9 @@ document.addEventListener('DOMContentLoaded', function() {
         info.textContent = `Showing ${start} to ${end} of ${total} entries`;
     }
 
-    document.getElementById('searchInput').addEventListener('input', function(e) {
+    document.getElementById('searchInput').addEventListener('keydown', function(e) {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
         searchQuery = e.target.value;
         currentPage = 1;
         loadData();
