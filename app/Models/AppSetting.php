@@ -14,9 +14,14 @@ class AppSetting extends Model
      */
     public static function get(string $key, ?string $default = null): ?string
     {
-        $value = Cache::rememberForever('app-setting:'.$key, function () use ($key) {
-            return static::query()->where('key', $key)->value('value');
-        });
+        try {
+            $value = Cache::rememberForever('app-setting:'.$key, function () use ($key) {
+                return static::query()->where('key', $key)->value('value');
+            });
+        } catch (\Throwable) {
+            // Table may not exist yet (fresh environment before migrations).
+            return $default;
+        }
 
         return $value ?? $default;
     }
