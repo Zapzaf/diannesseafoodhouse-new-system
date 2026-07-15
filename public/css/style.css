@@ -4636,3 +4636,26 @@ th.table-sortable {
 .custom-pagination-wrapper nav .d-none.flex-sm-fill {
     justify-content: flex-end !important;
 }
+
+/* ============================================================
+   Restore proper semantic colors
+   styles-old.css repaints Bootstrap's palette in dark reds
+   (--bs-success: #be5a58, --bs-warning: #8b2f3d, --bs-danger:
+   #7f1d2d, --bs-primary: #a22c29), which makes success/warning/
+   danger icons and badges nearly invisible in dark mode.
+   These overrides win because style.css loads afterwards.
+   ============================================================ */
+:root,
+[data-bs-theme="light"],
+[data-bs-theme="dark"] {
+    --bs-primary: var(--primary-color);
+    --bs-primary-rgb: var(--primary-color-rgb);
+    --bs-success: #10b981;
+    --bs-success-rgb: 16, 185, 129;
+    --bs-info: #0ea5e9;
+    --bs-info-rgb: 14, 165, 233;
+    --bs-warning: #f59e0b;
+    --bs-warning-rgb: 245, 158, 11;
+    --bs-danger: #ef4444;
+    --bs-danger-rgb: 239, 68, 68;
+}
