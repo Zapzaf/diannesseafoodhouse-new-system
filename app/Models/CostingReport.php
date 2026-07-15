@@ -14,11 +14,17 @@ class CostingReport extends Model
     public const STATUS_APPROVED = 'approved';
     public const STATUS_REJECTED = 'rejected';
 
+    public const REASON_DELIVERY = 'delivery';
+    public const REASON_PRODUCTION = 'production';
+    public const REASON_OTHERS = 'others';
+
     protected $fillable = [
         'branch_id',
         'item_id',
         'current_price',
         'proposed_price',
+        'reason_type',
+        'reference_id',
         'reason',
         'costing_details',
         'status',
@@ -57,8 +63,22 @@ class CostingReport extends Model
         return $this->belongsTo(User::class, 'approved_by');
     }
 
+    public function attachments()
+    {
+        return $this->hasMany(CostingReportAttachment::class);
+    }
+
     public function isPending(): bool
     {
         return $this->status === self::STATUS_PENDING;
+    }
+
+    public function reasonTypeLabel(): string
+    {
+        return match ($this->reason_type) {
+            self::REASON_DELIVERY => 'From Delivery',
+            self::REASON_PRODUCTION => 'From Production',
+            default => 'Others',
+        };
     }
 }

@@ -4,8 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Branch;
 use App\Models\CostingReport;
+use App\Models\CostingReportAttachment;
+use App\Models\Delivery;
 use App\Models\InventoryTransaction;
 use App\Models\Item;
+use App\Models\ProductionOrder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -72,8 +75,25 @@ class CostingReportController extends Controller
             ->orderBy('name')
             ->get();
 
+        $deliveries = Delivery::query()
+            ->with('supplier')
+            ->when($branchId, fn ($q, $id) => $q->where(fn ($inner) => $inner
+                ->where('destination_branch_id', $id)
+                ->orWhere('source_branch_id', $id)))
+            ->latest()
+            ->limit(100)
+            ->get();
+
+        $productions = ProductionOrder::query()
+            ->when($branchId, fn ($q, $id) => $q->where('branch_id', $id))
+            ->latest()
+            ->limit(100)
+            ->get();
+
         return view('reports.costing-create', [
             'items' => $items,
+            'deliveries' => $deliveries,
+            'productions' => $productions,
             'selectedItemId' => (int) $request->input('item_id'),
         ]);
     }
@@ -83,34 +103,91 @@ class CostingReportController extends Controller
         $data = $request->validate([
             'item_id' => ['required', 'integer', 'exists:items,id'],
             'proposed_price' => ['required', 'numeric', 'gt:0', 'decimal:0,4'],
-            'reason' => ['required', 'string', 'max:5000'],
+            'reason_type' => ['required', 'in:delivery,production,others'],
+            'delivery_id' => ['required_if:reason_type,delivery', 'nullable', 'integer', 'exists:deliveries,id'],
+            'production_id' => ['required_if:reason_type,production', 'nullable', 'integer', 'exists:production_orders,id'],
+            'reason_text' => ['required_if:reason_type,others', 'nullable', 'string', 'max:5000'],
             'costing_details' => ['nullable', 'string', 'max:10000'],
+            'attachments' => ['nullable', 'array', 'max:10'],
+            'attachments.*' => ['file', 'max:5120', 'mimes:jpg,jpeg,png,webp,pdf,xls,xlsx,doc,docx,csv'],
+        ], [
+            'delivery_id.required_if' => 'Please select a delivery.',
+            'production_id.required_if' => 'Please select a production order.',
+            'reason_text.required_if' => 'Please describe the reason for this price change.',
+            'attachments.*.max' => 'Each supporting document must be 5MB or smaller.',
         ]);
 
         $item = Item::query()->with('branch')->findOrFail($data['item_id']);
         $this->authorizeItemAccess($request, $item);
 
-        $report = CostingReport::create([
-            'branch_id' => $item->branch_id,
-            'item_id' => $item->id,
-            'current_price' => $item->unit_price ?? 0,
-            'proposed_price' => $data['proposed_price'],
-            'reason' => $data['reason'],
-            'costing_details' => $data['costing_details'] ?? null,
-            'status' => CostingReport::STATUS_PENDING,
-            'requested_by' => $request->user()->id,
-        ]);
+        [$referenceId, $reason] = $this->resolveReason($data);
+
+        $report = DB::transaction(function () use ($request, $item, $data, $referenceId, $reason): CostingReport {
+            $report = CostingReport::create([
+                'branch_id' => $item->branch_id,
+                'item_id' => $item->id,
+                'current_price' => $item->unit_price ?? 0,
+                'proposed_price' => $data['proposed_price'],
+                'reason_type' => $data['reason_type'],
+                'reference_id' => $referenceId,
+                'reason' => $reason,
+                'costing_details' => $data['costing_details'] ?? null,
+                'status' => CostingReport::STATUS_PENDING,
+                'requested_by' => $request->user()->id,
+            ]);
+
+            foreach ($request->file('attachments', []) as $file) {
+                $path = $file->store('costing-reports/'.$report->id, 'public');
+
+                CostingReportAttachment::create([
+                    'costing_report_id' => $report->id,
+                    'path' => $path,
+                    'original_name' => $file->getClientOriginalName(),
+                    'size' => $file->getSize() ?: 0,
+                ]);
+            }
+
+            return $report;
+        });
 
         return redirect()
             ->route('reports.costing.show', $report)
             ->with('success', 'Costing report submitted for admin review. Item price was not changed.');
     }
 
+    /**
+     * @return array{0: ?int, 1: string} [reference id, human-readable reason]
+     */
+    private function resolveReason(array $data): array
+    {
+        if ($data['reason_type'] === CostingReport::REASON_DELIVERY) {
+            $delivery = Delivery::query()->with('supplier')->findOrFail((int) $data['delivery_id']);
+
+            return [
+                $delivery->id,
+                'From Delivery #'.$delivery->id
+                    .($delivery->supplier?->name ? ' — '.$delivery->supplier->name : '')
+                    .' ('.$delivery->created_at?->format('M d, Y').')',
+            ];
+        }
+
+        if ($data['reason_type'] === CostingReport::REASON_PRODUCTION) {
+            $production = ProductionOrder::query()->findOrFail((int) $data['production_id']);
+
+            return [
+                $production->id,
+                'From Production #'.$production->id.' ('.$production->created_at?->format('M d, Y').')',
+            ];
+        }
+
+        return [null, trim((string) $data['reason_text'])];
+    }
+
     public function show(Request $request, CostingReport $costingReport): View
     {
         $this->authorizeReportAccess($request, $costingReport);
 
-        $costingReport->load(['item.category.location', 'branch', 'requester', 'approver']);
+        $costingReport->load(['item.category.location', 'branch', 'requester', 'approver', 'attachments']);
 
         return view('reports.costing-show', compact('costingReport'));
     }

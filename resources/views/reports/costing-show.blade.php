@@ -77,9 +77,30 @@
             </div>
 
             <div class="card shadow-sm mb-4">
-                <div class="card-header fw-semibold"><i data-lucide="message-square" class="me-1"></i> Justification</div>
+                <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
+                    <div><i data-lucide="message-square" class="me-1"></i> Justification</div>
+                    <span class="badge bg-primary bg-opacity-10 text-primary">{{ $costingReport->reasonTypeLabel() }}{{ $costingReport->reference_id ? ' #'.$costingReport->reference_id : '' }}</span>
+                </div>
                 <div class="card-body">
                     <p class="mb-0" style="white-space: pre-line;">{{ $costingReport->reason }}</p>
+                </div>
+            </div>
+
+            <div class="card shadow-sm mb-4">
+                <div class="card-header fw-semibold"><i data-lucide="paperclip" class="me-1"></i> Supporting Documents</div>
+                <div class="card-body">
+                    @forelse($costingReport->attachments as $attachment)
+                    <a href="{{ $attachment->url() }}" target="_blank" rel="noopener"
+                       class="d-flex justify-content-between align-items-center text-decoration-none border rounded-3 px-3 py-2 mb-2">
+                        <span class="d-flex align-items-center gap-2 text-truncate">
+                            <i data-lucide="file" class="text-primary flex-shrink-0" style="width:16px;height:16px;"></i>
+                            <span class="text-truncate">{{ $attachment->original_name }}</span>
+                        </span>
+                        <span class="text-muted small text-nowrap ms-2">{{ $attachment->humanSize() }} <i data-lucide="download" style="width:13px;height:13px;"></i></span>
+                    </a>
+                    @empty
+                    <p class="mb-0 text-muted">No supporting documents were uploaded.</p>
+                    @endforelse
                 </div>
             </div>
 

@@ -4,9 +4,20 @@
 
 @section('content')
     <x-page-header title="Inventory" subtitle="Track stock levels, suppliers, and replenishment activity" icon="package">
-        <button type="button" class="btn btn-success text-white" data-bs-toggle="modal" data-bs-target="#exportInventoryModal">
-            <i class="me-1" data-lucide="download"></i> Export Excel
-        </button>
+        @if($selectedBranchId)
+            {{-- A branch is already active: export it directly, no modal --}}
+            <form action="{{ route('inventory.export') }}" method="POST" class="d-inline m-0">
+                @csrf
+                <input type="hidden" name="branch_id" value="{{ $selectedBranchId }}">
+                <button type="submit" class="btn btn-light text-primary">
+                    <i class="me-1" data-lucide="download"></i> Export Excel
+                </button>
+            </form>
+        @else
+            <button type="button" class="btn btn-light text-primary" data-bs-toggle="modal" data-bs-target="#exportInventoryModal">
+                <i class="me-1" data-lucide="download"></i> Export Excel
+            </button>
+        @endif
         <a class="btn btn-light text-primary" href="{{ route('inventory.transactions') }}">
             <i class="me-1" data-lucide="list"></i> Transactions
         </a>

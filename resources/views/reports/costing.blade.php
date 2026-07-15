@@ -105,14 +105,14 @@
         </div>
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-bordered table-striped">
+                <table class="table table-bordered table-striped align-middle">
                     <thead class="table-dark">
                         <tr>
                             <th>#</th>
                             <th>Item</th>
                             <th>Branch</th>
-                            <th class="text-end">Current Price</th>
-                            <th class="text-end">Proposed Price</th>
+                            <th class="text-end">Price Change</th>
+                            <th>Source</th>
                             <th>Status</th>
                             <th>Requested By</th>
                             <th>Reviewed By</th>
@@ -122,15 +122,25 @@
                     </thead>
                     <tbody>
                         @forelse($reports as $report)
+                        @php $delta = (float) $report->proposed_price - (float) $report->current_price; @endphp
                         <tr>
                             <td class="text-muted small">{{ $report->id }}</td>
                             <td class="fw-semibold">
                                 {{ $report->item?->name ?? 'Deleted item' }}
                                 <div class="small text-muted">{{ $report->item?->category?->name ?? 'N/A' }}</div>
                             </td>
-                            <td>{{ $report->branch?->name ?? 'N/A' }}</td>
-                            <td class="text-end">&#8369;{{ number_format((float) $report->current_price, 4) }}</td>
-                            <td class="text-end fw-semibold">&#8369;{{ number_format((float) $report->proposed_price, 4) }}</td>
+                            <td class="text-muted small">{{ $report->branch?->name ?? 'N/A' }}</td>
+                            <td class="text-end text-nowrap">
+                                <span class="text-muted small">&#8369;{{ number_format((float) $report->current_price, 4) }}</span>
+                                <i data-lucide="arrow-right" class="mx-1 text-muted" style="width:12px;height:12px;"></i>
+                                <span class="fw-semibold">&#8369;{{ number_format((float) $report->proposed_price, 4) }}</span>
+                                <div class="small fw-semibold {{ $delta > 0 ? 'text-success' : ($delta < 0 ? 'text-danger' : 'text-muted') }}">
+                                    {{ $delta > 0 ? '+' : '' }}{{ number_format($delta, 4) }}
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-primary bg-opacity-10 text-primary">{{ $report->reasonTypeLabel() }}{{ $report->reference_id ? ' #'.$report->reference_id : '' }}</span>
+                            </td>
                             <td>
                                 @if($report->status === 'approved')
                                     <span class="badge-status badge-approved">APPROVED</span>
@@ -141,10 +151,12 @@
                                 @endif
                             </td>
                             <td class="text-muted small">{{ $report->requester?->name ?? 'N/A' }}</td>
-                            <td class="text-muted small">{{ $report->approver?->name ?? '-' }}</td>
-                            <td class="text-muted small">{{ $report->created_at?->format('M d, Y H:i') }}</td>
+                            <td class="text-muted small">{{ $report->approver?->name ?? '—' }}</td>
+                            <td class="text-muted small text-nowrap">{{ $report->created_at?->format('M d, Y H:i') }}</td>
                             <td class="text-end">
-                                <a href="{{ route('reports.costing.show', $report) }}" class="btn btn-sm btn-primary">View</a>
+                                <a href="{{ route('reports.costing.show', $report) }}" class="btn btn-sm btn-outline-primary" title="View report">
+                                    <i data-lucide="eye" style="width:15px;height:15px;"></i>
+                                </a>
                             </td>
                         </tr>
                         @empty
@@ -154,9 +166,14 @@
                 </table>
             </div>
         </div>
-        @if($reports->hasPages())
-            <div class="card-footer">{{ $reports->links() }}</div>
-        @endif
+        <div class="card-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div class="text-muted small">
+                Showing {{ $reports->firstItem() ?? 0 }} to {{ $reports->lastItem() ?? 0 }} of {{ $reports->total() }} entries
+            </div>
+            <div class="mb-0 custom-pagination-wrapper">
+                {{ $reports->onEachSide(1)->links('pagination::bootstrap-5') }}
+            </div>
+        </div>
     </div>
 
     <div class="card shadow-sm">
@@ -188,7 +205,9 @@
                                 {!! $item->latest_unit_cost !== null ? '&#8369;' . number_format((float) $item->latest_unit_cost, 4) : '-' !!}
                             </td>
                             <td class="text-end">
-                                <a href="{{ route('reports.costing.create', ['item_id' => $item->id]) }}" class="btn btn-sm btn-secondary">Request Change</a>
+                                <a href="{{ route('reports.costing.create', ['item_id' => $item->id]) }}" class="btn btn-sm btn-outline-primary">
+                                    <i data-lucide="file-plus" class="me-1" style="width:14px;height:14px;"></i>Request Change
+                                </a>
                             </td>
                         </tr>
                         @empty

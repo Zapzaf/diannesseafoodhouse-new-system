@@ -115,7 +115,7 @@
 
 @push('styles')
 <style>
-/* Searchable dropdown styles */
+/* Searchable dropdown — theme-aware via app CSS variables */
 .item-search-wrapper {
     position: relative;
     flex: 1;
@@ -125,77 +125,85 @@
 }
 .item-search-dropdown {
     position: absolute;
-    top: 100%;
+    top: calc(100% + 4px);
     left: 0;
     right: 0;
     z-index: 1050;
     max-height: 320px;
     overflow-y: auto;
-    background: #fff;
-    border: 1px solid #dee2e6;
-    border-top: none;
-    border-radius: 0 0 .375rem .375rem;
-    box-shadow: 0 6px 16px rgba(0,0,0,.12);
+    background: var(--bg-card, #fff);
+    border: 1px solid var(--border-color, #dee2e6);
+    border-radius: 10px;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, .25);
     display: none;
 }
 .item-search-dropdown.show { display: block; }
 
 .item-search-option {
-    padding: 8px 12px;
+    padding: 9px 14px;
     cursor: pointer;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--border-color, #f0f0f0);
     transition: background .15s;
 }
 .item-search-option:last-child { border-bottom: none; }
 .item-search-option:hover,
-.item-search-option.active { background: #e8f0fe; }
-.item-search-option .item-name { font-weight: 600; color: #1e293b; }
+.item-search-option.active { background: rgba(var(--primary-color-rgb, 240, 124, 89), .12); }
+.item-search-option .item-name { font-weight: 600; color: var(--text-main, #1e293b); }
 .item-search-option .item-meta {
     font-size: .78rem;
-    color: #64748b;
+    color: var(--text-muted, #64748b);
     display: flex;
     flex-wrap: wrap;
     gap: 6px 14px;
-    margin-top: 2px;
+    margin-top: 3px;
 }
 .item-search-option .item-meta span {
     display: inline-flex;
     align-items: center;
     gap: 3px;
 }
-.item-search-option .badge-stock {
+.badge-stock {
     font-size: .7rem;
-    padding: 2px 6px;
-    border-radius: 4px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 999px;
 }
-.item-search-option .badge-stock.sufficient { background: #dcfce7; color: #166534; }
-.item-search-option .badge-stock.low        { background: #fef9c3; color: #854d0e; }
-.item-search-option .badge-stock.empty      { background: #fecaca; color: #991b1b; }
+.badge-stock.sufficient { background: rgba(16, 185, 129, .16); color: #059669; }
+.badge-stock.low        { background: rgba(245, 158, 11, .18); color: #b45309; }
+.badge-stock.empty      { background: rgba(239, 68, 68, .16);  color: #dc2626; }
+[data-bs-theme="dark"] .badge-stock.sufficient { color: #34d399; }
+[data-bs-theme="dark"] .badge-stock.low        { color: #fbbf24; }
+[data-bs-theme="dark"] .badge-stock.empty      { color: #f87171; }
 .item-search-no-results {
-    padding: 12px;
+    padding: 14px;
     text-align: center;
-    color: #94a3b8;
+    color: var(--text-muted, #94a3b8);
     font-size: .85rem;
 }
 
 /* Item row card */
 .item-row {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: .5rem;
-    padding: 14px;
-    margin-bottom: 10px;
+    background: var(--bg-body, #f8fafc);
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
     position: relative;
-    transition: box-shadow .2s;
+    transition: border-color .2s, box-shadow .2s;
 }
-.item-row:hover { box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+.item-row:hover {
+    border-color: rgba(var(--primary-color-rgb, 240, 124, 89), .45);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, .08);
+}
 .item-row .remove-item-btn {
     position: absolute;
-    top: 8px;
-    right: 8px;
+    top: 6px;
+    right: 10px;
     border: none;
     background: none;
     color: #ef4444;
+    font-size: 1.15rem;
+    line-height: 1;
     cursor: pointer;
     opacity: .6;
     transition: opacity .15s;
@@ -205,17 +213,20 @@
 .selected-item-badge {
     display: inline-flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 6px;
-    background: #e0f2fe;
-    color: #0369a1;
-    padding: 4px 10px;
-    border-radius: 6px;
+    background: rgba(var(--primary-color-rgb, 240, 124, 89), .12);
+    color: var(--text-main, #0f172a);
+    border: 1px solid rgba(var(--primary-color-rgb, 240, 124, 89), .25);
+    padding: 5px 12px;
+    border-radius: 999px;
     font-size: .82rem;
     font-weight: 500;
 }
+.selected-item-badge .text-muted { color: var(--text-muted, #64748b) !important; }
 .selected-item-badge .clear-selection {
     cursor: pointer;
-    color: #0369a1;
+    color: var(--primary-color, #f07c59);
     font-weight: 700;
     margin-left: 2px;
 }
@@ -227,6 +238,7 @@
     margin-top: 4px;
     display: none;
 }
+[data-bs-theme="dark"] .stock-warning { color: #f87171; }
 .stock-warning.show { display: block; }
 </style>
 @endpush
@@ -460,11 +472,15 @@
             searchInput.style.display = 'none';
             dropdown.classList.remove('show');
 
+            let stockClass = 'sufficient';
+            if (item.quantity <= 0) stockClass = 'empty';
+            else if (item.quantity <= 5) stockClass = 'low';
+
             displayDiv.innerHTML = `
                 <span class="selected-item-badge">
                     <strong>${escapeHtml(item.name)}</strong>
                     <span class="text-muted">(${escapeHtml(item.location)} › ${escapeHtml(item.category)})</span>
-                    <span class="badge-stock sufficient" style="font-size:.72rem;">${item.quantity} ${escapeHtml(item.unit)}</span>
+                    <span class="badge-stock ${stockClass}" style="font-size:.72rem;">${item.quantity} ${escapeHtml(item.unit)}</span>
                     <span class="clear-selection" title="Change item">&times;</span>
                 </span>
             `;
