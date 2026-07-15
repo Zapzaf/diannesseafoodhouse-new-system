@@ -408,6 +408,44 @@ class InventoryController extends Controller
         return view('transactions.index', compact('transactions'));
     }
 
+    public function transactionSuggestions(Request $request): JsonResponse
+    {
+        $branchId = $this->resolveBranchId($request);
+        $q = trim((string) $request->input('q', ''));
+
+        if ($q === '') {
+            return response()->json([]);
+        }
+
+        $transactions = InventoryTransaction::query()
+            ->when($branchId, fn ($query, $id) => $query->where('branch_id', $id));
+
+        $logIds = (clone $transactions)
+            ->where('log_id', 'like', "%{$q}%")
+            ->orderByDesc('id')
+            ->limit(4)
+            ->pluck('log_id')
+            ->filter();
+
+        $reasons = (clone $transactions)
+            ->where('reason', 'like', "%{$q}%")
+            ->whereNotNull('reason')
+            ->distinct()
+            ->limit(4)
+            ->pluck('reason');
+
+        $itemNames = Item::query()
+            ->when($branchId, fn ($query, $id) => $query->where('branch_id', $id))
+            ->where('name', 'like', "%{$q}%")
+            ->orderBy('name')
+            ->limit(6)
+            ->pluck('name');
+
+        return response()->json(
+            $itemNames->merge($logIds)->merge($reasons)->unique()->take(12)->values()
+        );
+    }
+
     public function transactionCreate(Request $request)
     {
         $branchId = $this->resolveBranchId($request);

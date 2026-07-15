@@ -755,7 +755,33 @@
                     return;
                 }
 
-                targetContainer.replaceWith(document.importNode(replacement, true));
+                // Preserve the focused search input across the swap so typing
+                // is never interrupted while results refresh.
+                const activeInput = document.activeElement;
+                const searchState = activeInput
+                    && activeInput.matches('input[name="search"]')
+                    && targetContainer.contains(activeInput)
+                    ? {
+                        value: activeInput.value,
+                        start: activeInput.selectionStart,
+                        end: activeInput.selectionEnd,
+                    }
+                    : null;
+
+                const newContainer = document.importNode(replacement, true);
+                targetContainer.replaceWith(newContainer);
+
+                if (searchState) {
+                    const newSearch = newContainer.querySelector('input[name="search"]');
+                    if (newSearch) {
+                        newSearch.value = searchState.value;
+                        newSearch.focus({ preventScroll: true });
+                        try {
+                            newSearch.setSelectionRange(searchState.start, searchState.end);
+                        } catch (e) { /* input types without selection support */ }
+                    }
+                }
+
                 markAjaxTableContainers(document);
                 enhanceAllTables();
                 updateBrowserUrl(requestUrl.toString(), options && options.replaceState);
@@ -835,8 +861,13 @@
 
             window.clearTimeout(searchDebounceTimer);
             searchDebounceTimer = window.setTimeout(function() {
-                loadTableUrl(formUrl(input.form).toString(), input.form, { replaceState: true });
-            }, 300);
+                const nextUrl = formUrl(input.form).toString();
+                const currentSearch = new URLSearchParams(window.location.search).get('search') || '';
+                if (input.value.trim() === currentSearch.trim() && new URL(nextUrl).searchParams.get('page') === null) {
+                    return; // nothing changed — skip the reload flash
+                }
+                loadTableUrl(nextUrl, input.form, { replaceState: true });
+            }, 450);
         });
 
         window.addEventListener('popstate', function() {

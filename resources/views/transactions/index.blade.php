@@ -21,7 +21,10 @@
                     <option value="100" {{ request('per_page') == 100 ? 'selected' : '' }}>100</option>
                 </select>
                 <div class="input-group input-group-sm" style="max-width: 250px;">
-                    <input type="text" name="search" class="form-control" placeholder="Search..." value="{{ request('search') }}">
+                    <input type="text" name="search" class="form-control" placeholder="Search item, log ID, reason..."
+                           value="{{ request('search') }}" list="transactionSearchSuggestions"
+                           data-suggest-url="{{ route('transactions.suggestions') }}" autocomplete="off">
+                    <datalist id="transactionSearchSuggestions"></datalist>
                     <button class="btn btn-outline-secondary" type="submit"><i data-lucide="search" style="width: 14px; height: 14px;"></i></button>
                 </div>
             </form>
@@ -119,3 +122,46 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Live search suggestions (delegated so the datalist keeps working
+    // after the AJAX table system swaps the card).
+    let suggestTimer = null;
+    let suggestRequest = null;
+
+    document.addEventListener('input', function (event) {
+        const input = event.target.closest('input[name="search"][data-suggest-url]');
+        if (!input) return;
+
+        window.clearTimeout(suggestTimer);
+        const query = input.value.trim();
+        if (query.length < 2) return;
+
+        suggestTimer = window.setTimeout(function () {
+            if (suggestRequest) suggestRequest.abort();
+            suggestRequest = new AbortController();
+
+            fetch(input.dataset.suggestUrl + '?q=' + encodeURIComponent(query), {
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin',
+                signal: suggestRequest.signal,
+            })
+                .then((response) => response.ok ? response.json() : [])
+                .then(function (suggestions) {
+                    const datalist = document.getElementById(input.getAttribute('list'));
+                    if (!datalist) return;
+                    datalist.innerHTML = '';
+                    suggestions.forEach(function (text) {
+                        const option = document.createElement('option');
+                        option.value = text;
+                        datalist.appendChild(option);
+                    });
+                })
+                .catch(function () {});
+        }, 200);
+    });
+});
+</script>
+@endpush

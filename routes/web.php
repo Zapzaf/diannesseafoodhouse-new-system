@@ -103,6 +103,7 @@ Route::middleware('auth')->group(function (): void {
 		Route::get('/create', [InventoryController::class, 'transactionCreate'])->name('create');
 		Route::post('/store', [InventoryController::class, 'transactionStore'])->name('store');
 		Route::get('/pending', [InventoryController::class, 'transactionsPending'])->name('pending');
+		Route::get('/suggestions', [InventoryController::class, 'transactionSuggestions'])->name('suggestions');
 	});
 
 	Route::prefix('users')->name('users.')->middleware('role:admin')->group(function (): void {
