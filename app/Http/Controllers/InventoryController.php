@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Exports\InventoryExport;
+use App\Exports\ItemsExport;
 use App\Http\Requests\StoreItemRequest;
 use App\Jobs\SendLowStockEmail;
 use App\Models\Branch;
@@ -604,46 +604,7 @@ class InventoryController extends Controller
 
         $filename = 'inventory-'.trim($slug, '-').'-'.now()->format('Ymd-His').'.xlsx';
 
-        $items = Item::query()
-            ->with(['category.location'])
-            ->where('branch_id', $branch->id)
-            ->select('items.*')
-            ->selectSub(
-                InventoryTransaction::query()
-                    ->select('log_id')
-                    ->whereColumn('item_id', 'items.id')
-                    ->latest('created_at')
-                    ->limit(1),
-                'last_activity_log_id'
-            )
-            ->selectSub(
-                InventoryTransaction::query()
-                    ->selectRaw('MAX(COALESCE(transaction_date, created_at))')
-                    ->whereColumn('item_id', 'items.id'),
-                'last_activity_at'
-            )
-            ->orderBy('name')
-            ->get();
-
-        $data = $items->map(fn (Item $item): array => [
-            'item_id' => $item->sku ?: (string) $item->id,
-            'item_name' => $item->name,
-            'category' => $item->category?->location?->name ?? '',
-            'subcategory' => $item->category?->name ?? '',
-            'unit' => $item->unit ?? '',
-            'last_activity_id' => $item->last_activity_log_id ?? '',
-            'last_activity_date' => $item->last_activity_at
-                ? \Illuminate\Support\Carbon::parse($item->last_activity_at)->format('M d, Y H:i')
-                : '',
-            'item_price_raw' => (float) ($item->unit_price ?? 0),
-            'remaining_qty_raw' => (float) $item->quantity,
-            'total_price_raw' => (float) ($item->unit_price ?? 0) * (float) $item->quantity,
-        ])->values()->all();
-
-        $totalInventoryCost = array_sum(array_column($data, 'total_price_raw'));
-        $title = 'Inventory Snapshot — '.$branch->name.' — '.now()->format('M d, Y');
-
-        return Excel::download(new InventoryExport($data, $title, $totalInventoryCost), $filename);
+        return Excel::download(new ItemsExport($branch->id), $filename);
     }
 
     public function transfer(Request $request, Item $inventory): RedirectResponse
