@@ -654,7 +654,6 @@
 
     const ajaxTableSelector = '.main-content .card, .main-content [data-ajax-table-container]';
     let ajaxTableRequest = null;
-    let searchDebounceTimer = null;
 
     function getAjaxTableContainers(root) {
         return Array.from((root || document).querySelectorAll(ajaxTableSelector))
@@ -853,22 +852,8 @@
             loadTableUrl(formUrl(control.form).toString(), control.form);
         });
 
-        document.addEventListener('input', function(event) {
-            const input = event.target.closest('[data-ajax-table-container="1"] form input[name="search"]');
-            if (!input || !input.form) {
-                return;
-            }
-
-            window.clearTimeout(searchDebounceTimer);
-            searchDebounceTimer = window.setTimeout(function() {
-                const nextUrl = formUrl(input.form).toString();
-                const currentSearch = new URLSearchParams(window.location.search).get('search') || '';
-                if (input.value.trim() === currentSearch.trim() && new URL(nextUrl).searchParams.get('page') === null) {
-                    return; // nothing changed — skip the reload flash
-                }
-                loadTableUrl(nextUrl, input.form, { replaceState: true });
-            }, 450);
-        });
+        // Search runs on Enter / the search button (form submit), not on
+        // every keystroke — the submit listener above handles it.
 
         window.addEventListener('popstate', function() {
             loadTableUrl(window.location.href, document.querySelector('[data-ajax-table-container="1"]'), { replaceState: true });
