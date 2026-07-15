@@ -14,7 +14,7 @@
 
         <div class="card mb-4">
             <div class="card-header fw-semibold d-flex justify-content-between align-items-center flex-wrap gap-2">
-                <div>Location &gt; Category Tree</div>
+                <div>Location & Category Tree</div>
                 <form method="GET" action="{{ url()->current() }}" class="d-flex gap-2 align-items-center">
                     <select name="per_page" class="form-select form-select-sm" style="width: auto;" onchange="this.form.submit()">
                         <option value="5" {{ request('per_page') == 5 ? 'selected' : '' }}>5</option>
