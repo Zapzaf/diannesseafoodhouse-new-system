@@ -59,7 +59,14 @@ class InventoryController extends Controller
     public function data(Request $request)
     {
         $branchId = $this->resolveBranchId($request);
-        $query = Item::with(['category.location', 'branch']);
+        $query = Item::with(['category.location', 'branch'])
+            ->select('items.*')
+            ->selectSub(
+                InventoryTransaction::query()
+                    ->selectRaw('MAX(COALESCE(transaction_date, created_at))')
+                    ->whereColumn('item_id', 'items.id'),
+                'last_transaction_at'
+            );
 
         if ($branchId) {
             $query->where('items.branch_id', $branchId);
@@ -84,7 +91,7 @@ class InventoryController extends Controller
 
         $sort = (string) $request->input('sort', 'name');
         $direction = strtolower((string) $request->input('direction', 'asc')) === 'desc' ? 'desc' : 'asc';
-        $sortable = ['name', 'category', 'location', 'branch_name', 'quantity', 'unit', 'unit_price', 'low_stock_threshold', 'created_at'];
+        $sortable = ['name', 'category', 'location', 'branch_name', 'quantity', 'unit', 'unit_price', 'low_stock_threshold', 'created_at', 'last_transaction_at'];
         if (! in_array($sort, $sortable, true)) {
             $sort = 'name';
         }
@@ -103,6 +110,8 @@ class InventoryController extends Controller
                 ->join('locations', 'categories.location_id', '=', 'locations.id')
                 ->orderBy('locations.name', $direction)
                 ->select('items.*');
+        } elseif ($sort === 'last_transaction_at') {
+            $query->orderBy('last_transaction_at', $direction);
         } else {
             $query->orderBy('items.'.$sort, $direction);
         }
@@ -123,6 +132,9 @@ class InventoryController extends Controller
                 'unit_price' => $item->unit_price,
                 'low_stock_threshold' => $item->low_stock_threshold,
                 'supplier_name' => null,
+                'last_transaction_at' => $item->last_transaction_at
+                    ? \Illuminate\Support\Carbon::parse($item->last_transaction_at)->format('M d, Y H:i')
+                    : null,
                 'allows_decimal_quantity' => InventoryQuantity::allowsDecimals($item->unit),
             ];
         });

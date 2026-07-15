@@ -16,13 +16,6 @@
             <div class="card-header fw-semibold d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <div>Location & Category Tree</div>
                 <form method="GET" action="{{ url()->current() }}" class="d-flex gap-2 align-items-center">
-                    <select name="per_page" class="form-select form-select-sm" style="width: auto;" onchange="this.form.submit()">
-                        <option value="5" {{ request('per_page') == 5 ? 'selected' : '' }}>5</option>
-                        <option value="10" {{ request('per_page', 10) == 10 || request('per_page', 12) == 10 || request('per_page', 15) == 10 ? 'selected' : '' }}>10</option>
-                        <option value="20" {{ request('per_page') == 20 ? 'selected' : '' }}>20</option>
-                        <option value="50" {{ request('per_page') == 50 ? 'selected' : '' }}>50</option>
-                        <option value="100" {{ request('per_page') == 100 ? 'selected' : '' }}>100</option>
-                    </select>
                     <div class="input-group input-group-sm" style="max-width: 250px;">
                         <input type="text" name="search" class="form-control" placeholder="Search..." value="{{ request('search') }}">
                         <button class="btn btn-outline-secondary" type="submit"><i data-lucide="search" style="width: 14px; height: 14px;"></i></button>

@@ -76,10 +76,11 @@
                                 <th>Unit Price</th>
                                 <th>Low Stock Threshold</th>
                                 <th>Supplier</th>
+                                <th>Last Transaction</th>
                                 <th class="table-actions-head">Actions</th>
                             </tr>
                         </thead>
-                        <tbody id="tableBody"><tr><td colspan="10" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></td></tr></tbody>
+                        <tbody id="tableBody"><tr><td colspan="11" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></td></tr></tbody>
                     </table>
                 </div>
             </div>
@@ -462,11 +463,11 @@ document.addEventListener('DOMContentLoaded', function() {
             { inputId: 'categoryFilter', param: 'location_id' },
             { inputId: 'subcategoryFilter', param: 'category_id' }
         ],
-        sortColumns: ['name', 'branch_name', 'location', 'category', 'quantity', 'unit', 'unit_price', 'low_stock_threshold', ''],
+        sortColumns: ['name', 'branch_name', 'location', 'category', 'quantity', 'unit', 'unit_price', 'low_stock_threshold', '', 'last_transaction_at'],
         defaultSort: 'name',
         defaultDirection: 'asc',
         emptyMessage: 'No inventory items found.',
-        colspan: 10,
+        colspan: 11,
         renderRow: function(item, ctx) {
             const remaining = Number(item.remaining_item || 0);
             const unitPrice = item.unit_price !== null && item.unit_price !== undefined
@@ -487,6 +488,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td>${unitPrice !== null ? `₱${unitPrice.toFixed(2)}` : 'N/A'}</td>
                     <td>${threshold}</td>
                     <td>${ctx.escapeHtml(item.supplier_name || 'N/A')}</td>
+                    <td class="text-muted small text-nowrap">${ctx.escapeHtml(item.last_transaction_at || '—')}</td>
                     <td class="table-actions-cell text-nowrap">
                             <button type="button" class="btn btn-sm btn-outline-success stockin-btn" data-id="${item.id}" data-name="${itemName}" data-unit="${ctx.escapeHtml(item.unit || '')}" data-allows-decimals="${item.allows_decimal_quantity ? '1' : '0'}"><i data-lucide="plus-circle"></i></button>
                             <button type="button" class="btn btn-sm btn-outline-warning deduct-btn" data-id="${item.id}" data-name="${itemName}" data-remaining="${remaining}" data-unit="${ctx.escapeHtml(item.unit || '')}" data-allows-decimals="${item.allows_decimal_quantity ? '1' : '0'}"><i data-lucide="minus-circle"></i></button>
