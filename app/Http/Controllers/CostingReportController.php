@@ -9,6 +9,7 @@ use App\Models\Delivery;
 use App\Models\InventoryTransaction;
 use App\Models\Item;
 use App\Models\ProductionOrder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -56,8 +57,8 @@ class CostingReportController extends Controller
             ->select('items.*')
             ->selectSub($latestUnitCostSub, 'latest_unit_cost')
             ->orderBy('name')
-            ->limit(50)
-            ->get();
+            ->paginate(10, ['*'], 'items_page')
+            ->withQueryString();
 
         return view('reports.costing', compact('reports', 'items', 'status', 'dateFrom', 'dateTo', 'statusCounts') + [
             'branches' => Branch::query()->where('is_active', true)->orderBy('name')->get(),
@@ -75,34 +76,74 @@ class CostingReportController extends Controller
             ->orderBy('name')
             ->get();
 
-        $deliveries = Delivery::query()
-            ->with('supplier')
-            ->when($branchId, fn ($q, $id) => $q->where(fn ($inner) => $inner
-                ->where('destination_branch_id', $id)
-                ->orWhere('source_branch_id', $id)))
-            ->latest()
-            ->limit(100)
-            ->get();
-
-        $productions = ProductionOrder::query()
-            ->when($branchId, fn ($q, $id) => $q->where('branch_id', $id))
-            ->latest()
-            ->limit(100)
-            ->get();
-
         return view('reports.costing-create', [
             'items' => $items,
-            'deliveries' => $deliveries,
-            'productions' => $productions,
             'selectedItemId' => (int) $request->input('item_id'),
         ]);
+    }
+
+    public function searchDeliveries(Request $request): JsonResponse
+    {
+        $branchId = $this->resolveBranchId($request);
+        $search = trim((string) $request->input('q', ''));
+        $id = $request->integer('id');
+
+        $deliveries = Delivery::query()
+            ->with('supplier')
+            ->when($branchId, fn ($q, $bid) => $q->where(fn ($inner) => $inner
+                ->where('destination_branch_id', $bid)
+                ->orWhere('source_branch_id', $bid)))
+            ->when($id, fn ($q) => $q->whereKey($id))
+            ->when(! $id && $search !== '', function ($q) use ($search): void {
+                $q->where(fn ($inner) => $inner
+                    ->where('id', 'like', "%{$search}%")
+                    ->orWhere('status', 'like', "%{$search}%")
+                    ->orWhereHas('supplier', fn ($s) => $s->where('name', 'like', "%{$search}%")));
+            })
+            ->latest()
+            ->limit(20)
+            ->get();
+
+        return response()->json($deliveries->map(fn (Delivery $delivery): array => [
+            'id' => $delivery->id,
+            'label' => 'Delivery #'.$delivery->id
+                .' — '.($delivery->supplier?->name ?? 'No supplier')
+                .' — '.$delivery->created_at?->format('M d, Y')
+                .' ('.strtoupper((string) $delivery->status).')',
+        ])->values());
+    }
+
+    public function searchProductions(Request $request): JsonResponse
+    {
+        $branchId = $this->resolveBranchId($request);
+        $search = trim((string) $request->input('q', ''));
+        $id = $request->integer('id');
+
+        $productions = ProductionOrder::query()
+            ->when($branchId, fn ($q, $bid) => $q->where('branch_id', $bid))
+            ->when($id, fn ($q) => $q->whereKey($id))
+            ->when(! $id && $search !== '', function ($q) use ($search): void {
+                $q->where(fn ($inner) => $inner
+                    ->where('id', 'like', "%{$search}%")
+                    ->orWhere('status', 'like', "%{$search}%"));
+            })
+            ->latest()
+            ->limit(20)
+            ->get();
+
+        return response()->json($productions->map(fn (ProductionOrder $production): array => [
+            'id' => $production->id,
+            'label' => 'Production #'.$production->id
+                .' — '.$production->created_at?->format('M d, Y')
+                .' ('.strtoupper((string) $production->status).')',
+        ])->values());
     }
 
     public function store(Request $request): RedirectResponse
     {
         $data = $request->validate([
             'item_id' => ['required', 'integer', 'exists:items,id'],
-            'proposed_price' => ['required', 'numeric', 'gt:0', 'decimal:0,4'],
+            'proposed_price' => ['required', 'numeric', 'gt:0', 'decimal:0,2'],
             'reason_type' => ['required', 'in:delivery,production,others'],
             'delivery_id' => ['required_if:reason_type,delivery', 'nullable', 'integer', 'exists:deliveries,id'],
             'production_id' => ['required_if:reason_type,production', 'nullable', 'integer', 'exists:production_orders,id'],

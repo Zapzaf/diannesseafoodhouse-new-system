@@ -291,6 +291,8 @@ Route::middleware('auth')->group(function (): void {
 		Route::get('/costing', [CostingReportController::class, 'index'])->name('costing.index');
 		Route::get('/costing/create', [CostingReportController::class, 'create'])->name('costing.create');
 		Route::post('/costing', [CostingReportController::class, 'store'])->name('costing.store');
+		Route::get('/costing/search/deliveries', [CostingReportController::class, 'searchDeliveries'])->name('costing.search.deliveries');
+		Route::get('/costing/search/productions', [CostingReportController::class, 'searchProductions'])->name('costing.search.productions');
 		Route::get('/costing/{costingReport}', [CostingReportController::class, 'show'])->name('costing.show');
 		Route::post('/costing/{costingReport}/approve', [CostingReportController::class, 'approve'])->name('costing.approve');
 		Route::post('/costing/{costingReport}/reject', [CostingReportController::class, 'reject'])->name('costing.reject');

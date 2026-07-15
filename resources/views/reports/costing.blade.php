@@ -131,11 +131,11 @@
                             </td>
                             <td class="text-muted small">{{ $report->branch?->name ?? 'N/A' }}</td>
                             <td class="text-end text-nowrap">
-                                <span class="text-muted small">&#8369;{{ number_format((float) $report->current_price, 4) }}</span>
+                                <span class="text-muted small">&#8369;{{ number_format((float) $report->current_price, 2) }}</span>
                                 <i data-lucide="arrow-right" class="mx-1 text-muted" style="width:12px;height:12px;"></i>
-                                <span class="fw-semibold">&#8369;{{ number_format((float) $report->proposed_price, 4) }}</span>
+                                <span class="fw-semibold">&#8369;{{ number_format((float) $report->proposed_price, 2) }}</span>
                                 <div class="small fw-semibold {{ $delta > 0 ? 'text-success' : ($delta < 0 ? 'text-danger' : 'text-muted') }}">
-                                    {{ $delta > 0 ? '+' : '' }}{{ number_format($delta, 4) }}
+                                    {{ $delta > 0 ? '+' : '' }}{{ number_format($delta, 2) }}
                                 </div>
                             </td>
                             <td>
@@ -200,13 +200,14 @@
                                 <div class="small text-muted">{{ $item->category?->location?->name ?? 'N/A' }} / {{ $item->category?->name ?? 'N/A' }}</div>
                             </td>
                             <td>{{ $item->branch?->name ?? 'N/A' }}</td>
-                            <td class="text-end">&#8369;{{ number_format((float) ($item->unit_price ?? 0), 4) }}</td>
+                            <td class="text-end">&#8369;{{ number_format((float) ($item->unit_price ?? 0), 2) }}</td>
                             <td class="text-end">
-                                {!! $item->latest_unit_cost !== null ? '&#8369;' . number_format((float) $item->latest_unit_cost, 4) : '-' !!}
+                                {!! $item->latest_unit_cost !== null ? '&#8369;' . number_format((float) $item->latest_unit_cost, 2) : '-' !!}
                             </td>
                             <td class="text-end">
-                                <a href="{{ route('reports.costing.create', ['item_id' => $item->id]) }}" class="btn btn-sm btn-outline-primary">
-                                    <i data-lucide="file-plus" class="me-1" style="width:14px;height:14px;"></i>Request Change
+                                <a href="{{ route('reports.costing.create', ['item_id' => $item->id]) }}"
+                                   class="btn btn-sm btn-outline-primary" title="Request price change">
+                                    <i data-lucide="file-plus" style="width:15px;height:15px;"></i>
                                 </a>
                             </td>
                         </tr>
@@ -215,6 +216,14 @@
                         @endforelse
                     </tbody>
                 </table>
+            </div>
+        </div>
+        <div class="card-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div class="text-muted small">
+                Showing {{ $items->firstItem() ?? 0 }} to {{ $items->lastItem() ?? 0 }} of {{ $items->total() }} entries
+            </div>
+            <div class="mb-0 custom-pagination-wrapper">
+                {{ $items->onEachSide(1)->links('pagination::bootstrap-5') }}
             </div>
         </div>
     </div>

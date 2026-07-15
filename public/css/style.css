@@ -3347,6 +3347,8 @@ th.table-sortable:hover {
 .action-btns .btn-outline-primary,
 .action-btns .btn-primary {
     background-color: var(--primary-color) !important;
+    color: #ffffff !important;
+    border-color: var(--primary-color) !important;
 }
 .table-actions-cell .btn-outline-primary:hover,
 .table-actions-cell .btn-primary:hover,
@@ -3360,6 +3362,8 @@ th.table-sortable:hover {
 .action-btns .btn-outline-secondary,
 .action-btns .btn-secondary {
     background-color: #64748b !important; /* modern slate/grey */
+    color: #ffffff !important;
+    border-color: #64748b !important;
 }
 .table-actions-cell .btn-outline-secondary:hover,
 .table-actions-cell .btn-secondary:hover,
@@ -3373,6 +3377,8 @@ th.table-sortable:hover {
 .action-btns .btn-outline-danger,
 .action-btns .btn-danger {
     background-color: #dc3545 !important; /* danger red */
+    color: #ffffff !important;
+    border-color: #dc3545 !important;
 }
 .table-actions-cell .btn-outline-danger:hover,
 .table-actions-cell .btn-danger:hover,
@@ -3400,6 +3406,8 @@ th.table-sortable:hover {
 .action-btns .btn-outline-success,
 .action-btns .btn-success {
     background-color: #198754 !important; /* success green */
+    color: #ffffff !important;
+    border-color: #198754 !important;
 }
 .table-actions-cell .btn-outline-success:hover,
 .table-actions-cell .btn-success:hover,
@@ -4658,4 +4666,51 @@ th.table-sortable {
     --bs-warning-rgb: 245, 158, 11;
     --bs-danger: #ef4444;
     --bs-danger-rgb: 239, 68, 68;
+}
+
+/* Checked segmented radios (btn-check) — styles-old.css paints the
+   active state dark red; force the app primary instead. */
+.btn-check:checked + .btn-outline-primary,
+.btn-check:active + .btn-outline-primary,
+.btn-outline-primary.active,
+.btn-outline-primary.show {
+    background-color: var(--primary-color) !important;
+    border-color: var(--primary-color) !important;
+    color: #ffffff !important;
+}
+.btn-check:focus-visible + .btn-outline-primary {
+    box-shadow: 0 0 0 0.2rem rgba(var(--primary-color-rgb), 0.3);
+}
+
+/* Alerts: keep every child (lists, small text) on the alert's own color,
+   and restyle alerts for dark mode — translucent tinted backgrounds with
+   bright text instead of light pastel panels with unreadable body text. */
+.alert,
+.alert ul,
+.alert li,
+.alert p {
+    color: inherit;
+}
+[data-bs-theme="dark"] .alert-success {
+    background-color: rgba(16, 185, 129, 0.12);
+    border-color: rgba(16, 185, 129, 0.35);
+    color: #6ee7b7;
+}
+[data-bs-theme="dark"] .alert-danger {
+    background-color: rgba(239, 68, 68, 0.12);
+    border-color: rgba(239, 68, 68, 0.35);
+    color: #fca5a5;
+}
+[data-bs-theme="dark"] .alert-warning {
+    background-color: rgba(245, 158, 11, 0.12);
+    border-color: rgba(245, 158, 11, 0.35);
+    color: #fcd34d;
+}
+[data-bs-theme="dark"] .alert-info {
+    background-color: rgba(14, 165, 233, 0.12);
+    border-color: rgba(14, 165, 233, 0.35);
+    color: #7dd3fc;
+}
+[data-bs-theme="dark"] .alert .btn-close {
+    filter: invert(1) grayscale(100%) brightness(180%);
 }

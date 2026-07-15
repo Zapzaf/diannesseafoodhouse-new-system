@@ -25,9 +25,9 @@
                                     <option value="">Select item</option>
                                     @foreach($items as $item)
                                         <option value="{{ $item->id }}"
-                                            data-price="{{ number_format((float) ($item->unit_price ?? 0), 4, '.', '') }}"
+                                            data-price="{{ number_format((float) ($item->unit_price ?? 0), 2, '.', '') }}"
                                             @selected((int) old('item_id', $selectedItemId) === (int) $item->id)>
-                                            {{ $item->name }} - {{ $item->branch?->name ?? 'N/A' }} (&#8369;{{ number_format((float) ($item->unit_price ?? 0), 4) }})
+                                            {{ $item->name }} - {{ $item->branch?->name ?? 'N/A' }} (&#8369;{{ number_format((float) ($item->unit_price ?? 0), 2) }})
                                         </option>
                                     @endforeach
                                 </select>
@@ -37,14 +37,14 @@
                                 <label for="current_price_display" class="form-label fw-semibold">Current Price</label>
                                 <div class="input-group">
                                     <span class="input-group-text">₱</span>
-                                    <input type="text" id="current_price_display" class="form-control" value="0.0000" readonly>
+                                    <input type="text" id="current_price_display" class="form-control" value="0.00" readonly>
                                 </div>
                             </div>
                             <div class="col-md-4">
                                 <label for="proposed_price" class="form-label fw-semibold">Proposed New Price <span class="text-danger">*</span></label>
                                 <div class="input-group">
                                     <span class="input-group-text">₱</span>
-                                    <input type="number" step="0.0001" min="0.0001" name="proposed_price" id="proposed_price"
+                                    <input type="number" step="0.01" min="0.01" name="proposed_price" id="proposed_price"
                                            class="form-control @error('proposed_price') is-invalid @enderror"
                                            value="{{ old('proposed_price') }}" required>
                                     @error('proposed_price')<div class="invalid-feedback">{{ $message }}</div>@enderror
@@ -81,31 +81,31 @@
                         @error('reason_type')<div class="text-danger small mb-2">{{ $message }}</div>@enderror
 
                         <div data-reason-panel="delivery" class="d-none">
-                            <label for="delivery_id" class="form-label fw-semibold">Select Delivery <span class="text-danger">*</span></label>
-                            <select name="delivery_id" id="delivery_id" class="form-select @error('delivery_id') is-invalid @enderror">
-                                <option value="">— Select a delivery —</option>
-                                @foreach($deliveries as $delivery)
-                                <option value="{{ $delivery->id }}" @selected((string) old('delivery_id') === (string) $delivery->id)>
-                                    Delivery #{{ $delivery->id }} — {{ $delivery->supplier?->name ?? 'No supplier' }} — {{ $delivery->created_at?->format('M d, Y') }} ({{ strtoupper($delivery->status ?? '') }})
-                                </option>
-                                @endforeach
-                            </select>
+                            <label for="delivery_search" class="form-label fw-semibold">Select Delivery <span class="text-danger">*</span></label>
+                            <div class="costing-combobox position-relative"
+                                 data-endpoint="{{ route('reports.costing.search.deliveries') }}">
+                                <input type="text" id="delivery_search"
+                                       class="form-control combobox-input @error('delivery_id') is-invalid @enderror"
+                                       placeholder="Search by delivery #, supplier, or status..." autocomplete="off">
+                                <input type="hidden" name="delivery_id" value="{{ old('delivery_id') }}">
+                                <div class="combobox-dropdown"></div>
+                            </div>
                             @error('delivery_id')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
-                            <div class="form-text">The price change will be justified by this delivery's costs.</div>
+                            <div class="form-text">Shows the 20 most recent deliveries — type to search all records.</div>
                         </div>
 
                         <div data-reason-panel="production" class="d-none">
-                            <label for="production_id" class="form-label fw-semibold">Select Production Order <span class="text-danger">*</span></label>
-                            <select name="production_id" id="production_id" class="form-select @error('production_id') is-invalid @enderror">
-                                <option value="">— Select a production order —</option>
-                                @foreach($productions as $production)
-                                <option value="{{ $production->id }}" @selected((string) old('production_id') === (string) $production->id)>
-                                    Production #{{ $production->id }} — {{ $production->created_at?->format('M d, Y') }} ({{ strtoupper($production->status ?? '') }})
-                                </option>
-                                @endforeach
-                            </select>
+                            <label for="production_search" class="form-label fw-semibold">Select Production Order <span class="text-danger">*</span></label>
+                            <div class="costing-combobox position-relative"
+                                 data-endpoint="{{ route('reports.costing.search.productions') }}">
+                                <input type="text" id="production_search"
+                                       class="form-control combobox-input @error('production_id') is-invalid @enderror"
+                                       placeholder="Search by production # or status..." autocomplete="off">
+                                <input type="hidden" name="production_id" value="{{ old('production_id') }}">
+                                <div class="combobox-dropdown"></div>
+                            </div>
                             @error('production_id')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
-                            <div class="form-text">The price change will be justified by this production run's costs.</div>
+                            <div class="form-text">Shows the 20 most recent production orders — type to search all records.</div>
                         </div>
 
                         <div data-reason-panel="others" class="d-none">
@@ -167,6 +167,44 @@
 </div>
 @endsection
 
+@push('styles')
+<style>
+.costing-combobox .combobox-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    z-index: 1050;
+    max-height: 300px;
+    overflow-y: auto;
+    background: var(--bg-card, #fff);
+    border: 1px solid var(--border-color, #dee2e6);
+    border-radius: 10px;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, .25);
+    display: none;
+}
+.costing-combobox .combobox-dropdown.show { display: block; }
+.costing-combobox .combobox-option {
+    padding: 9px 14px;
+    cursor: pointer;
+    font-size: .875rem;
+    color: var(--text-main, #1e293b);
+    border-bottom: 1px solid var(--border-color, #f0f0f0);
+}
+.costing-combobox .combobox-option:last-child { border-bottom: none; }
+.costing-combobox .combobox-option:hover,
+.costing-combobox .combobox-option.active {
+    background: rgba(var(--primary-color-rgb, 240, 124, 89), .12);
+}
+.costing-combobox .combobox-empty {
+    padding: 14px;
+    text-align: center;
+    color: var(--text-muted, #94a3b8);
+    font-size: .85rem;
+}
+</style>
+@endpush
+
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
@@ -182,12 +220,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function refreshPrices() {
         const price = currentPrice();
-        priceDisplay.value = price.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+        priceDisplay.value = price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
         const proposed = parseFloat(proposedInput.value);
         if (!isNaN(proposed) && itemSelect.value) {
             const diff = proposed - price;
-            diffDisplay.value = (diff >= 0 ? '+' : '') + diff.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+            diffDisplay.value = (diff >= 0 ? '+' : '') + diff.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             diffDisplay.classList.toggle('text-success', diff > 0);
             diffDisplay.classList.toggle('text-danger', diff < 0);
         } else {
@@ -213,6 +251,82 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     refreshReasonPanels();
 
+    // Searchable AJAX comboboxes for Delivery / Production
+    document.querySelectorAll('.costing-combobox').forEach(function (box) {
+        const endpoint = box.dataset.endpoint;
+        const input = box.querySelector('.combobox-input');
+        const hidden = box.querySelector('input[type="hidden"]');
+        const dropdown = box.querySelector('.combobox-dropdown');
+        let debounceTimer = null;
+        let activeRequest = null;
+
+        function fetchOptions(params) {
+            if (activeRequest) activeRequest.abort();
+            activeRequest = new AbortController();
+
+            return fetch(endpoint + '?' + new URLSearchParams(params), {
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin',
+                signal: activeRequest.signal,
+            }).then((response) => response.ok ? response.json() : []);
+        }
+
+        function renderOptions(options) {
+            dropdown.innerHTML = '';
+            if (!options.length) {
+                dropdown.innerHTML = '<div class="combobox-empty">No matching records found.</div>';
+            } else {
+                options.forEach(function (option) {
+                    const el = document.createElement('div');
+                    el.className = 'combobox-option';
+                    el.textContent = option.label;
+                    el.addEventListener('mousedown', function (event) {
+                        event.preventDefault();
+                        hidden.value = option.id;
+                        input.value = option.label;
+                        input.classList.remove('is-invalid');
+                        dropdown.classList.remove('show');
+                    });
+                    dropdown.appendChild(el);
+                });
+            }
+            dropdown.classList.add('show');
+        }
+
+        function search(query) {
+            fetchOptions({ q: query }).then(renderOptions).catch(function (error) {
+                if (error.name !== 'AbortError') {
+                    dropdown.innerHTML = '<div class="combobox-empty">Search failed — please try again.</div>';
+                    dropdown.classList.add('show');
+                }
+            });
+        }
+
+        input.addEventListener('focus', function () {
+            search(input.value.trim());
+        });
+
+        input.addEventListener('input', function () {
+            // Typing invalidates the previous selection
+            hidden.value = '';
+            window.clearTimeout(debounceTimer);
+            debounceTimer = window.setTimeout(function () {
+                search(input.value.trim());
+            }, 250);
+        });
+
+        document.addEventListener('click', function (event) {
+            if (!box.contains(event.target)) dropdown.classList.remove('show');
+        });
+
+        // Restore the label after a validation-error redirect (old input)
+        if (hidden.value) {
+            fetchOptions({ id: hidden.value }).then(function (options) {
+                if (options.length) input.value = options[0].label;
+            }).catch(function () {});
+        }
+    });
+
     // Supporting documents: keep an accumulating list across multiple picks
     const input = document.getElementById('attachmentsInput');
     const list = document.getElementById('attachmentList');
@@ -232,9 +346,11 @@ document.addEventListener('DOMContentLoaded', function () {
             label.textContent = file.name + ' (' + sizeKb + ')';
             const remove = document.createElement('button');
             remove.type = 'button';
-            remove.className = 'btn btn-sm btn-outline-danger py-0 px-2';
+            remove.className = 'btn btn-outline-danger p-0 d-inline-flex align-items-center justify-content-center flex-shrink-0';
+            remove.style.cssText = 'width: 22px; height: 22px; border-radius: 50%; font-size: .95rem; line-height: 1;';
             remove.innerHTML = '&times;';
             remove.setAttribute('aria-label', 'Remove ' + file.name);
+            remove.title = 'Remove file';
             remove.addEventListener('click', function () {
                 store.items.remove(index);
                 input.files = store.files;

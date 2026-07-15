@@ -28,7 +28,7 @@
             <div class="card border-0 shadow-sm">
                 <div class="card-body">
                     <div class="text-muted small">Current Price</div>
-                    <div class="fs-4 fw-bold">&#8369;{{ number_format((float) $costingReport->current_price, 4) }}</div>
+                    <div class="fs-4 fw-bold">&#8369;{{ number_format((float) $costingReport->current_price, 2) }}</div>
                 </div>
             </div>
         </div>
@@ -36,7 +36,7 @@
             <div class="card border-0 shadow-sm">
                 <div class="card-body">
                     <div class="text-muted small">Proposed Price</div>
-                    <div class="fs-4 fw-bold text-primary">&#8369;{{ number_format((float) $costingReport->proposed_price, 4) }}</div>
+                    <div class="fs-4 fw-bold text-primary">&#8369;{{ number_format((float) $costingReport->proposed_price, 2) }}</div>
                 </div>
             </div>
         </div>
@@ -45,7 +45,7 @@
                 <div class="card-body">
                     <div class="text-muted small">Difference</div>
                     <div class="fs-4 fw-bold {{ $difference >= 0 ? 'text-success' : 'text-danger' }}">
-                        {{ $difference >= 0 ? '+' : '' }}&#8369;{{ number_format($difference, 4) }}
+                        {{ $difference >= 0 ? '+' : '' }}&#8369;{{ number_format($difference, 2) }}
                     </div>
                 </div>
             </div>
@@ -96,7 +96,10 @@
                             <i data-lucide="file" class="text-primary flex-shrink-0" style="width:16px;height:16px;"></i>
                             <span class="text-truncate">{{ $attachment->original_name }}</span>
                         </span>
-                        <span class="text-muted small text-nowrap ms-2">{{ $attachment->humanSize() }} <i data-lucide="download" style="width:13px;height:13px;"></i></span>
+                        <span class="text-muted small text-nowrap ms-3 d-inline-flex align-items-center gap-2 flex-shrink-0">
+                            <span>{{ $attachment->humanSize() }}</span>
+                            <i data-lucide="download" class="text-primary" style="width:15px;height:15px;"></i>
+                        </span>
                     </a>
                     @empty
                     <p class="mb-0 text-muted">No supporting documents were uploaded.</p>
