@@ -410,22 +410,24 @@ class ProductionManagementController extends Controller
             'outputs.*.quantity_produced' => ['required', 'numeric', 'gt:0'],
             'outputs.*.unit' => ['nullable', 'string', 'max:32'],
             'wastage' => ['nullable', 'array'],
-            'wastage.*.scrap_name' => ['nullable', 'string', 'max:255', 'required_with:wastage.*.quantity_lost,wastage.*.convert_to_item_id,wastage.*.converted_quantity'],
+            'wastage.*.scrap_name' => ['nullable', 'string', 'max:255', 'required_with:wastage.*.quantity_lost'],
             'wastage.*.quantity_lost' => ['nullable', 'numeric', 'gt:0', 'required_with:wastage.*.scrap_name,wastage.*.convert_to_item_id,wastage.*.converted_quantity'],
             'wastage.*.quantity_lost_unit' => ['nullable', 'string', 'max:32', 'required_with:wastage.*.quantity_lost'],
-            'wastage.*.convert_to_item_id' => ['nullable', 'exists:items,id', 'required_with:wastage.*.scrap_name,wastage.*.quantity_lost,wastage.*.converted_quantity'],
-            'wastage.*.converted_quantity' => ['nullable', 'numeric', 'gt:0', 'required_with:wastage.*.scrap_name,wastage.*.quantity_lost,wastage.*.convert_to_item_id'],
+            // Converting scrap into another item is optional; the pair is only
+            // required together when one half of the conversion is provided.
+            'wastage.*.convert_to_item_id' => ['nullable', 'exists:items,id', 'required_with:wastage.*.converted_quantity'],
+            'wastage.*.converted_quantity' => ['nullable', 'numeric', 'gt:0', 'required_with:wastage.*.convert_to_item_id'],
         ];
     }
 
     private function finishProductionMessages(): array
     {
         return [
-            'wastage.*.scrap_name.required_with' => 'Scrap Name is required for every scrap conversion row.',
-            'wastage.*.quantity_lost.required_with' => 'Scrap Qty is required for every scrap conversion row.',
-            'wastage.*.quantity_lost_unit.required_with' => 'Scrap Unit is required for every scrap conversion row.',
-            'wastage.*.convert_to_item_id.required_with' => 'Convert To is required for every scrap conversion row.',
-            'wastage.*.converted_quantity.required_with' => 'Convert Qty is required for every scrap conversion row.',
+            'wastage.*.scrap_name.required_with' => 'Scrap Name is required when a scrap quantity is entered.',
+            'wastage.*.quantity_lost.required_with' => 'Scrap Qty is required for every scrap row.',
+            'wastage.*.quantity_lost_unit.required_with' => 'Scrap Unit is required when a scrap quantity is entered.',
+            'wastage.*.convert_to_item_id.required_with' => 'Convert To is required when a converted quantity is entered.',
+            'wastage.*.converted_quantity.required_with' => 'Convert Qty is required when a Convert To item is selected.',
         ];
     }
 
@@ -434,9 +436,10 @@ class ProductionManagementController extends Controller
         $base = [
             $prefix => [$requireRows ? 'required' : 'nullable', 'array', 'min:1'],
             "{$prefix}.*.quantity_lost" => ['nullable', 'numeric', 'gt:0', "required_with:{$prefix}.*.convert_to_item_id,{$prefix}.*.converted_quantity"],
-            "{$prefix}.*.quantity_lost_unit" => ["required_with:{$prefix}.*.quantity_lost", 'string', 'max:32'],
-            "{$prefix}.*.convert_to_item_id" => ['nullable', 'exists:items,id', "required_with:{$prefix}.*.quantity_lost,{$prefix}.*.converted_quantity"],
-            "{$prefix}.*.converted_quantity" => ['nullable', 'numeric', 'gt:0', "required_with:{$prefix}.*.quantity_lost,{$prefix}.*.convert_to_item_id"],
+            "{$prefix}.*.quantity_lost_unit" => ['nullable', "required_with:{$prefix}.*.quantity_lost", 'string', 'max:32'],
+            // Conversion is optional: only require the pair together.
+            "{$prefix}.*.convert_to_item_id" => ['nullable', 'exists:items,id', "required_with:{$prefix}.*.converted_quantity"],
+            "{$prefix}.*.converted_quantity" => ['nullable', 'numeric', 'gt:0', "required_with:{$prefix}.*.convert_to_item_id"],
         ];
 
         if ($prefix === 'items') {

@@ -3,6 +3,7 @@
 namespace App\Exports;
 
 use App\Models\Item;
+use App\Support\InventoryQuantity;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
@@ -48,6 +49,9 @@ class ItemsExport implements WithMultipleSheets
 
 class ItemsCategorySheet implements FromArray, WithStyles
 {
+    private const LAST_COLUMN = 'L';
+    private const COLUMN_COUNT = 12;
+
     public function __construct(
         private readonly string $sheetName,
         private readonly Collection $items
@@ -71,11 +75,10 @@ class ItemsCategorySheet implements FromArray, WithStyles
         $sheet->getColumnDimension('F')->setWidth(18);
         $sheet->getColumnDimension('G')->setWidth(12);
         $sheet->getColumnDimension('H')->setWidth(18);
-        $sheet->getColumnDimension('I')->setWidth(18);
-        $sheet->getColumnDimension('J')->setWidth(22);
+        $sheet->getColumnDimension('I')->setWidth(22);
+        $sheet->getColumnDimension('J')->setWidth(14);
         $sheet->getColumnDimension('K')->setWidth(14);
-        $sheet->getColumnDimension('L')->setWidth(14);
-        $sheet->getColumnDimension('M')->setWidth(28);
+        $sheet->getColumnDimension('L')->setWidth(28);
 
         $rowIndex = 1;
 
@@ -88,7 +91,7 @@ class ItemsCategorySheet implements FromArray, WithStyles
         }
 
         foreach ($groupedItems as $groupName => $groupItems) {
-            $sheet->mergeCells('A' . $rowIndex . ':M' . $rowIndex);
+            $sheet->mergeCells('A' . $rowIndex . ':' . self::LAST_COLUMN . $rowIndex);
             $sheet->setCellValue('A' . $rowIndex, $groupName);
 
             $subcategoryHeaderStyle = [
@@ -111,7 +114,7 @@ class ItemsCategorySheet implements FromArray, WithStyles
                 ],
             ];
 
-            $sheet->getStyle('A' . $rowIndex . ':M' . $rowIndex)->applyFromArray($subcategoryHeaderStyle);
+            $sheet->getStyle('A' . $rowIndex . ':' . self::LAST_COLUMN . $rowIndex)->applyFromArray($subcategoryHeaderStyle);
             $rowIndex++;
 
             $columnHeaders = [
@@ -123,7 +126,6 @@ class ItemsCategorySheet implements FromArray, WithStyles
                 'Category',
                 'Unit',
                 'Remaining Qty',
-                'Low Stock Threshold',
                 'Supplier',
                 'Status',
                 'Actual',
@@ -135,13 +137,16 @@ class ItemsCategorySheet implements FromArray, WithStyles
                     'bold' => true,
                 ],
                 'borders' => [
+                    'allBorders' => [
+                        'borderStyle' => Border::BORDER_THIN,
+                    ],
                     'bottom' => [
                         'borderStyle' => Border::BORDER_THICK,
                     ],
                 ],
             ];
 
-            for ($col = 1; $col <= 13; $col++) {
+            for ($col = 1; $col <= self::COLUMN_COUNT; $col++) {
                 $colLetter = $this->getColumnLetter($col);
                 $sheet->setCellValue($colLetter . $rowIndex, $columnHeaders[$col - 1]);
                 $sheet->getStyle($colLetter . $rowIndex)->applyFromArray($headerStyle);
@@ -164,42 +169,40 @@ class ItemsCategorySheet implements FromArray, WithStyles
                     $item->category?->name ?? '',
                     $item->unit ?? '',
                     $quantity,
-                    $threshold,
                     $item->supplier_name ?? '',
                     $status,
                     '',
                     '',
                 ];
 
-                for ($col = 1; $col <= 13; $col++) {
+                for ($col = 1; $col <= self::COLUMN_COUNT; $col++) {
                     $colLetter = $this->getColumnLetter($col);
                     $sheet->setCellValue($colLetter . $rowIndex, $dataRow[$col - 1]);
                 }
 
                 $dataStyle = [
                     'borders' => [
-                        'bottom' => [
+                        'allBorders' => [
                             'borderStyle' => Border::BORDER_THIN,
                         ],
                     ],
                 ];
 
-                for ($col = 1; $col <= 13; $col++) {
-                    $colLetter = $this->getColumnLetter($col);
-                    $sheet->getStyle($colLetter . $rowIndex)->applyFromArray($dataStyle);
-                }
+                $sheet->getStyle('A' . $rowIndex . ':' . self::LAST_COLUMN . $rowIndex)->applyFromArray($dataStyle);
 
-                $sheet->getStyle('H' . $rowIndex . ':I' . $rowIndex)->getNumberFormat()->setFormatCode('#,##0.00');
+                // Whole numbers for units like pcs; decimals only where the unit allows them.
+                $quantityFormat = InventoryQuantity::allowsDecimals($item->unit) ? '#,##0.00' : '#,##0';
+                $sheet->getStyle('H' . $rowIndex)->getNumberFormat()->setFormatCode($quantityFormat);
 
                 if ($quantity <= 0) {
-                    $sheet->getStyle('A' . $rowIndex . ':M' . $rowIndex)->applyFromArray([
+                    $sheet->getStyle('A' . $rowIndex . ':' . self::LAST_COLUMN . $rowIndex)->applyFromArray([
                         'fill' => [
                             'fillType' => Fill::FILL_SOLID,
                             'startColor' => ['rgb' => 'FEE2E2'],
                         ],
                     ]);
                 } elseif ($quantity <= $threshold) {
-                    $sheet->getStyle('H' . $rowIndex . ':K' . $rowIndex)->applyFromArray([
+                    $sheet->getStyle('H' . $rowIndex . ':J' . $rowIndex)->applyFromArray([
                         'fill' => [
                             'fillType' => Fill::FILL_SOLID,
                             'startColor' => ['rgb' => 'FEF3C7'],

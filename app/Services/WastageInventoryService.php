@@ -60,10 +60,13 @@ class WastageInventoryService
 
     public function createConversionsFromProduction(ProductionOrder $production, iterable $rows, int $creatorId, string $errorKey = 'items'): ?WastageReport
     {
+        // Keep rows that record a scrap loss, whether or not the scrap is
+        // converted into another inventory item — conversion is optional.
         $rows = collect($rows)
-            ->filter(fn (array $row): bool => ! empty($row['convert_to_item_id'])
-                && isset($row['converted_quantity'])
-                && (float) $row['converted_quantity'] > 0)
+            ->filter(fn (array $row): bool => (isset($row['quantity_lost']) && (float) $row['quantity_lost'] > 0)
+                || (! empty($row['convert_to_item_id'])
+                    && isset($row['converted_quantity'])
+                    && (float) $row['converted_quantity'] > 0))
             ->values();
 
         if ($rows->isEmpty()) {
@@ -79,23 +82,32 @@ class WastageInventoryService
         ]);
 
         foreach ($rows as $row) {
-            $convertedItem = Item::query()
-                ->whereKey((int) $row['convert_to_item_id'])
-                ->where('branch_id', $production->branch_id)
-                ->firstOrFail();
+            $hasConversion = ! empty($row['convert_to_item_id'])
+                && isset($row['converted_quantity'])
+                && (float) $row['converted_quantity'] > 0;
+
+            $convertedItem = null;
+            if ($hasConversion) {
+                $convertedItem = Item::query()
+                    ->whereKey((int) $row['convert_to_item_id'])
+                    ->where('branch_id', $production->branch_id)
+                    ->firstOrFail();
+            }
 
             $wastageItem = WastageItem::create([
                 'wastage_report_id' => $report->id,
                 'item_id' => null,
                 'scrap_name' => $row['scrap_name'] ?? null,
-                'quantity_lost' => $row['quantity_lost'],
+                'quantity_lost' => $row['quantity_lost'] ?? null,
                 'quantity_lost_unit' => $row['quantity_lost_unit'] ?? null,
                 'reason' => null,
-                'convert_to_item_id' => $convertedItem->id,
-                'converted_quantity' => $row['converted_quantity'],
+                'convert_to_item_id' => $convertedItem?->id,
+                'converted_quantity' => $hasConversion ? $row['converted_quantity'] : null,
             ]);
 
-            $this->addConvertedInventory($wastageItem, $production, $creatorId);
+            if ($hasConversion) {
+                $this->addConvertedInventory($wastageItem, $production, $creatorId);
+            }
         }
 
         return $report;
