@@ -4714,3 +4714,14 @@ th.table-sortable {
 [data-bs-theme="dark"] .alert .btn-close {
     filter: invert(1) grayscale(100%) brightness(180%);
 }
+
+/* Voucher line-item editors (APV/PCV): keep inputs readable — never let
+   table cells crush the number fields below a usable width. */
+.voucher-items-table input.form-control,
+.voucher-items-table select.form-select {
+    min-width: 90px;
+}
+.voucher-items-table td:first-child input,
+.voucher-items-table td:nth-child(2) input {
+    min-width: 70px;
+}

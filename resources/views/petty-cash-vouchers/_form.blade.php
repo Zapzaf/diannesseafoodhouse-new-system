@@ -42,7 +42,7 @@
                 </h5>
 
                 <div class="table-responsive">
-                    <table class="table table-bordered align-middle" data-no-table-enhance="1">
+                    <table class="table table-bordered align-middle voucher-items-table" data-no-table-enhance="1" style="min-width: 1080px;">
                         <thead>
                             <tr>
                                 <th style="width: 90px;">Qty</th>
