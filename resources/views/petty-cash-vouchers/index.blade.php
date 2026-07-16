@@ -37,6 +37,7 @@
                             <tr>
                                 <th>Date</th>
                                 <th>PCV #</th>
+                                <th>Branch</th>
                                 <th class="text-end">Total</th>
                                 <th>Status</th>
                                 <th>Replenished Via</th>
@@ -48,6 +49,7 @@
                             <tr>
                                 <td>{{ $voucher->date->format('M d, Y') }}</td>
                                 <td class="fw-semibold">{{ $voucher->pcv_no }}</td>
+                                <td class="text-muted small">{{ $voucher->branch?->name ?? '—' }}</td>
                                 <td class="text-end">₱{{ number_format($voucher->total, 2) }}</td>
                                 <td>
                                     <span class="badge {{ $voucher->isReplenished() ? 'bg-success-soft text-success' : 'bg-warning-soft text-warning' }}">
@@ -67,7 +69,7 @@
                                 </td>
                             </tr>
                             @empty
-                            <tr><td colspan="6" class="text-center text-muted py-4">No petty cash vouchers found.</td></tr>
+                            <tr><td colspan="7" class="text-center text-muted py-4">No petty cash vouchers found.</td></tr>
                             @endforelse
                         </tbody>
                     </table>

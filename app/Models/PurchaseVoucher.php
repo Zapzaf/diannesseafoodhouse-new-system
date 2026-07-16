@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class PurchaseVoucher extends Model
 {
     protected $fillable = [
+        'branch_id',
         'date',
         'apv_no',
         'vendor_id',
@@ -85,5 +86,10 @@ class PurchaseVoucher extends Model
         }
 
         $this->update(['status' => $status]);
+    }
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
     }
 }

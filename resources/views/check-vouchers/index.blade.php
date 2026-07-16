@@ -48,6 +48,7 @@
                             <tr>
                                 <th>Date</th>
                                 <th>CV #</th>
+                                <th>Branch</th>
                                 <th>Type</th>
                                 <th>Payee</th>
                                 <th class="text-end">Amount Paid</th>
@@ -61,6 +62,7 @@
                             <tr>
                                 <td>{{ $voucher->date->format('M d, Y') }}</td>
                                 <td class="fw-semibold">{{ $voucher->cv_no }}</td>
+                                <td class="text-muted small">{{ $voucher->branch?->name ?? '—' }}</td>
                                 <td>{{ ucwords(str_replace('_', ' ', $voucher->type)) }}</td>
                                 <td>{{ $voucher->payee_name }}</td>
                                 <td class="text-end">₱{{ number_format($voucher->amount_paid, 2) }}</td>
@@ -75,7 +77,7 @@
                                 </td>
                             </tr>
                             @empty
-                            <tr><td colspan="8" class="text-center text-muted py-4">No check vouchers found.</td></tr>
+                            <tr><td colspan="9" class="text-center text-muted py-4">No check vouchers found.</td></tr>
                             @endforelse
                         </tbody>
                     </table>

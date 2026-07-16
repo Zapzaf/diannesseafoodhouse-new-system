@@ -305,14 +305,14 @@ Route::middleware('auth')->group(function (): void {
 	Route::put('/settings/branch', [SettingsController::class, 'updateBranch'])->name('settings.branch.update');
 	Route::put('/settings/appearance', [SettingsController::class, 'updateAppearance'])->name('settings.appearance.update');
 
-	Route::prefix('chart-of-accounts')->name('chart-of-accounts.')->middleware('role:admin')->group(function (): void {
+	Route::prefix('chart-of-accounts')->name('chart-of-accounts.')->middleware('role:admin,branch_manager')->group(function (): void {
 		Route::get('/', [ChartOfAccountController::class, 'index'])->name('index');
 		Route::get('/create', [ChartOfAccountController::class, 'create'])->name('create');
 		Route::post('/', [ChartOfAccountController::class, 'store'])->name('store');
 		Route::post('/{chartOfAccount}/toggle-active', [ChartOfAccountController::class, 'toggleActive'])->name('toggle-active');
 	});
 
-	Route::prefix('purchase-vouchers')->name('purchase-vouchers.')->middleware('role:admin')->group(function (): void {
+	Route::prefix('purchase-vouchers')->name('purchase-vouchers.')->middleware('role:admin,branch_manager')->group(function (): void {
 		Route::get('/', [PurchaseVoucherController::class, 'index'])->name('index');
 		Route::get('/create', [PurchaseVoucherController::class, 'create'])->name('create');
 		Route::post('/', [PurchaseVoucherController::class, 'store'])->name('store');
@@ -322,7 +322,7 @@ Route::middleware('auth')->group(function (): void {
 		Route::delete('/{purchaseVoucher}', [PurchaseVoucherController::class, 'destroy'])->name('destroy');
 	});
 
-	Route::prefix('petty-cash-vouchers')->name('petty-cash-vouchers.')->middleware('role:admin')->group(function (): void {
+	Route::prefix('petty-cash-vouchers')->name('petty-cash-vouchers.')->middleware('role:admin,branch_manager')->group(function (): void {
 		Route::get('/', [PettyCashVoucherController::class, 'index'])->name('index');
 		Route::get('/create', [PettyCashVoucherController::class, 'create'])->name('create');
 		Route::post('/', [PettyCashVoucherController::class, 'store'])->name('store');
@@ -332,7 +332,7 @@ Route::middleware('auth')->group(function (): void {
 		Route::delete('/{pettyCashVoucher}', [PettyCashVoucherController::class, 'destroy'])->name('destroy');
 	});
 
-	Route::prefix('check-vouchers')->name('check-vouchers.')->middleware('role:admin')->group(function (): void {
+	Route::prefix('check-vouchers')->name('check-vouchers.')->middleware('role:admin,branch_manager')->group(function (): void {
 		Route::get('/', [CheckVoucherController::class, 'index'])->name('index');
 		Route::get('/create', [CheckVoucherController::class, 'create'])->name('create');
 		Route::post('/', [CheckVoucherController::class, 'store'])->name('store');
@@ -342,13 +342,13 @@ Route::middleware('auth')->group(function (): void {
 		Route::post('/{checkVoucher}/issue-check', [CheckVoucherController::class, 'issueCheck'])->name('issue-check');
 	});
 
-	Route::prefix('check-register')->name('check-register.')->middleware('role:admin')->group(function (): void {
+	Route::prefix('check-register')->name('check-register.')->middleware('role:admin,branch_manager')->group(function (): void {
 		Route::get('/', [CheckRegisterController::class, 'index'])->name('index');
 		Route::post('/{checkRegister}/mark-cleared', [CheckRegisterController::class, 'markCleared'])->name('mark-cleared');
 		Route::post('/{checkRegister}/void', [CheckRegisterController::class, 'void'])->name('void');
 	});
 
-	Route::prefix('reports/purchase-disbursement')->name('reports.purchase-disbursement.')->middleware('role:admin')->group(function (): void {
+	Route::prefix('reports/purchase-disbursement')->name('reports.purchase-disbursement.')->middleware('role:admin,branch_manager')->group(function (): void {
 		Route::get('/summary', [PurchaseDisbursementReportController::class, 'summary'])->name('summary');
 		Route::get('/aging', [PurchaseDisbursementReportController::class, 'unpaidApvAging'])->name('aging');
 		Route::get('/petty-cash-fund', [PurchaseDisbursementReportController::class, 'pettyCashFund'])->name('petty-cash-fund');

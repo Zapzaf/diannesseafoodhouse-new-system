@@ -458,7 +458,8 @@
                         </div>
                     </li>
 
-                    <!-- Finance Section -->
+                    <!-- Finance Section (admins and branch managers only) -->
+                    @if($authUser && ($authUser->isAdmin() || $authUser->isBranchManager()))
                     <div class="sidenav-menu-heading text-uppercase px-3 py-2 mt-2 small fw-bold text-white-50" style="font-size: 0.7rem; letter-spacing: 0.08em; opacity: 0.7;">Finance</div>
 
                     <!-- Purchase & Disbursement Book -->
@@ -496,6 +497,7 @@
                            </ul>
                         </div>
                     </li>
+                    @endif
 
                     <!-- Reports & Analytics Section -->
                     <div class="sidenav-menu-heading text-uppercase px-3 py-2 mt-2 small fw-bold text-white-50" style="font-size: 0.7rem; letter-spacing: 0.08em; opacity: 0.7;">Reports &amp; Analytics</div>
@@ -523,6 +525,7 @@
                                <li class="nav-item">
                                    <a class="nav-link py-1.5 px-3 {{ request()->routeIs('reports.feedback.*') ? 'active' : '' }}" href="{{ route('reports.feedback.index') }}">Feedback Report</a>
                                </li>
+                               @if($authUser && ($authUser->isAdmin() || $authUser->isBranchManager()))
                                <li class="nav-item">
                                    <a class="nav-link py-1.5 px-3 {{ request()->routeIs('reports.purchase-disbursement.summary') ? 'active' : '' }}" href="{{ route('reports.purchase-disbursement.summary') }}">Purchase &amp; Disbursement Summary</a>
                                </li>
@@ -532,6 +535,7 @@
                                <li class="nav-item">
                                    <a class="nav-link py-1.5 px-3 {{ request()->routeIs('reports.purchase-disbursement.petty-cash-fund') ? 'active' : '' }}" href="{{ route('reports.purchase-disbursement.petty-cash-fund') }}">Petty Cash Fund Status</a>
                                </li>
+                               @endif
                            </ul>
                         </div>
                     </li>

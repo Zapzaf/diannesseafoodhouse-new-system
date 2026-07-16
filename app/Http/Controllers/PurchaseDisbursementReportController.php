@@ -15,14 +15,17 @@ class PurchaseDisbursementReportController extends Controller
     {
         $dateFrom = $request->input('date_from', now()->startOfMonth()->toDateString());
         $dateTo = $request->input('date_to', now()->toDateString());
+        $branchId = $this->activeBranchId($request);
 
         $apvTotals = PurchaseVoucherItem::query()
-            ->whereHas('purchaseVoucher', fn ($q) => $q->whereBetween('date', [$dateFrom, $dateTo]))
+            ->whereHas('purchaseVoucher', fn ($q) => $q->whereBetween('date', [$dateFrom, $dateTo])
+                ->when($branchId, fn ($inner, $id) => $inner->where('branch_id', $id)))
             ->selectRaw('COALESCE(SUM(net_purchases),0) as net_purchases, COALESCE(SUM(vat),0) as vat, COALESCE(SUM(vat_exempt),0) as vat_exempt, COALESCE(SUM(non_vat_purchase),0) as non_vat_purchase, COALESCE(SUM(total_purchases),0) as total_purchases')
             ->first();
 
         $pcvTotals = PettyCashVoucher::query()
             ->whereBetween('date', [$dateFrom, $dateTo])
+            ->when($branchId, fn ($q, $id) => $q->where('branch_id', $id))
             ->with('items')
             ->get()
             ->reduce(function (array $carry, PettyCashVoucher $pcv) {
@@ -39,15 +42,17 @@ class PurchaseDisbursementReportController extends Controller
 
         $cvTotals = CheckVoucher::query()
             ->whereBetween('date', [$dateFrom, $dateTo])
+            ->when($branchId, fn ($q, $id) => $q->where('branch_id', $id))
             ->selectRaw('COALESCE(SUM(net_purchases),0) as net_purchases, COALESCE(SUM(vat),0) as vat, COALESCE(SUM(vat_exempt),0) as vat_exempt, COALESCE(SUM(non_vat_purchase),0) as non_vat_purchase, COALESCE(SUM(amount_paid),0) as amount_paid, COALESCE(SUM(ewt_amount),0) as ewt_amount')
             ->first();
 
         return view('reports.purchase-disbursement.summary', compact('apvTotals', 'pcvTotals', 'cvTotals', 'dateFrom', 'dateTo'));
     }
 
-    public function unpaidApvAging(): View
+    public function unpaidApvAging(Request $request): View
     {
         $vouchers = PurchaseVoucher::with(['vendor', 'items'])
+            ->when($this->activeBranchId($request), fn ($q, $id) => $q->where('branch_id', $id))
             ->whereIn('status', ['unpaid', 'partially_paid'])
             ->orderBy('date')
             ->get()
@@ -72,9 +77,10 @@ class PurchaseDisbursementReportController extends Controller
         return view('reports.purchase-disbursement.aging', compact('vouchers', 'totalOutstanding'));
     }
 
-    public function pettyCashFund(): View
+    public function pettyCashFund(Request $request): View
     {
         $vouchers = PettyCashVoucher::with(['items', 'checkVoucher'])
+            ->when($this->activeBranchId($request), fn ($q, $id) => $q->where('branch_id', $id))
             ->orderBy('date')
             ->get();
 

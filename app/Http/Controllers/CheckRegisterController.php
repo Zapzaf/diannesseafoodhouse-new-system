@@ -9,7 +9,8 @@ class CheckRegisterController extends Controller
 {
     public function index(Request $request)
     {
-        $checks = CheckRegister::with('checkVoucher')
+        $checks = CheckRegister::with(['checkVoucher', 'branch'])
+            ->when($this->activeBranchId($request), fn ($q, $id) => $q->where('branch_id', $id))
             ->when($request->input('status'), fn ($q, $s) => $q->where('status', $s))
             ->when($request->input('search'), fn ($q, $s) => $q->where(function ($query) use ($s): void {
                 $query->where('check_no', 'like', "%{$s}%")->orWhere('payee', 'like', "%{$s}%");
@@ -21,8 +22,10 @@ class CheckRegisterController extends Controller
         return view('check-register.index', compact('checks'));
     }
 
-    public function markCleared(CheckRegister $checkRegister)
+    public function markCleared(Request $request, CheckRegister $checkRegister)
     {
+        $this->authorizeBranchRecord($request, $checkRegister->branch_id);
+
         if ($checkRegister->status !== 'issued') {
             return back()->with('error', 'Only issued checks can be marked as cleared.');
         }
@@ -32,8 +35,10 @@ class CheckRegisterController extends Controller
         return back()->with('success', 'Check marked as cleared.');
     }
 
-    public function void(CheckRegister $checkRegister)
+    public function void(Request $request, CheckRegister $checkRegister)
     {
+        $this->authorizeBranchRecord($request, $checkRegister->branch_id);
+
         if ($checkRegister->status !== 'issued') {
             return back()->with('error', 'Only issued checks can be voided.');
         }

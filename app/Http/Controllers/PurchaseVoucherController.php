@@ -16,7 +16,8 @@ class PurchaseVoucherController extends Controller
 {
     public function index(Request $request)
     {
-        $vouchers = PurchaseVoucher::with(['vendor', 'creditAccount', 'items'])
+        $vouchers = PurchaseVoucher::with(['vendor', 'creditAccount', 'items', 'branch'])
+            ->when($this->activeBranchId($request), fn ($q, $id) => $q->where('branch_id', $id))
             ->when($request->input('status'), fn ($q, $s) => $q->where('status', $s))
             ->when($request->input('search'), fn ($q, $s) => $q->where(function ($query) use ($s): void {
                 $query->where('apv_no', 'like', "%{$s}%")
@@ -41,6 +42,7 @@ class PurchaseVoucherController extends Controller
         DB::transaction(function () use ($validated, $request): void {
             $voucher = PurchaseVoucher::create([
                 ...Arr::except($validated, 'items'),
+                'branch_id' => $this->activeBranchId($request),
                 'created_by' => $request->user()->id,
             ]);
 
@@ -50,15 +52,17 @@ class PurchaseVoucherController extends Controller
         return redirect()->route('purchase-vouchers.index')->with('success', 'Purchase Voucher (APV) created successfully.');
     }
 
-    public function show(PurchaseVoucher $purchaseVoucher)
+    public function show(Request $request, PurchaseVoucher $purchaseVoucher)
     {
+        $this->authorizeBranchRecord($request, $purchaseVoucher->branch_id);
         $purchaseVoucher->load(['items.costAccount', 'vendor', 'creditAccount', 'checkVouchers.checkRegisterEntry']);
 
         return view('purchase-vouchers.show', compact('purchaseVoucher'));
     }
 
-    public function edit(PurchaseVoucher $purchaseVoucher)
+    public function edit(Request $request, PurchaseVoucher $purchaseVoucher)
     {
+        $this->authorizeBranchRecord($request, $purchaseVoucher->branch_id);
         $purchaseVoucher->load('items');
 
         return view('purchase-vouchers.edit', [
@@ -69,6 +73,8 @@ class PurchaseVoucherController extends Controller
 
     public function update(Request $request, PurchaseVoucher $purchaseVoucher)
     {
+        $this->authorizeBranchRecord($request, $purchaseVoucher->branch_id);
+
         if ($purchaseVoucher->status !== 'unpaid') {
             throw ValidationException::withMessages([
                 'apv_no' => 'This APV has payments recorded against it and can no longer be edited.',
@@ -86,8 +92,10 @@ class PurchaseVoucherController extends Controller
         return redirect()->route('purchase-vouchers.index')->with('success', 'Purchase Voucher (APV) updated successfully.');
     }
 
-    public function destroy(PurchaseVoucher $purchaseVoucher)
+    public function destroy(Request $request, PurchaseVoucher $purchaseVoucher)
     {
+        $this->authorizeBranchRecord($request, $purchaseVoucher->branch_id);
+
         if ($purchaseVoucher->status !== 'unpaid') {
             return back()->with('error', 'This APV has payments recorded against it and cannot be deleted.');
         }

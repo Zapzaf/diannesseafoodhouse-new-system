@@ -71,7 +71,7 @@
                 </h5>
 
                 <div class="table-responsive">
-                    <table class="table table-bordered align-middle">
+                    <table class="table table-bordered align-middle" data-no-table-enhance="1">
                         <thead>
                             <tr>
                                 <th style="width: 90px;">Qty</th>

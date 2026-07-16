@@ -15,7 +15,8 @@ class PettyCashVoucherController extends Controller
 {
     public function index(Request $request)
     {
-        $vouchers = PettyCashVoucher::with(['items', 'checkVoucher'])
+        $vouchers = PettyCashVoucher::with(['items', 'checkVoucher', 'branch'])
+            ->when($this->activeBranchId($request), fn ($q, $id) => $q->where('branch_id', $id))
             ->when($request->input('status') === 'replenished', fn ($q) => $q->whereNotNull('check_voucher_id'))
             ->when($request->input('status') === 'pending', fn ($q) => $q->whereNull('check_voucher_id'))
             ->when($request->input('search'), fn ($q, $s) => $q->where('pcv_no', 'like', "%{$s}%"))
@@ -38,6 +39,7 @@ class PettyCashVoucherController extends Controller
         DB::transaction(function () use ($validated, $request): void {
             $voucher = PettyCashVoucher::create([
                 ...Arr::except($validated, 'items'),
+                'branch_id' => $this->activeBranchId($request),
                 'created_by' => $request->user()->id,
             ]);
 
@@ -47,15 +49,17 @@ class PettyCashVoucherController extends Controller
         return redirect()->route('petty-cash-vouchers.index')->with('success', 'Petty Cash Voucher (PCV) created successfully.');
     }
 
-    public function show(PettyCashVoucher $pettyCashVoucher)
+    public function show(Request $request, PettyCashVoucher $pettyCashVoucher)
     {
+        $this->authorizeBranchRecord($request, $pettyCashVoucher->branch_id);
         $pettyCashVoucher->load(['items.costAccount', 'checkVoucher.checkRegisterEntry']);
 
         return view('petty-cash-vouchers.show', compact('pettyCashVoucher'));
     }
 
-    public function edit(PettyCashVoucher $pettyCashVoucher)
+    public function edit(Request $request, PettyCashVoucher $pettyCashVoucher)
     {
+        $this->authorizeBranchRecord($request, $pettyCashVoucher->branch_id);
         $this->ensureNotReplenished($pettyCashVoucher);
         $pettyCashVoucher->load('items');
 
@@ -67,6 +71,7 @@ class PettyCashVoucherController extends Controller
 
     public function update(Request $request, PettyCashVoucher $pettyCashVoucher)
     {
+        $this->authorizeBranchRecord($request, $pettyCashVoucher->branch_id);
         $this->ensureNotReplenished($pettyCashVoucher);
 
         $validated = $this->validateVoucher($request, $pettyCashVoucher);
@@ -80,8 +85,9 @@ class PettyCashVoucherController extends Controller
         return redirect()->route('petty-cash-vouchers.index')->with('success', 'Petty Cash Voucher (PCV) updated successfully.');
     }
 
-    public function destroy(PettyCashVoucher $pettyCashVoucher)
+    public function destroy(Request $request, PettyCashVoucher $pettyCashVoucher)
     {
+        $this->authorizeBranchRecord($request, $pettyCashVoucher->branch_id);
         $this->ensureNotReplenished($pettyCashVoucher);
         $pettyCashVoucher->delete();
 

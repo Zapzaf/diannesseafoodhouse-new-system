@@ -18,7 +18,8 @@ class CheckVoucherController extends Controller
 {
     public function index(Request $request)
     {
-        $vouchers = CheckVoucher::with(['purchaseVoucher', 'checkRegisterEntry', 'costAccount'])
+        $vouchers = CheckVoucher::with(['purchaseVoucher', 'checkRegisterEntry', 'costAccount', 'branch'])
+            ->when($this->activeBranchId($request), fn ($q, $id) => $q->where('branch_id', $id))
             ->when($request->input('type'), fn ($q, $t) => $q->where('type', $t))
             ->when($request->input('status'), fn ($q, $s) => $q->where('status', $s))
             ->when($request->input('search'), fn ($q, $s) => $q->where(function ($query) use ($s): void {
@@ -84,8 +85,10 @@ class CheckVoucherController extends Controller
 
         $validated = $request->validate($rules);
 
+        $apv = null;
         if ($type === 'apv_payment') {
             $apv = PurchaseVoucher::findOrFail($validated['purchase_voucher_id']);
+            $this->authorizeBranchRecord($request, $apv->branch_id);
 
             if (! in_array($apv->status, ['unpaid', 'partially_paid'], true)) {
                 throw ValidationException::withMessages([
@@ -114,6 +117,10 @@ class CheckVoucherController extends Controller
                 ]);
             }
 
+            foreach ($pcvs as $pcv) {
+                $this->authorizeBranchRecord($request, $pcv->branch_id);
+            }
+
             $expectedTotal = round((float) $pcvs->sum('total'), 2);
             if (abs($expectedTotal - (float) $validated['amount_w_vat']) > 0.01) {
                 throw ValidationException::withMessages([
@@ -122,7 +129,12 @@ class CheckVoucherController extends Controller
             }
         }
 
-        DB::transaction(function () use ($validated, $type, $request, $pcvs): void {
+        // The CV lives in the branch of what it pays; otherwise the active branch.
+        $branchId = $apv?->branch_id
+            ?? ($pcvs->isNotEmpty() ? $pcvs->first()->branch_id : null)
+            ?? $this->activeBranchId($request);
+
+        DB::transaction(function () use ($validated, $type, $request, $pcvs, $branchId): void {
             $amountWVat = (float) ($validated['amount_w_vat'] ?? 0);
             $vatExempt = (float) ($validated['vat_exempt'] ?? 0);
             $nonVat = (float) ($validated['non_vat_purchase'] ?? 0);
@@ -132,6 +144,7 @@ class CheckVoucherController extends Controller
                 : ['net_purchases' => 0, 'vat' => 0];
 
             $checkVoucher = new CheckVoucher([
+                'branch_id' => $branchId,
                 'date' => $validated['date'],
                 'cv_no' => $validated['cv_no'],
                 'purchase_voucher_id' => $validated['purchase_voucher_id'] ?? null,
@@ -162,8 +175,9 @@ class CheckVoucherController extends Controller
         return redirect()->route('check-vouchers.index')->with('success', 'Check Voucher created successfully.');
     }
 
-    public function show(CheckVoucher $checkVoucher)
+    public function show(Request $request, CheckVoucher $checkVoucher)
     {
+        $this->authorizeBranchRecord($request, $checkVoucher->branch_id);
         $checkVoucher->load(['purchaseVoucher.vendor', 'pettyCashVouchers.items', 'costAccount', 'checkRegisterEntry']);
 
         return view('check-vouchers.show', compact('checkVoucher'));
@@ -171,6 +185,8 @@ class CheckVoucherController extends Controller
 
     public function issueCheck(Request $request, CheckVoucher $checkVoucher)
     {
+        $this->authorizeBranchRecord($request, $checkVoucher->branch_id);
+
         if ($checkVoucher->status !== 'draft') {
             return back()->with('error', 'This Check Voucher already has a check issued against it.');
         }
@@ -181,6 +197,7 @@ class CheckVoucherController extends Controller
         ]);
 
         CheckRegister::create([
+            'branch_id' => $checkVoucher->branch_id,
             'check_voucher_id' => $checkVoucher->id,
             'check_date' => $validated['check_date'],
             'check_no' => $validated['check_no'],
@@ -194,9 +211,10 @@ class CheckVoucherController extends Controller
         return redirect()->route('check-vouchers.show', $checkVoucher)->with('success', 'Check issued and logged in the Check Register.');
     }
 
-    public function unreplenishedPcvs(): JsonResponse
+    public function unreplenishedPcvs(Request $request): JsonResponse
     {
         $pcvs = PettyCashVoucher::whereNull('check_voucher_id')
+            ->when($this->activeBranchId($request), fn ($q, $id) => $q->where('branch_id', $id))
             ->with('items')
             ->orderBy('date')
             ->get()
@@ -215,6 +233,7 @@ class CheckVoucherController extends Controller
         $search = trim((string) $request->input('search', ''));
 
         $apvs = PurchaseVoucher::with(['vendor', 'items'])
+            ->when($this->activeBranchId($request), fn ($q, $id) => $q->where('branch_id', $id))
             ->whereIn('status', ['unpaid', 'partially_paid'])
             ->when($search, fn ($q, $s) => $q->where(function ($query) use ($s): void {
                 $query->where('apv_no', 'like', "%{$s}%")

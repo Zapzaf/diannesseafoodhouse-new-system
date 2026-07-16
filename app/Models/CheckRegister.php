@@ -10,6 +10,7 @@ class CheckRegister extends Model
     protected $table = 'check_register';
 
     protected $fillable = [
+        'branch_id',
         'check_voucher_id',
         'check_date',
         'check_no',
@@ -36,5 +37,10 @@ class CheckRegister extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
     }
 }

@@ -35,6 +35,7 @@
                             <tr>
                                 <th>Check Date</th>
                                 <th>Check #</th>
+                                <th>Branch</th>
                                 <th>Payee</th>
                                 <th>Particulars</th>
                                 <th class="text-end">Amount</th>
@@ -48,6 +49,7 @@
                             <tr>
                                 <td>{{ $check->check_date->format('M d, Y') }}</td>
                                 <td class="fw-semibold">{{ $check->check_no }}</td>
+                                <td class="text-muted small">{{ $check->branch?->name ?? '—' }}</td>
                                 <td>{{ $check->payee }}</td>
                                 <td>{{ $check->particulars }}</td>
                                 <td class="text-end">₱{{ number_format($check->amount, 2) }}</td>
@@ -71,7 +73,7 @@
                                 </td>
                             </tr>
                             @empty
-                            <tr><td colspan="8" class="text-center text-muted py-4">No checks issued yet.</td></tr>
+                            <tr><td colspan="9" class="text-center text-muted py-4">No checks issued yet.</td></tr>
                             @endforelse
                         </tbody>
                     </table>

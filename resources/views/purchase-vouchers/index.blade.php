@@ -39,6 +39,7 @@
                                 <th>Date</th>
                                 <th>APV #</th>
                                 <th>Vendor</th>
+                                <th>Branch</th>
                                 <th>Credit Account</th>
                                 <th class="text-end">Total Purchases</th>
                                 <th>Status</th>
@@ -51,6 +52,7 @@
                                 <td>{{ $voucher->date->format('M d, Y') }}</td>
                                 <td class="fw-semibold">{{ $voucher->apv_no }}</td>
                                 <td>{{ $voucher->vendor?->name ?? '—' }}</td>
+                                <td class="text-muted small">{{ $voucher->branch?->name ?? '—' }}</td>
                                 <td>{{ $voucher->creditAccount?->name }}</td>
                                 <td class="text-end">₱{{ number_format($voucher->total, 2) }}</td>
                                 <td>
@@ -72,7 +74,7 @@
                                 </td>
                             </tr>
                             @empty
-                            <tr><td colspan="7" class="text-center text-muted py-4">No purchase vouchers found.</td></tr>
+                            <tr><td colspan="8" class="text-center text-muted py-4">No purchase vouchers found.</td></tr>
                             @endforelse
                         </tbody>
                     </table>
