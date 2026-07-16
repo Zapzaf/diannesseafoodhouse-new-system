@@ -76,10 +76,20 @@
                             <td>
                                 <span class="badge-status badge-{{ $delivery->status }}">{{ strtoupper($delivery->status) }}</span>
                             </td>
-                            <td>
+                            <td class="text-nowrap">
                                 <a href="{{ route('deliveries.show', $delivery) }}" class="btn btn-sm btn-outline-primary">
                                     <i data-lucide="eye" style="width:14px;height:14px;" class="me-1"></i> View
                                 </a>
+                                @can('delete', $delivery)
+                                <form action="{{ route('deliveries.destroy', $delivery) }}" method="POST" class="d-inline"
+                                      onsubmit="return confirm('Delete delivery {{ $delivery->reference_number }}?\n\nThis will reverse ALL inventory changes from this delivery, and delete any linked production records (including finished ones) after reversing their inputs, outputs, and scrap.\n\nThis cannot be undone.')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete delivery and reverse inventory">
+                                        <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
+                                    </button>
+                                </form>
+                                @endcan
                             </td>
                         </tr>
                         @empty

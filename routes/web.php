@@ -160,6 +160,7 @@ Route::middleware('auth')->group(function (): void {
 		Route::get('/{delivery}', [DeliveryManagementController::class, 'show'])->name('show');
 		Route::post('/{delivery}/approve', [DeliveryManagementController::class, 'approve'])->name('approve');
 		Route::post('/{delivery}/prices', [DeliveryManagementController::class, 'updatePrices'])->name('prices.update');
+		Route::delete('/{delivery}', [DeliveryManagementController::class, 'destroy'])->name('destroy');
 	});
 
 	// Delivery routes (from nav — singular)

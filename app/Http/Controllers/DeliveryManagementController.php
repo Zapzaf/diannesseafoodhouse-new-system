@@ -438,6 +438,19 @@ class DeliveryManagementController extends Controller
         return redirect()->route('deliveries.index')->with('success', 'Delivery approved successfully.');
     }
 
+    public function destroy(Request $request, Delivery $delivery, \App\Services\DeliveryDeletionService $deletionService): RedirectResponse
+    {
+        Gate::authorize('delete', $delivery);
+
+        $reference = $delivery->reference_number ?: ('#'.$delivery->id);
+
+        $deletionService->delete($delivery, $request->user()->id);
+
+        return redirect()
+            ->route('deliveries.index')
+            ->with('success', 'Delivery '.$reference.' deleted. All inventory changes and linked production records were reversed.');
+    }
+
     public function pending(Request $request): View
     {
         $user = $request->user();

@@ -4,6 +4,16 @@
 
 @section('content')
     <x-page-header title="Delivery Details" subtitle="{{ $delivery->reference_number }}" icon="truck">
+        @can('delete', $delivery)
+        <form action="{{ route('deliveries.destroy', $delivery) }}" method="POST" class="d-inline m-0"
+              onsubmit="return confirm('Delete delivery {{ $delivery->reference_number }}?\n\nThis will reverse ALL inventory changes from this delivery, and delete any linked production records (including finished ones) after reversing their inputs, outputs, and scrap.\n\nThis cannot be undone.')">
+            @csrf
+            @method('DELETE')
+            <button type="submit" class="btn btn-danger">
+                <i data-lucide="trash-2" class="me-1"></i> Delete Delivery
+            </button>
+        </form>
+        @endcan
         <a href="{{ route('deliveries.index') }}" class="btn btn-outline-primary">
             <i data-lucide="arrow-left" class="me-1"></i> All Deliveries
         </a>
