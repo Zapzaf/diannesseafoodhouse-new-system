@@ -11,6 +11,7 @@ class CheckVoucher extends Model
 {
     protected $fillable = [
         'branch_id',
+        'supplier_id',
         'date',
         'cv_no',
         'purchase_voucher_id',
@@ -85,6 +86,11 @@ class CheckVoucher extends Model
         $base = (float) $this->net_purchases > 0 ? (float) $this->net_purchases : (float) $this->amount_w_vat;
         $this->ewt_amount = round($base * (float) $this->ewt_rate, 2);
         $this->amount_paid = round((float) $this->amount_w_vat - $this->ewt_amount, 2);
+    }
+
+    public function supplier()
+    {
+        return $this->belongsTo(Supplier::class);
     }
 
     public function branch()

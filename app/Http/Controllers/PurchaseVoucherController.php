@@ -32,7 +32,10 @@ class PurchaseVoucherController extends Controller
 
     public function create()
     {
-        return view('purchase-vouchers.create', $this->formOptions());
+        return view('purchase-vouchers.create', [
+            'suggestedApvNo' => PurchaseVoucher::nextApvNo(),
+            ...$this->formOptions(),
+        ]);
     }
 
     public function store(Request $request)
@@ -42,7 +45,9 @@ class PurchaseVoucherController extends Controller
         DB::transaction(function () use ($validated, $request): void {
             $voucher = PurchaseVoucher::create([
                 ...Arr::except($validated, 'items'),
-                'branch_id' => $this->activeBranchId($request),
+                // Always generated server-side so concurrent forms can't collide.
+                'apv_no' => PurchaseVoucher::nextApvNo(),
+                'branch_id' => $this->activeBranchId($request) ?? ($validated['branch_id'] ?? null),
                 'created_by' => $request->user()->id,
             ]);
 
@@ -84,7 +89,7 @@ class PurchaseVoucherController extends Controller
         $validated = $this->validateVoucher($request, $purchaseVoucher);
 
         DB::transaction(function () use ($validated, $purchaseVoucher): void {
-            $purchaseVoucher->update(Arr::except($validated, 'items'));
+            $purchaseVoucher->update(Arr::except($validated, ['items', 'apv_no']));
             $purchaseVoucher->items()->delete();
             $this->syncItems($purchaseVoucher, $validated['items']);
         });
@@ -109,8 +114,13 @@ class PurchaseVoucherController extends Controller
     {
         $validated = $request->validate([
             'date' => ['required', 'date'],
+            'branch_id' => [
+                Rule::requiredIf(fn () => $request->user()->isAdmin() && ! $request->session()->get('selected_branch_id')),
+                'nullable', 'exists:branches,id',
+            ],
+            // Auto-generated on create; kept unchanged on update.
             'apv_no' => [
-                'required', 'string', 'max:50',
+                'nullable', 'string', 'max:50',
                 Rule::unique('purchase_vouchers', 'apv_no')->ignore($purchaseVoucher?->id),
             ],
             'vendor_id' => ['nullable', 'exists:suppliers,id'],
@@ -129,6 +139,11 @@ class PurchaseVoucherController extends Controller
         ]);
 
         $this->ensureEachItemHasAnAmount($validated['items']);
+
+        // Only admins browsing all branches may choose the branch explicitly.
+        if (! $request->user()->isAdmin()) {
+            unset($validated['branch_id']);
+        }
 
         return $validated;
     }

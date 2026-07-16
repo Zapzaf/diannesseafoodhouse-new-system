@@ -15,7 +15,7 @@ class PettyCashVoucherController extends Controller
 {
     public function index(Request $request)
     {
-        $vouchers = PettyCashVoucher::with(['items', 'checkVoucher', 'branch'])
+        $vouchers = PettyCashVoucher::with(['items', 'checkVoucher', 'branch', 'supplier'])
             ->when($this->activeBranchId($request), fn ($q, $id) => $q->where('branch_id', $id))
             ->when($request->input('status') === 'replenished', fn ($q) => $q->whereNotNull('check_voucher_id'))
             ->when($request->input('status') === 'pending', fn ($q) => $q->whereNull('check_voucher_id'))
@@ -39,7 +39,7 @@ class PettyCashVoucherController extends Controller
         DB::transaction(function () use ($validated, $request): void {
             $voucher = PettyCashVoucher::create([
                 ...Arr::except($validated, 'items'),
-                'branch_id' => $this->activeBranchId($request),
+                'branch_id' => $this->activeBranchId($request) ?? ($validated['branch_id'] ?? null),
                 'created_by' => $request->user()->id,
             ]);
 
@@ -107,6 +107,11 @@ class PettyCashVoucherController extends Controller
     {
         $validated = $request->validate([
             'date' => ['required', 'date'],
+            'branch_id' => [
+                Rule::requiredIf(fn () => $request->user()->isAdmin() && ! $request->session()->get('selected_branch_id')),
+                'nullable', 'exists:branches,id',
+            ],
+            'supplier_id' => ['nullable', 'exists:suppliers,id'],
             'pcv_no' => [
                 'required', 'string', 'max:50',
                 Rule::unique('petty_cash_vouchers', 'pcv_no')->ignore($pettyCashVoucher?->id),
@@ -124,6 +129,11 @@ class PettyCashVoucherController extends Controller
         ]);
 
         $this->ensureEachItemHasAnAmount($validated['items']);
+
+        // Only admins browsing all branches may choose the branch explicitly.
+        if (! $request->user()->isAdmin()) {
+            unset($validated['branch_id']);
+        }
 
         return $validated;
     }
@@ -172,6 +182,7 @@ class PettyCashVoucherController extends Controller
     {
         return [
             'costAccounts' => ChartOfAccount::where('type', 'debit_expense')->where('is_active', true)->orderBy('name')->get(),
+            'suppliers' => \App\Models\Supplier::orderBy('name')->get(),
         ];
     }
 }

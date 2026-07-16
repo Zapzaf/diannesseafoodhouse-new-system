@@ -34,7 +34,51 @@
                         <input type="text" name="pcv_no" class="form-control @error('pcv_no') is-invalid @enderror" value="{{ old('pcv_no', $voucher?->pcv_no) }}" required>
                         @error('pcv_no')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
+                    @include('finance._branch-picker', ['voucher' => $voucher, 'colWidth' => 6])
                 </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Vendor / Supplier</label>
+                        <select name="supplier_id" id="pcvSupplier" class="form-select @error('supplier_id') is-invalid @enderror">
+                            <option value="">Select Supplier (optional)</option>
+                            @foreach($suppliers as $supplier)
+                            <option value="{{ $supplier->id }}"
+                                data-address="{{ $supplier->address }}"
+                                data-tin="{{ $supplier->tin }}"
+                                @selected((string) old('supplier_id', $voucher?->supplier_id) === (string) $supplier->id)>{{ $supplier->name }}</option>
+                            @endforeach
+                        </select>
+                        @error('supplier_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">Address</label>
+                        <input type="text" id="pcvSupplierAddress" class="form-control" value="{{ $voucher?->supplier?->address }}" readonly disabled placeholder="From supplier record">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label fw-semibold">TIN</label>
+                        <input type="text" id="pcvSupplierTin" class="form-control" value="{{ $voucher?->supplier?->tin }}" readonly disabled placeholder="From supplier record">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fw-semibold">CV #</label>
+                        <input type="text" class="form-control" value="{{ $voucher?->checkVoucher?->cv_no ?? 'Not yet replenished' }}" readonly disabled>
+                        <div class="form-text">Set automatically when this PCV is replenished by a Check Voucher.</div>
+                    </div>
+                </div>
+
+                <script>
+                document.addEventListener('DOMContentLoaded', function () {
+                    const select = document.getElementById('pcvSupplier');
+                    if (!select) return;
+                    function fillSupplierInfo() {
+                        const option = select.selectedOptions[0];
+                        document.getElementById('pcvSupplierAddress').value = option?.dataset.address || '';
+                        document.getElementById('pcvSupplierTin').value = option?.dataset.tin || '';
+                    }
+                    select.addEventListener('change', fillSupplierInfo);
+                    fillSupplierInfo();
+                });
+                </script>
 
                 <h5 class="fw-bold mb-3 mt-4 d-flex align-items-center gap-2 text-primary">
                     <i data-lucide="list" style="width: 20px; height: 20px;"></i>

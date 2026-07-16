@@ -10,6 +10,7 @@ class PettyCashVoucher extends Model
 {
     protected $fillable = [
         'branch_id',
+        'supplier_id',
         'date',
         'pcv_no',
         'check_voucher_id',
@@ -47,6 +48,11 @@ class PettyCashVoucher extends Model
     public function isReplenished(): bool
     {
         return $this->check_voucher_id !== null;
+    }
+
+    public function supplier()
+    {
+        return $this->belongsTo(Supplier::class);
     }
 
     public function branch()

@@ -55,12 +55,33 @@
                                     <label class="form-label fw-semibold">SI #</label>
                                     <input type="text" name="si_no" class="form-control" value="{{ old('si_no') }}">
                                 </div>
+                                @include('finance._branch-picker', [
+                                    'voucher' => null,
+                                    'colWidth' => 4,
+                                    'pickerRequired' => false,
+                                    'pickerHint' => 'Used for direct disbursements — APV payments and PCV replenishments inherit the branch of what they pay.',
+                                ])
                             </div>
 
                             <div class="mb-3">
                                 <label class="form-label fw-semibold">Particulars <span class="text-danger">*</span></label>
                                 <input type="text" name="particulars" class="form-control @error('particulars') is-invalid @enderror" value="{{ old('particulars') }}" required>
                                 @error('particulars')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Vendor / Supplier</label>
+                                <select name="supplier_id" id="cvSupplier" class="form-select @error('supplier_id') is-invalid @enderror">
+                                    <option value="">Select Supplier (optional — fills payee details below)</option>
+                                    @foreach($suppliers as $supplier)
+                                    <option value="{{ $supplier->id }}"
+                                        data-name="{{ $supplier->name }}"
+                                        data-address="{{ $supplier->address }}"
+                                        data-tin="{{ $supplier->tin }}"
+                                        @selected((string) old('supplier_id', $payApv?->vendor_id) === (string) $supplier->id)>{{ $supplier->name }}</option>
+                                    @endforeach
+                                </select>
+                                @error('supplier_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             </div>
 
                             <div class="row g-3 mb-3">
@@ -290,6 +311,18 @@ document.addEventListener('DOMContentLoaded', function () {
         if (typeSelect.value === 'apv_payment') searchApvs(apvSearch.value);
         typeSelect.addEventListener('change', function () {
             if (this.value === 'apv_payment' && apvResults.innerHTML === '') searchApvs(apvSearch.value);
+        });
+    }
+
+    // --- Supplier autofill: payee details come from the Suppliers table ---
+    const cvSupplier = document.getElementById('cvSupplier');
+    if (cvSupplier) {
+        cvSupplier.addEventListener('change', function () {
+            const option = this.selectedOptions[0];
+            if (!option || !option.value) return;
+            payeeName.value = option.dataset.name || '';
+            payeeAddress.value = option.dataset.address || '';
+            payeeTin.value = option.dataset.tin || '';
         });
     }
 

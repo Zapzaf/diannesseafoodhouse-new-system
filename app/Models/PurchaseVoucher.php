@@ -92,4 +92,23 @@ class PurchaseVoucher extends Model
     {
         return $this->belongsTo(Branch::class);
     }
+
+    /**
+     * Next sequential auto-generated APV number (APV-000001, APV-000002, …).
+     */
+    public static function nextApvNo(): string
+    {
+        $last = static::query()
+            ->where('apv_no', 'like', 'APV-%')
+            ->orderByDesc('id')
+            ->value('apv_no');
+
+        $sequence = $last ? (int) preg_replace('/\D/', '', substr($last, 4)) : 0;
+
+        do {
+            $candidate = 'APV-'.str_pad(++$sequence, 6, '0', STR_PAD_LEFT);
+        } while (static::query()->where('apv_no', $candidate)->exists());
+
+        return $candidate;
+    }
 }

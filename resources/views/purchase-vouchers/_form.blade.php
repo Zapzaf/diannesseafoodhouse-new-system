@@ -30,27 +30,51 @@
                         @error('date')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label fw-semibold">APV # <span class="text-danger">*</span></label>
-                        <input type="text" name="apv_no" class="form-control @error('apv_no') is-invalid @enderror" value="{{ old('apv_no', $voucher?->apv_no) }}" required>
-                        @error('apv_no')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        <label class="form-label fw-semibold">APV # <span class="text-muted fw-normal">(auto-generated)</span></label>
+                        <input type="text" class="form-control" value="{{ $voucher?->apv_no ?? ($suggestedApvNo ?? '') }}" readonly disabled>
+                        @error('apv_no')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
                     </div>
                     <div class="col-md-4">
                         <label class="form-label fw-semibold">SI #</label>
                         <input type="text" name="si_no" class="form-control @error('si_no') is-invalid @enderror" value="{{ old('si_no', $voucher?->si_no) }}">
                         @error('si_no')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
+                    @include('finance._branch-picker', ['voucher' => $voucher, 'colWidth' => 4])
                 </div>
 
                 <div class="row g-3 mb-3">
                     <div class="col-md-6">
                         <label class="form-label fw-semibold">Vendor</label>
-                        <select name="vendor_id" class="form-select @error('vendor_id') is-invalid @enderror">
+                        <select name="vendor_id" id="apvVendor" class="form-select @error('vendor_id') is-invalid @enderror">
                             <option value="">Select Vendor</option>
                             @foreach($vendors as $vendor)
-                            <option value="{{ $vendor->id }}" {{ (string) old('vendor_id', $voucher?->vendor_id) === (string) $vendor->id ? 'selected' : '' }}>{{ $vendor->name }}</option>
+                            <option value="{{ $vendor->id }}"
+                                data-address="{{ $vendor->address }}"
+                                data-tin="{{ $vendor->tin }}"
+                                {{ (string) old('vendor_id', $voucher?->vendor_id) === (string) $vendor->id ? 'selected' : '' }}>{{ $vendor->name }}</option>
                             @endforeach
                         </select>
+                        <div class="form-text" id="apvVendorInfo">Address and TIN come from the supplier record.</div>
                         @error('vendor_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        <script>
+                        document.addEventListener('DOMContentLoaded', function () {
+                            const select = document.getElementById('apvVendor');
+                            const info = document.getElementById('apvVendorInfo');
+                            function refresh() {
+                                const option = select.selectedOptions[0];
+                                if (option && option.value) {
+                                    const parts = [];
+                                    if (option.dataset.address) parts.push(option.dataset.address);
+                                    if (option.dataset.tin) parts.push('TIN: ' + option.dataset.tin);
+                                    info.textContent = parts.length ? parts.join(' · ') : 'No address/TIN on the supplier record.';
+                                } else {
+                                    info.textContent = 'Address and TIN come from the supplier record.';
+                                }
+                            }
+                            select.addEventListener('change', refresh);
+                            refresh();
+                        });
+                        </script>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label fw-semibold">Credit Account <span class="text-danger">*</span></label>

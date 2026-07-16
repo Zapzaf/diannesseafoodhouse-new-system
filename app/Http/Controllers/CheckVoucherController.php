@@ -18,18 +18,33 @@ class CheckVoucherController extends Controller
 {
     public function index(Request $request)
     {
-        $vouchers = CheckVoucher::with(['purchaseVoucher', 'checkRegisterEntry', 'costAccount', 'branch'])
+        $query = CheckVoucher::query()
             ->when($this->activeBranchId($request), fn ($q, $id) => $q->where('branch_id', $id))
             ->when($request->input('type'), fn ($q, $t) => $q->where('type', $t))
             ->when($request->input('status'), fn ($q, $s) => $q->where('status', $s))
-            ->when($request->input('search'), fn ($q, $s) => $q->where(function ($query) use ($s): void {
-                $query->where('cv_no', 'like', "%{$s}%")->orWhere('payee_name', 'like', "%{$s}%");
-            }))
+            ->when($request->input('search'), fn ($q, $s) => $q->where(function ($inner) use ($s): void {
+                $inner->where('cv_no', 'like', "%{$s}%")
+                    ->orWhere('payee_name', 'like', "%{$s}%")
+                    ->orWhereHas('purchaseVoucher', fn ($apv) => $apv->where('apv_no', 'like', "%{$s}%"));
+            }));
+
+        $totals = (clone $query)->selectRaw('
+            COALESCE(SUM(amount_w_vat), 0) as amount_w_vat,
+            COALESCE(SUM(vat), 0) as vat,
+            COALESCE(SUM(net_purchases), 0) as net_purchases,
+            COALESCE(SUM(vat_exempt), 0) as vat_exempt,
+            COALESCE(SUM(non_vat_purchase), 0) as non_vat_purchase,
+            COALESCE(SUM(ewt_amount), 0) as ewt_amount,
+            COALESCE(SUM(amount_paid), 0) as amount_paid
+        ')->first();
+
+        $vouchers = $query
+            ->with(['purchaseVoucher', 'checkRegisterEntry', 'costAccount', 'branch'])
             ->latest('date')
             ->paginate($this->perPage($request, 20))
             ->withQueryString();
 
-        return view('check-vouchers.index', compact('vouchers'));
+        return view('check-vouchers.index', compact('vouchers', 'totals'));
     }
 
     public function create(Request $request)
@@ -58,6 +73,8 @@ class CheckVoucherController extends Controller
 
         $rules = [
             'date' => ['required', 'date'],
+            'branch_id' => ['nullable', 'exists:branches,id'],
+            'supplier_id' => ['nullable', 'exists:suppliers,id'],
             'cv_no' => ['required', 'string', 'max:50', 'unique:check_vouchers,cv_no'],
             'type' => ['required', Rule::in(['pcf_replenishment', 'apv_payment', 'cod_purchase', 'other_disbursement'])],
             'particulars' => ['required', 'string', 'max:255'],
@@ -81,6 +98,11 @@ class CheckVoucherController extends Controller
             $rules['amount_w_vat'] = ['nullable', 'numeric', 'min:0'];
             $rules['vat_exempt'] = ['nullable', 'numeric', 'min:0'];
             $rules['non_vat_purchase'] = ['nullable', 'numeric', 'min:0'];
+            // Direct disbursements have no source record to inherit a branch from.
+            $rules['branch_id'] = [
+                Rule::requiredIf(fn () => $request->user()->isAdmin() && ! $request->session()->get('selected_branch_id')),
+                'nullable', 'exists:branches,id',
+            ];
         }
 
         $validated = $request->validate($rules);
@@ -129,12 +151,14 @@ class CheckVoucherController extends Controller
             }
         }
 
-        // The CV lives in the branch of what it pays; otherwise the active branch.
+        // The CV lives in the branch of what it pays; otherwise the active
+        // branch, or the branch an all-branches admin picked on the form.
         $branchId = $apv?->branch_id
             ?? ($pcvs->isNotEmpty() ? $pcvs->first()->branch_id : null)
-            ?? $this->activeBranchId($request);
+            ?? $this->activeBranchId($request)
+            ?? ($request->user()->isAdmin() ? ($validated['branch_id'] ?? null) : null);
 
-        DB::transaction(function () use ($validated, $type, $request, $pcvs, $branchId): void {
+        DB::transaction(function () use ($validated, $type, $request, $pcvs, $branchId, $apv): void {
             $amountWVat = (float) ($validated['amount_w_vat'] ?? 0);
             $vatExempt = (float) ($validated['vat_exempt'] ?? 0);
             $nonVat = (float) ($validated['non_vat_purchase'] ?? 0);
@@ -145,6 +169,8 @@ class CheckVoucherController extends Controller
 
             $checkVoucher = new CheckVoucher([
                 'branch_id' => $branchId,
+                // APV payments inherit the APV's vendor; otherwise the picked supplier.
+                'supplier_id' => $apv?->vendor_id ?? ($validated['supplier_id'] ?? null),
                 'date' => $validated['date'],
                 'cv_no' => $validated['cv_no'],
                 'purchase_voucher_id' => $validated['purchase_voucher_id'] ?? null,
@@ -261,6 +287,7 @@ class CheckVoucherController extends Controller
     {
         return [
             'costAccounts' => ChartOfAccount::where('type', 'debit_expense')->where('is_active', true)->orderBy('name')->get(),
+            'suppliers' => \App\Models\Supplier::orderBy('name')->get(),
         ];
     }
 }
