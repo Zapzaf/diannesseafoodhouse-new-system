@@ -240,7 +240,10 @@ class CheckVoucherController extends Controller
     public function unreplenishedPcvs(Request $request): JsonResponse
     {
         $pcvs = PettyCashVoucher::whereNull('check_voucher_id')
-            ->when($this->activeBranchId($request), fn ($q, $id) => $q->where('branch_id', $id))
+            // Scope to the active branch, but keep legacy records with no branch selectable.
+            ->when($this->activeBranchId($request), fn ($q, $id) => $q->where(
+                fn ($inner) => $inner->where('branch_id', $id)->orWhereNull('branch_id')
+            ))
             ->with('items')
             ->orderBy('date')
             ->get()
@@ -259,7 +262,10 @@ class CheckVoucherController extends Controller
         $search = trim((string) $request->input('search', ''));
 
         $apvs = PurchaseVoucher::with(['vendor', 'items'])
-            ->when($this->activeBranchId($request), fn ($q, $id) => $q->where('branch_id', $id))
+            // Scope to the active branch, but keep legacy records with no branch selectable.
+            ->when($this->activeBranchId($request), fn ($q, $id) => $q->where(
+                fn ($inner) => $inner->where('branch_id', $id)->orWhereNull('branch_id')
+            ))
             ->whereIn('status', ['unpaid', 'partially_paid'])
             ->when($search, fn ($q, $s) => $q->where(function ($query) use ($s): void {
                 $query->where('apv_no', 'like', "%{$s}%")

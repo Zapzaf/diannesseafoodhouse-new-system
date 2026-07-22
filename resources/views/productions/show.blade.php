@@ -240,12 +240,12 @@
                                 <tr>
                                     <td>
                                         <div class="item-picker">
-                                        <input type="search" class="form-control item-picker-search" placeholder="Search item by name or ID" autocomplete="off" required>
+                                        <input type="search" class="form-control item-picker-search" placeholder="Search item by name or ID" autocomplete="off">
                                             <input type="hidden" name="outputs[0][item_id]" data-output-field="item_id">
                                             <div class="item-picker-results d-none"></div>
                                         </div>
                                     </td>
-                                    <td><input type="number" step="0.01" min="0.01" name="outputs[0][quantity_produced]" class="form-control" required></td>
+                                    <td><input type="number" step="0.01" min="0.01" name="outputs[0][quantity_produced]" class="form-control"></td>
                                     <td>
                                         <input type="text" class="form-control unit-display" value="Select an item" disabled>
                                         <input type="hidden" name="outputs[0][unit]" data-output-field="unit">
@@ -387,8 +387,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     bindDynamicTable('production-outputs-table', 'add-output-row', function () {
         return `
-            <td><div class="item-picker"><input type="search" class="form-control item-picker-search" placeholder="Search item by name or ID" autocomplete="off" required><input type="hidden" data-output-field="item_id"><div class="item-picker-results d-none"></div></div></td>
-            <td><input type="number" step="0.01" min="0.01" class="form-control" data-output-field="quantity_produced" required></td>
+            <td><div class="item-picker"><input type="search" class="form-control item-picker-search" placeholder="Search item by name or ID" autocomplete="off"><input type="hidden" data-output-field="item_id"><div class="item-picker-results d-none"></div></div></td>
+            <td><input type="number" step="0.01" min="0.01" class="form-control" data-output-field="quantity_produced"></td>
             <td><input type="text" class="form-control unit-display" value="Select an item" disabled><input type="hidden" data-output-field="unit"></td>
             <td class="table-actions-cell text-center"><button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Remove"><i data-lucide="trash-2"></i></button></td>
         `;

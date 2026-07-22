@@ -205,6 +205,27 @@ class ProductionManagementController extends Controller
             abort(403, 'This production order is outside your active branch.');
         }
 
+        $outputs = collect($request->input('outputs', []))
+            ->filter(fn (array $row): bool => ! empty($row['item_id']) || ! empty($row['quantity_produced']))
+            ->values()
+            ->all();
+
+        $wastage = collect($request->input('wastage', []))
+            ->filter(fn (array $row): bool => ! empty($row['scrap_name'])
+                || ! empty($row['quantity_lost'])
+                || ! empty($row['convert_to_item_id'])
+                || ! empty($row['converted_quantity']))
+            ->values()
+            ->all();
+
+        if (empty($outputs) && empty($wastage)) {
+            throw ValidationException::withMessages([
+                'outputs' => 'Please provide either a Finish Production output or a Scrap Conversion entry.',
+            ]);
+        }
+
+        $request->merge(['outputs' => $outputs, 'wastage' => $wastage]);
+
         $validated = $request->validate(
             $this->finishProductionRules(),
             $this->finishProductionMessages()
@@ -214,7 +235,7 @@ class ProductionManagementController extends Controller
             return redirect()->route('productions.show', $production)->with('error', 'Production order already finished.');
         }
 
-        $relatedItemIds = collect($validated['outputs'])
+        $relatedItemIds = collect($validated['outputs'] ?? [])
             ->pluck('item_id')
             ->merge(collect($validated['wastage'] ?? [])->pluck('convert_to_item_id'))
             ->filter()
@@ -263,10 +284,10 @@ class ProductionManagementController extends Controller
                 $totalInputCost += ($unitCost * $qtyUsed);
             }
 
-            $totalOutputQty = collect($validated['outputs'])->sum(fn (array $row) => (float) $row['quantity_produced']);
+            $totalOutputQty = collect($validated['outputs'] ?? [])->sum(fn (array $row) => (float) $row['quantity_produced']);
             $outputUnitCost = ($totalInputCost > 0 && $totalOutputQty > 0) ? ($totalInputCost / $totalOutputQty) : null;
 
-            foreach ($validated['outputs'] as $output) {
+            foreach ($validated['outputs'] ?? [] as $output) {
                 $item = Item::query()->lockForUpdate()->findOrFail((int) $output['item_id']);
                 $row = ProductionOutput::create([
                     'production_order_id' => $production->id,
@@ -405,7 +426,7 @@ class ProductionManagementController extends Controller
     private function finishProductionRules(): array
     {
         return [
-            'outputs' => ['required', 'array', 'min:1'],
+            'outputs' => ['nullable', 'array'],
             'outputs.*.item_id' => ['required', 'exists:items,id'],
             'outputs.*.quantity_produced' => ['required', 'numeric', 'gt:0'],
             'outputs.*.unit' => ['nullable', 'string', 'max:32'],

@@ -272,7 +272,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function renderApvResults(apvs) {
         if (!apvs.length) {
-            apvResults.innerHTML = '<div class="text-muted small">No unpaid APVs found.</div>';
+            apvResults.innerHTML = '<div class="text-muted small">No unpaid APVs found for the selected branch. Create a Purchase Voucher first, or switch branches if the APV belongs elsewhere.</div>';
             return;
         }
         apvResults.innerHTML = apvs.map(function (apv) {
