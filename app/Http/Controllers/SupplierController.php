@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreSupplierRequest;
 use App\Models\Supplier;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class SupplierController extends Controller
 {
@@ -53,7 +54,10 @@ class SupplierController extends Controller
         $this->authorize('update', $supplier);
 
         $validated = $request->validate([
-            'name' => ['sometimes', 'string', 'max:255'],
+            'type' => ['sometimes', Rule::in(['company', 'sole_proprietorship'])],
+            'company_name' => ['required_if:type,company', 'nullable', 'string', 'max:255'],
+            'business_name' => ['required_if:type,sole_proprietorship', 'nullable', 'string', 'max:255'],
+            'owner_name' => ['required_if:type,sole_proprietorship', 'nullable', 'string', 'max:255'],
             'contact_person' => ['nullable', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:50'],
             'email' => ['nullable', 'email', 'max:255'],

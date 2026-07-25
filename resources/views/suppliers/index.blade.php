@@ -40,24 +40,36 @@
                         <thead>
                             <tr>
                                 <th data-sort-key="name">Name</th>
+                                <th data-sort-key="type">Type</th>
+                                <th>Owner</th>
                                 <th data-sort-key="contact_person">Contact Person</th>
                                 <th data-sort-key="phone">Phone</th>
                                 <th data-sort-key="email">Email</th>
                                 <th>Address</th>
+                                <th class="table-actions-head text-end">Action</th>
                             </tr>
                         </thead>
                         <tbody>
                             @forelse($suppliers as $supplier)
                             <tr>
                                 <td class="fw-semibold">{{ $supplier->name }}</td>
+                                <td>
+                                    <span class="badge {{ $supplier->type === 'sole_proprietorship' ? 'bg-info text-dark' : 'bg-secondary' }}">
+                                        {{ $supplier->type === 'sole_proprietorship' ? 'Single Proprietorship' : 'Company' }}
+                                    </span>
+                                </td>
+                                <td class="text-muted small">{{ $supplier->owner_name ?? '—' }}</td>
                                 <td>{{ $supplier->contact_person ?? '—' }}</td>
                                 <td>{{ $supplier->phone ?? '—' }}</td>
                                 <td>{{ $supplier->email ?? '—' }}</td>
                                 <td class="text-muted small">{{ $supplier->address ?? '—' }}</td>
+                                <td class="table-actions-cell text-end">
+                                    <a href="{{ route('suppliers.edit', $supplier) }}" class="btn btn-sm btn-outline-primary">Edit</a>
+                                </td>
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="5" class="text-center text-muted py-4">No suppliers found.</td>
+                                <td colspan="8" class="text-center text-muted py-4">No suppliers found.</td>
                             </tr>
                             @endforelse
                         </tbody>

@@ -13,6 +13,10 @@ class Supplier extends Model
 
     protected $fillable = [
         'name',
+        'type',
+        'company_name',
+        'business_name',
+        'owner_name',
         'contact_person',
         'phone',
         'email',
@@ -28,6 +32,20 @@ class Supplier extends Model
         return [
             'is_vat_registered' => 'boolean',
         ];
+    }
+
+    /**
+     * Keep `name` (used everywhere suppliers are displayed — POs, CVs, reports,
+     * lookups) in sync with the type-specific name field, so every existing
+     * call site automatically shows the right name without being touched.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (Supplier $supplier): void {
+            $supplier->name = $supplier->type === 'sole_proprietorship'
+                ? ($supplier->business_name ?: $supplier->name)
+                : ($supplier->company_name ?: $supplier->name);
+        });
     }
 
     public function creator(): BelongsTo

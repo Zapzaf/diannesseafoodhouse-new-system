@@ -1,7 +1,7 @@
 @extends('layouts.app')
-@section('page_title', 'Create Supplier')
+@section('page_title', 'Edit Supplier')
 @section('content')
-    <x-page-header title="Create Supplier" subtitle="Add an external vendor to use in delivery records" icon="plus-circle">
+    <x-page-header title="Edit Supplier" :subtitle="$supplier->name" icon="edit">
         <a href="{{ route('suppliers.index') }}" class="btn btn-light text-primary">
             <i data-lucide="arrow-left" class="me-1"></i> Back to Suppliers
         </a>
@@ -11,11 +11,12 @@
         @include('layouts.alerts')
         <div class="card shadow-sm">
             <div class="card-body">
-                <form action="{{ route('suppliers.store') }}" method="POST">
+                <form action="{{ route('suppliers.update', $supplier) }}" method="POST">
                     @csrf
+                    @method('PUT')
                     @include('suppliers._form')
                     <div class="d-flex gap-2 mt-3">
-                        <button type="submit" class="btn btn-primary">Save Supplier</button>
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
                         <a href="{{ route('suppliers.index') }}" class="btn btn-secondary">Cancel</a>
                     </div>
                 </form>

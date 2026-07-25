@@ -151,6 +151,8 @@ Route::middleware('auth')->group(function (): void {
 		Route::get('/', [SupplierManagementController::class, 'index'])->name('index');
 		Route::get('/create', [SupplierManagementController::class, 'create'])->name('create');
 		Route::post('/', [SupplierManagementController::class, 'store'])->name('store');
+		Route::get('/{supplier}/edit', [SupplierManagementController::class, 'edit'])->name('edit');
+		Route::put('/{supplier}', [SupplierManagementController::class, 'update'])->name('update');
 	});
 
 	Route::prefix('deliveries')->name('deliveries.')->group(function (): void {
