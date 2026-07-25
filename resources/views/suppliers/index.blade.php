@@ -65,20 +65,18 @@
                                 <td>{{ $supplier->phone ?? '—' }}</td>
                                 <td>{{ $supplier->email ?? '—' }}</td>
                                 <td class="text-muted small">{{ $supplier->address ?? '—' }}</td>
-                                <td class="table-actions-cell text-end">
-                                    <div class="btn-group">
-                                        <a href="{{ route('suppliers.show', $supplier) }}" class="btn btn-sm btn-outline-secondary">View</a>
-                                        @can('update', $supplier)
-                                        <a href="{{ route('suppliers.edit', $supplier) }}" class="btn btn-sm btn-outline-primary">Edit</a>
-                                        @endcan
-                                        @can('delete', $supplier)
-                                        <form action="{{ route('suppliers.destroy', $supplier) }}" method="POST" onsubmit="return confirm('Delete supplier {{ $supplier->name }}? This cannot be undone.');">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
-                                        </form>
-                                        @endcan
-                                    </div>
+                                <td class="table-actions-cell text-end text-nowrap">
+                                    <a href="{{ route('suppliers.show', $supplier) }}" class="btn btn-sm btn-outline-secondary" title="View supplier"><i data-lucide="eye"></i></a>
+                                    @can('update', $supplier)
+                                    <a href="{{ route('suppliers.edit', $supplier) }}" class="btn btn-sm btn-outline-primary" title="Edit supplier"><i data-lucide="edit-2"></i></a>
+                                    @endcan
+                                    @can('delete', $supplier)
+                                    <form action="{{ route('suppliers.destroy', $supplier) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete supplier {{ $supplier->name }}? This cannot be undone.');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete supplier"><i data-lucide="trash-2"></i></button>
+                                    </form>
+                                    @endcan
                                 </td>
                             </tr>
                             @empty
