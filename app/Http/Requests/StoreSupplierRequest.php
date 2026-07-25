@@ -31,6 +31,8 @@ class StoreSupplierRequest extends FormRequest
             'phone' => ['nullable', 'string', 'max:50'],
             'email' => ['nullable', 'email', 'max:255'],
             'address' => ['nullable', 'string'],
+            'tin' => ['nullable', 'string', 'max:50'],
+            'is_vat_registered' => ['sometimes', 'boolean'],
             'notes' => ['nullable', 'string'],
         ];
     }

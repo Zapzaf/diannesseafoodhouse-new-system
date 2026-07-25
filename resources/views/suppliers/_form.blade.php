@@ -47,6 +47,18 @@
         <label class="form-label fw-semibold">Address</label>
         <input type="text" name="address" class="form-control" value="{{ old('address', $supplier?->address) }}">
     </div>
+    <div class="col-md-6">
+        <label class="form-label fw-semibold">TIN</label>
+        <input type="text" name="tin" class="form-control @error('tin') is-invalid @enderror" value="{{ old('tin', $supplier?->tin) }}" placeholder="000-000-000-000">
+        @error('tin')<div class="invalid-feedback">{{ $message }}</div>@enderror
+    </div>
+    <div class="col-md-6 d-flex align-items-end">
+        <div class="form-check">
+            <input type="hidden" name="is_vat_registered" value="0">
+            <input type="checkbox" name="is_vat_registered" id="isVatRegistered" class="form-check-input" value="1" {{ old('is_vat_registered', $supplier?->is_vat_registered ?? true) ? 'checked' : '' }}>
+            <label class="form-check-label fw-semibold" for="isVatRegistered">VAT-registered</label>
+        </div>
+    </div>
     <div class="col-12">
         <label class="form-label fw-semibold">Notes</label>
         <textarea name="notes" class="form-control" rows="3">{{ old('notes', $supplier?->notes) }}</textarea>

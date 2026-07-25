@@ -42,6 +42,7 @@
                                 <th data-sort-key="name">Name</th>
                                 <th data-sort-key="type">Type</th>
                                 <th>Owner</th>
+                                <th>TIN</th>
                                 <th data-sort-key="contact_person">Contact Person</th>
                                 <th data-sort-key="phone">Phone</th>
                                 <th data-sort-key="email">Email</th>
@@ -59,17 +60,30 @@
                                     </span>
                                 </td>
                                 <td class="text-muted small">{{ $supplier->owner_name ?? '—' }}</td>
+                                <td class="text-muted small">{{ $supplier->tin ?? '—' }}</td>
                                 <td>{{ $supplier->contact_person ?? '—' }}</td>
                                 <td>{{ $supplier->phone ?? '—' }}</td>
                                 <td>{{ $supplier->email ?? '—' }}</td>
                                 <td class="text-muted small">{{ $supplier->address ?? '—' }}</td>
                                 <td class="table-actions-cell text-end">
-                                    <a href="{{ route('suppliers.edit', $supplier) }}" class="btn btn-sm btn-outline-primary">Edit</a>
+                                    <div class="btn-group">
+                                        <a href="{{ route('suppliers.show', $supplier) }}" class="btn btn-sm btn-outline-secondary">View</a>
+                                        @can('update', $supplier)
+                                        <a href="{{ route('suppliers.edit', $supplier) }}" class="btn btn-sm btn-outline-primary">Edit</a>
+                                        @endcan
+                                        @can('delete', $supplier)
+                                        <form action="{{ route('suppliers.destroy', $supplier) }}" method="POST" onsubmit="return confirm('Delete supplier {{ $supplier->name }}? This cannot be undone.');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                                        </form>
+                                        @endcan
+                                    </div>
                                 </td>
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="8" class="text-center text-muted py-4">No suppliers found.</td>
+                                <td colspan="9" class="text-center text-muted py-4">No suppliers found.</td>
                             </tr>
                             @endforelse
                         </tbody>

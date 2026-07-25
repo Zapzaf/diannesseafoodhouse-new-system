@@ -55,6 +55,15 @@ class SupplierManagementController extends Controller
         return redirect()->route('suppliers.index')->with('success', 'Supplier created successfully.');
     }
 
+    public function show(Request $request, Supplier $supplier)
+    {
+        $this->authorize('view', $supplier);
+
+        $supplier->loadCount(['deliveries', 'purchaseVouchers', 'checkVouchers', 'pettyCashVouchers']);
+
+        return view('suppliers.show', compact('supplier'));
+    }
+
     public function edit(Request $request, Supplier $supplier)
     {
         $this->authorize('update', $supplier);
@@ -73,9 +82,22 @@ class SupplierManagementController extends Controller
         return redirect()->route('suppliers.index')->with('success', 'Supplier updated successfully.');
     }
 
+    public function destroy(Request $request, Supplier $supplier)
+    {
+        $this->authorize('delete', $supplier);
+
+        if ($supplier->hasLinkedRecords()) {
+            return back()->with('error', 'This supplier has existing purchase, delivery, or voucher records and cannot be deleted.');
+        }
+
+        $supplier->delete();
+
+        return redirect()->route('suppliers.index')->with('success', 'Supplier deleted successfully.');
+    }
+
     private function validateSupplier(Request $request): array
     {
-        return $request->validate([
+        $validated = $request->validate([
             'type' => ['required', Rule::in(['company', 'sole_proprietorship'])],
             'company_name' => ['required_if:type,company', 'nullable', 'string', 'max:255'],
             'business_name' => ['required_if:type,sole_proprietorship', 'nullable', 'string', 'max:255'],
@@ -84,8 +106,13 @@ class SupplierManagementController extends Controller
             'phone' => ['nullable', 'string', 'max:50'],
             'email' => ['nullable', 'email', 'max:255'],
             'address' => ['nullable', 'string'],
+            'tin' => ['nullable', 'string', 'max:50'],
             'notes' => ['nullable', 'string'],
         ]);
+
+        $validated['is_vat_registered'] = $request->boolean('is_vat_registered');
+
+        return $validated;
     }
 }
 

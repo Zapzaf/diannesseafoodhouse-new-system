@@ -62,4 +62,26 @@ class Supplier extends Model
     {
         return $this->hasMany(PurchaseVoucher::class, 'vendor_id');
     }
+
+    public function checkVouchers(): HasMany
+    {
+        return $this->hasMany(CheckVoucher::class);
+    }
+
+    public function pettyCashVouchers(): HasMany
+    {
+        return $this->hasMany(PettyCashVoucher::class);
+    }
+
+    /**
+     * Whether this supplier has purchase/delivery history that would be
+     * orphaned (vendor_id/supplier_id set to null) if the record were deleted.
+     */
+    public function hasLinkedRecords(): bool
+    {
+        return $this->deliveries()->exists()
+            || $this->purchaseVouchers()->exists()
+            || $this->checkVouchers()->exists()
+            || $this->pettyCashVouchers()->exists();
+    }
 }

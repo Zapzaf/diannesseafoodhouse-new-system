@@ -62,6 +62,8 @@ class SupplierController extends Controller
             'phone' => ['nullable', 'string', 'max:50'],
             'email' => ['nullable', 'email', 'max:255'],
             'address' => ['nullable', 'string'],
+            'tin' => ['nullable', 'string', 'max:50'],
+            'is_vat_registered' => ['sometimes', 'boolean'],
             'notes' => ['nullable', 'string'],
         ]);
 
@@ -77,6 +79,13 @@ class SupplierController extends Controller
     {
         $supplier = Supplier::findOrFail($id);
         $this->authorize('delete', $supplier);
+
+        if ($supplier->hasLinkedRecords()) {
+            return response()->json([
+                'message' => 'This supplier has existing purchase, delivery, or voucher records and cannot be deleted.',
+            ], 422);
+        }
+
         $supplier->delete();
 
         return response()->json(status: 204);
