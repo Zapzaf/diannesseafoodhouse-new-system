@@ -54,11 +54,19 @@
                 </table>
             </div>
         </div>
-        @if($productions->hasPages())
-        <div class="card-footer d-flex justify-content-center">
-            {{ $productions->links('pagination::bootstrap-5') }}
+        <div class="card-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div class="text-muted small">
+                Showing {{ $productions->firstItem() ?? 0 }} to {{ $productions->lastItem() ?? 0 }} of {{ $productions->total() }} entries
+            </div>
+            <div class="mb-0 custom-pagination-wrapper">
+                {{ $productions->onEachSide(1)->links('pagination::bootstrap-5') }}
+            </div>
         </div>
-        @endif
+        <style>
+            .custom-pagination-wrapper nav { margin-bottom: 0 !important; }
+            .custom-pagination-wrapper p.small.text-muted { display: none !important; }
+            .custom-pagination-wrapper .pagination { margin-bottom: 0 !important; }
+        </style>
     </div>
 </div>
 @endsection

@@ -80,7 +80,7 @@ class ProductionManagementController extends Controller
         return view('productions.index', [
             'productions' => $productionsQuery
                 ->orderBy('production_orders.created_at', 'desc')
-                ->paginate($this->perPage(request(), 12))->withQueryString(),
+                ->paginate($this->perPage(request(), 10))->withQueryString(),
             'branches' => Branch::query()->where('is_active', true)->orderBy('name')->get(),
             'items' => Item::query()
                 ->with(['category.location', 'branch'])
@@ -407,7 +407,7 @@ class ProductionManagementController extends Controller
         return view('productions.processing', [
             'productions' => $productionsQuery
                 ->orderBy('production_orders.created_at', 'desc')
-                ->paginate($this->perPage(request(), 12))->withQueryString(),
+                ->paginate($this->perPage(request(), 10))->withQueryString(),
             'branches' => Branch::query()->where('is_active', true)->orderBy('name')->get(),
         ]);
     }
