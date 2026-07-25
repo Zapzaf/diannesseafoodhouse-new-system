@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\VatCalculator;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -76,15 +77,15 @@ class CheckVoucher extends Model
     }
 
     /**
-     * TODO(accountant): EWT is currently withheld on net_purchases (VAT-exclusive),
-     * which is standard BIR practice, but the source Excel book leaves the taxable
-     * base ambiguous for rows with no APV behind them. Confirm net vs. gross once
-     * the PURCHASE-DISBURSEMENT-BOOK.xlsx file is reviewed and adjust here if needed.
+     * Confirmed by accountant: EWT is always withheld on the Net Purchase amount
+     * (Amount w/VAT ÷ 1.12), never on the gross VAT-inclusive amount — regardless
+     * of CV type, so this doesn't fall back to amount_w_vat for APV payments or
+     * PCF replenishments.
      */
     public function applyEwt(): void
     {
-        $base = (float) $this->net_purchases > 0 ? (float) $this->net_purchases : (float) $this->amount_w_vat;
-        $this->ewt_amount = round($base * (float) $this->ewt_rate, 2);
+        $netPurchase = VatCalculator::split((float) $this->amount_w_vat)['net_purchases'];
+        $this->ewt_amount = round($netPurchase * (float) $this->ewt_rate, 2);
         $this->amount_paid = round((float) $this->amount_w_vat - $this->ewt_amount, 2);
     }
 
