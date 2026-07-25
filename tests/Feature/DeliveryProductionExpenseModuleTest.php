@@ -810,3 +810,63 @@ it('rejects a transfer quantity greater than available stock', function () {
 
     $this->assertDatabaseCount('transfers', 0);
 });
+
+it('cancels an in-progress production order and restocks its inputs', function () {
+    [$manager, $branch, , $input] = makeDeliveryProductionContext();
+
+    $this->actingAs($manager)->post(route('productions.store'), [
+        'branch_id' => $branch->id,
+        'inputs' => [[
+            'item_id' => $input->id,
+            'quantity_used' => 4,
+            'unit' => 'kg',
+        ]],
+    ])->assertRedirect(route('productions.index'));
+
+    $production = ProductionOrder::query()->firstOrFail();
+    expect((float) $input->fresh()->quantity)->toBe(6.0);
+
+    $this->actingAs($manager)->post(route('productions.cancel', $production))
+        ->assertRedirect(route('productions.index'));
+
+    expect((float) $input->fresh()->quantity)->toBe(10.0)
+        ->and($production->fresh()->status)->toBe('cancelled')
+        ->and($production->fresh()->cancelled_at)->not->toBeNull();
+
+    $this->assertDatabaseHas('inventory_transactions', [
+        'item_id' => $input->id,
+        'type' => 'in',
+        'quantity' => 4,
+        'reason' => 'Cancelled Production: PROD-'.$production->id,
+        'status' => 'approved',
+    ]);
+});
+
+it('refuses to cancel a production order that already has outputs', function () {
+    [$manager, $branch, , $input, $output] = makeDeliveryProductionContext();
+
+    $this->actingAs($manager)->post(route('productions.store'), [
+        'branch_id' => $branch->id,
+        'inputs' => [[
+            'item_id' => $input->id,
+            'quantity_used' => 4,
+            'unit' => 'kg',
+        ]],
+    ])->assertRedirect(route('productions.index'));
+
+    $production = ProductionOrder::query()->firstOrFail();
+
+    $this->actingAs($manager)->post(route('productions.finish', $production), [
+        'outputs' => [[
+            'item_id' => $output->id,
+            'quantity_produced' => 3,
+            'unit' => 'kg',
+        ]],
+    ])->assertRedirect(route('productions.show', $production));
+
+    $this->actingAs($manager)->post(route('productions.cancel', $production))
+        ->assertSessionHasErrors('production');
+
+    expect($production->fresh()->status)->toBe('finished')
+        ->and((float) $input->fresh()->quantity)->toBe(6.0);
+});

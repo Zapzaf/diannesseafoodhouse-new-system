@@ -340,6 +340,65 @@ class ProductionManagementController extends Controller
         return redirect()->route('productions.show', $production)->with('success', 'Production order finished successfully.');
     }
 
+    public function cancel(Request $request, ProductionOrder $production): RedirectResponse
+    {
+        $branchId = $this->resolveBranchId($request);
+        if ($branchId && (int) $production->branch_id !== $branchId) {
+            abort(403, 'This production order is outside your active branch.');
+        }
+
+        DB::transaction(function () use ($production, $request): void {
+            $production = ProductionOrder::query()->lockForUpdate()->findOrFail($production->id);
+
+            if ($production->status !== 'in_progress' || $production->outputs()->exists()) {
+                throw ValidationException::withMessages([
+                    'production' => 'This production order can no longer be cancelled.',
+                ]);
+            }
+
+            $production->loadMissing('inputs');
+            $reason = 'Cancelled Production: PROD-'.$production->id;
+
+            foreach ($production->inputs as $input) {
+                // Inputs sourced straight from a delivery (delivery_item_id set) were never
+                // deducted from item stock, so there's nothing to restock for those rows.
+                if ($input->delivery_item_id || ! $input->item_id) {
+                    continue;
+                }
+
+                $item = Item::query()->lockForUpdate()->find($input->item_id);
+                if (! $item) {
+                    continue;
+                }
+
+                $beginning = (float) $item->quantity;
+                $this->inventoryService->increase($item, (float) $input->quantity_used);
+                $remaining = (float) $item->quantity;
+
+                InventoryTransaction::create([
+                    'item_id' => $item->id,
+                    'branch_id' => $item->branch_id,
+                    'type' => 'in',
+                    'quantity' => (float) $input->quantity_used,
+                    'beginning_quantity' => $beginning,
+                    'remaining_quantity' => $remaining,
+                    'transaction_price' => $item->unit_price ? (float) $item->unit_price : null,
+                    'transaction_date' => now(),
+                    'reason' => $reason,
+                    'status' => 'approved',
+                    'created_by' => $request->user()?->id,
+                ]);
+            }
+
+            $production->update([
+                'status' => 'cancelled',
+                'cancelled_at' => now(),
+            ]);
+        });
+
+        return redirect()->route('productions.index')->with('success', 'Production order cancelled and inputs restocked.');
+    }
+
     public function storeWastage(Request $request, ProductionOrder $production): RedirectResponse
     {
         $branchId = $this->resolveBranchId($request);

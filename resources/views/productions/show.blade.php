@@ -26,7 +26,13 @@
                         <span class="detail-stat-label">Status</span>
                         <div class="detail-stat-value text-capitalize">{{ str_replace('_', ' ', $production->status) }}</div>
                         <div class="detail-stat-meta">
-                            {{ $production->finished_at ? 'Finished ' . $production->finished_at->format('M d, Y h:i A') : 'Still in progress' }}
+                            @if($production->finished_at)
+                                Finished {{ $production->finished_at->format('M d, Y h:i A') }}
+                            @elseif($production->cancelled_at)
+                                Cancelled {{ $production->cancelled_at->format('M d, Y h:i A') }}
+                            @else
+                                Still in progress
+                            @endif
                         </div>
                     </div>
                 </div>

@@ -11,12 +11,13 @@ class ProductionOrder extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['branch_id', 'status', 'finished_at', 'created_by'];
+    protected $fillable = ['branch_id', 'status', 'finished_at', 'cancelled_at', 'created_by'];
 
     protected function casts(): array
     {
         return [
             'finished_at' => 'datetime',
+            'cancelled_at' => 'datetime',
         ];
     }
 

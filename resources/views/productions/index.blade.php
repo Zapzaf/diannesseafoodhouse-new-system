@@ -72,7 +72,22 @@
                                     <x-production-item-summary :items="$production->outputs" quantity-field="quantity_produced" empty="No outputs yet" variant="output" />
                                 </td>
                                 <td class="table-actions-cell text-end">
-                                    <a href="{{ route('productions.show', $production) }}" class="btn btn-sm btn-primary">Open</a>
+                                    <div class="btn-group">
+                                        <a href="{{ route('productions.show', $production) }}" class="btn btn-sm btn-primary">Open</a>
+                                        @if($production->status === 'in_progress' && $production->outputs_count === 0)
+                                        <button type="button" class="btn btn-sm btn-primary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+                                            <span class="visually-hidden">Toggle Actions</span>
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end">
+                                            <li>
+                                                <form action="{{ route('productions.cancel', $production) }}" method="POST" onsubmit="return confirm('Cancel Production #{{ $production->id }}? Pulled inputs will be restocked to inventory.');">
+                                                    @csrf
+                                                    <button type="submit" class="dropdown-item text-danger">Cancel Production</button>
+                                                </form>
+                                            </li>
+                                        </ul>
+                                        @endif
+                                    </div>
                                 </td>
                             </tr>
                             @empty

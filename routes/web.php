@@ -176,6 +176,7 @@ Route::middleware('auth')->group(function (): void {
 		Route::post('/', [ProductionManagementController::class, 'store'])->name('store');
 		Route::get('/{production}', [ProductionManagementController::class, 'show'])->name('show');
 		Route::post('/{production}/finish', [ProductionManagementController::class, 'finish'])->name('finish');
+		Route::post('/{production}/cancel', [ProductionManagementController::class, 'cancel'])->name('cancel');
 		Route::post('/{production}/wastage', [ProductionManagementController::class, 'storeWastage'])->name('wastage.store');
 	});
 
