@@ -75,7 +75,9 @@ class CheckVoucherController extends Controller
             'date' => ['required', 'date'],
             'branch_id' => ['nullable', 'exists:branches,id'],
             'supplier_id' => ['nullable', 'exists:suppliers,id'],
-            'cv_no' => ['required', 'string', 'max:50', 'unique:check_vouchers,cv_no'],
+            // CV numbers only need to be unique within their own Disbursement Type —
+            // the same number (e.g. 2595) can be reused across different types.
+            'cv_no' => ['required', 'string', 'max:50', Rule::unique('check_vouchers', 'cv_no')->where(fn ($q) => $q->where('type', $type))],
             'type' => ['required', Rule::in(['pcf_replenishment', 'apv_payment', 'cod_purchase', 'other_disbursement'])],
             'particulars' => ['required', 'string', 'max:255'],
             'payee_name' => ['required', 'string', 'max:255'],
