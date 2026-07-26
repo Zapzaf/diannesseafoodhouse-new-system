@@ -345,6 +345,9 @@ Route::middleware('auth')->group(function (): void {
 		Route::get('/unpaid-apvs', [CheckVoucherController::class, 'unpaidApvs'])->name('unpaid-apvs');
 		Route::get('/{checkVoucher}', [CheckVoucherController::class, 'show'])->name('show');
 		Route::post('/{checkVoucher}/issue-check', [CheckVoucherController::class, 'issueCheck'])->name('issue-check');
+		Route::post('/{checkVoucher}/receipts', [CheckVoucherController::class, 'addReceipt'])->name('receipts.store');
+		Route::put('/{checkVoucher}/receipts/{receipt}', [CheckVoucherController::class, 'updateReceipt'])->name('receipts.update');
+		Route::delete('/{checkVoucher}/receipts/{receipt}', [CheckVoucherController::class, 'deleteReceipt'])->name('receipts.destroy');
 	});
 
 	Route::prefix('check-register')->name('check-register.')->middleware('role:admin,branch_manager')->group(function (): void {

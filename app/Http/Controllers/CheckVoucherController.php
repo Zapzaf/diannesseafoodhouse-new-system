@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ChartOfAccount;
 use App\Models\CheckRegister;
 use App\Models\CheckVoucher;
+use App\Models\CheckVoucherReceipt;
 use App\Models\PettyCashVoucher;
 use App\Models\PurchaseVoucher;
 use App\Support\VatCalculator;
@@ -249,6 +250,141 @@ class CheckVoucherController extends Controller
         $checkVoucher->load(['purchaseVoucher.vendor', 'pettyCashVouchers.items', 'costAccount', 'checkRegisterEntry', 'receipts']);
 
         return view('check-vouchers.show', compact('checkVoucher'));
+    }
+
+    /**
+     * Append another receipt/invoice to an existing CV — the client's workflow is
+     * to reuse the same CV # for several receipts belonging to one payment, not to
+     * create a second Check Voucher with a duplicate number.
+     */
+    public function addReceipt(Request $request, CheckVoucher $checkVoucher)
+    {
+        $this->authorizeBranchRecord($request, $checkVoucher->branch_id);
+        $this->guardReceiptEditable($checkVoucher);
+
+        $validated = $request->validate([
+            'si_no' => ['nullable', 'string', 'max:100'],
+            'amount_w_vat' => ['nullable', 'numeric', 'min:0'],
+            'vat_exempt' => ['nullable', 'numeric', 'min:0'],
+            'non_vat_purchase' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        $amountWVat = (float) ($validated['amount_w_vat'] ?? 0);
+        $vatExempt = (float) ($validated['vat_exempt'] ?? 0);
+        $nonVat = (float) ($validated['non_vat_purchase'] ?? 0);
+
+        if ($amountWVat + $vatExempt + $nonVat <= 0) {
+            throw ValidationException::withMessages([
+                'amount_w_vat' => 'The receipt must have an amount greater than zero.',
+            ]);
+        }
+
+        DB::transaction(function () use ($checkVoucher, $validated, $amountWVat, $vatExempt, $nonVat): void {
+            $split = VatCalculator::split($amountWVat);
+            $checkVoucher->receipts()->create([
+                'si_no' => $validated['si_no'] ?? null,
+                'amount_w_vat' => $amountWVat,
+                'vat' => $split['vat'],
+                'net_purchases' => $split['net_purchases'],
+                'vat_exempt' => $vatExempt,
+                'non_vat_purchase' => $nonVat,
+            ]);
+
+            $this->recalculateFromReceipts($checkVoucher);
+        });
+
+        return back()->with('success', 'Receipt added to Check Voucher '.$checkVoucher->cv_no.'.');
+    }
+
+    public function updateReceipt(Request $request, CheckVoucher $checkVoucher, CheckVoucherReceipt $receipt)
+    {
+        $this->authorizeBranchRecord($request, $checkVoucher->branch_id);
+        $this->guardReceiptEditable($checkVoucher);
+        abort_if($receipt->check_voucher_id !== $checkVoucher->id, 404);
+
+        $validated = $request->validate([
+            'si_no' => ['nullable', 'string', 'max:100'],
+            'amount_w_vat' => ['nullable', 'numeric', 'min:0'],
+            'vat_exempt' => ['nullable', 'numeric', 'min:0'],
+            'non_vat_purchase' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        $amountWVat = (float) ($validated['amount_w_vat'] ?? 0);
+        $vatExempt = (float) ($validated['vat_exempt'] ?? 0);
+        $nonVat = (float) ($validated['non_vat_purchase'] ?? 0);
+
+        if ($amountWVat + $vatExempt + $nonVat <= 0) {
+            throw ValidationException::withMessages([
+                'amount_w_vat' => 'The receipt must have an amount greater than zero.',
+            ]);
+        }
+
+        DB::transaction(function () use ($receipt, $checkVoucher, $validated, $amountWVat, $vatExempt, $nonVat): void {
+            $split = VatCalculator::split($amountWVat);
+            $receipt->update([
+                'si_no' => $validated['si_no'] ?? null,
+                'amount_w_vat' => $amountWVat,
+                'vat' => $split['vat'],
+                'net_purchases' => $split['net_purchases'],
+                'vat_exempt' => $vatExempt,
+                'non_vat_purchase' => $nonVat,
+            ]);
+
+            $this->recalculateFromReceipts($checkVoucher);
+        });
+
+        return back()->with('success', 'Receipt updated.');
+    }
+
+    public function deleteReceipt(Request $request, CheckVoucher $checkVoucher, CheckVoucherReceipt $receipt)
+    {
+        $this->authorizeBranchRecord($request, $checkVoucher->branch_id);
+        $this->guardReceiptEditable($checkVoucher);
+        abort_if($receipt->check_voucher_id !== $checkVoucher->id, 404);
+
+        if ($checkVoucher->receipts()->count() <= 1) {
+            return back()->with('error', 'A Check Voucher must keep at least one receipt — delete the whole CV instead.');
+        }
+
+        DB::transaction(function () use ($receipt, $checkVoucher): void {
+            $receipt->delete();
+            $this->recalculateFromReceipts($checkVoucher);
+        });
+
+        return back()->with('success', 'Receipt removed.');
+    }
+
+    /**
+     * Only standalone CVs (COD / Other Disbursement) carry the receipts table —
+     * PCF replenishments and APV payments derive their amount from the PCVs/APV
+     * they settle instead.
+     */
+    private function guardReceiptEditable(CheckVoucher $checkVoucher): void
+    {
+        if (! in_array($checkVoucher->type, ['cod_purchase', 'other_disbursement'], true)) {
+            throw ValidationException::withMessages([
+                'type' => 'Receipts can only be managed on COD Purchase / Other Disbursement Check Vouchers.',
+            ]);
+        }
+    }
+
+    private function recalculateFromReceipts(CheckVoucher $checkVoucher): void
+    {
+        $receipts = $checkVoucher->receipts()->get();
+
+        $checkVoucher->amount_w_vat = round((float) $receipts->sum('amount_w_vat'), 2);
+        $checkVoucher->vat_exempt = round((float) $receipts->sum('vat_exempt'), 2);
+        $checkVoucher->non_vat_purchase = round((float) $receipts->sum('non_vat_purchase'), 2);
+        $split = VatCalculator::split((float) $checkVoucher->amount_w_vat);
+        $checkVoucher->vat = $split['vat'];
+        $checkVoucher->net_purchases = $split['net_purchases'];
+        $checkVoucher->si_no = $receipts->pluck('si_no')->filter()->implode(', ') ?: null;
+        $checkVoucher->applyEwt();
+        $checkVoucher->save();
+
+        if ($checkVoucher->checkRegisterEntry) {
+            $checkVoucher->checkRegisterEntry->update(['amount' => $checkVoucher->amount_paid]);
+        }
     }
 
     public function issueCheck(Request $request, CheckVoucher $checkVoucher)
