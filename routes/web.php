@@ -355,6 +355,7 @@ Route::middleware('auth')->group(function (): void {
 
 	Route::prefix('reports/purchase-disbursement')->name('reports.purchase-disbursement.')->middleware('role:admin,branch_manager')->group(function (): void {
 		Route::get('/summary', [PurchaseDisbursementReportController::class, 'summary'])->name('summary');
+		Route::get('/summary/export', [PurchaseDisbursementReportController::class, 'exportSummary'])->name('summary.export');
 		Route::get('/aging', [PurchaseDisbursementReportController::class, 'unpaidApvAging'])->name('aging');
 		Route::get('/petty-cash-fund', [PurchaseDisbursementReportController::class, 'pettyCashFund'])->name('petty-cash-fund');
 	});

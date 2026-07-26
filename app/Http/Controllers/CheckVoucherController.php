@@ -95,9 +95,12 @@ class CheckVoucherController extends Controller
             $rules['amount_w_vat'] = ['required', 'numeric', 'min:0.01'];
         } else {
             $rules['cost_account_id'] = ['required', Rule::exists('chart_of_accounts', 'id')->where('type', 'debit_expense')];
-            $rules['amount_w_vat'] = ['nullable', 'numeric', 'min:0'];
-            $rules['vat_exempt'] = ['nullable', 'numeric', 'min:0'];
-            $rules['non_vat_purchase'] = ['nullable', 'numeric', 'min:0'];
+            // A single CV commonly settles several supplier receipts in one check.
+            $rules['receipts'] = ['required', 'array', 'min:1'];
+            $rules['receipts.*.si_no'] = ['nullable', 'string', 'max:100'];
+            $rules['receipts.*.amount_w_vat'] = ['nullable', 'numeric', 'min:0'];
+            $rules['receipts.*.vat_exempt'] = ['nullable', 'numeric', 'min:0'];
+            $rules['receipts.*.non_vat_purchase'] = ['nullable', 'numeric', 'min:0'];
             // Direct disbursements have no source record to inherit a branch from.
             $rules['branch_id'] = [
                 Rule::requiredIf(fn () => $request->user()->isAdmin() && ! $request->session()->get('selected_branch_id')),
@@ -122,6 +125,23 @@ class CheckVoucherController extends Controller
             if ((float) $validated['amount_w_vat'] - $remainingBalance > 0.01) {
                 throw ValidationException::withMessages([
                     'amount_w_vat' => 'Payment amount cannot exceed the APV remaining balance (₱'.number_format($remainingBalance, 2).').',
+                ]);
+            }
+        }
+
+        $receipts = collect();
+        if (in_array($type, ['cod_purchase', 'other_disbursement'], true)) {
+            $receipts = collect($validated['receipts'])->map(fn (array $r): array => [
+                'si_no' => $r['si_no'] ?? null,
+                'amount_w_vat' => (float) ($r['amount_w_vat'] ?? 0),
+                'vat_exempt' => (float) ($r['vat_exempt'] ?? 0),
+                'non_vat_purchase' => (float) ($r['non_vat_purchase'] ?? 0),
+            ]);
+
+            $receiptsTotal = round($receipts->sum(fn (array $r) => $r['amount_w_vat'] + $r['vat_exempt'] + $r['non_vat_purchase']), 2);
+            if ($receiptsTotal <= 0) {
+                throw ValidationException::withMessages([
+                    'receipts' => 'At least one receipt must have an amount greater than zero.',
                 ]);
             }
         }
@@ -158,14 +178,22 @@ class CheckVoucherController extends Controller
             ?? $this->activeBranchId($request)
             ?? ($request->user()->isAdmin() ? ($validated['branch_id'] ?? null) : null);
 
-        DB::transaction(function () use ($validated, $type, $request, $pcvs, $branchId, $apv): void {
-            $amountWVat = (float) ($validated['amount_w_vat'] ?? 0);
-            $vatExempt = (float) ($validated['vat_exempt'] ?? 0);
-            $nonVat = (float) ($validated['non_vat_purchase'] ?? 0);
+        DB::transaction(function () use ($validated, $type, $request, $pcvs, $receipts, $branchId, $apv): void {
+            $isStandalone = in_array($type, ['cod_purchase', 'other_disbursement'], true);
 
-            $vatSplit = in_array($type, ['cod_purchase', 'other_disbursement'], true)
+            // Standalone CVs (COD / Other) derive their totals from the attached
+            // receipts, since one payment commonly covers several supplier receipts.
+            $amountWVat = $isStandalone ? round($receipts->sum('amount_w_vat'), 2) : (float) ($validated['amount_w_vat'] ?? 0);
+            $vatExempt = $isStandalone ? round($receipts->sum('vat_exempt'), 2) : (float) ($validated['vat_exempt'] ?? 0);
+            $nonVat = $isStandalone ? round($receipts->sum('non_vat_purchase'), 2) : (float) ($validated['non_vat_purchase'] ?? 0);
+
+            $vatSplit = $isStandalone
                 ? VatCalculator::split($amountWVat)
                 : ['net_purchases' => 0, 'vat' => 0];
+
+            $siNo = $isStandalone
+                ? $receipts->pluck('si_no')->filter()->implode(', ') ?: null
+                : ($validated['si_no'] ?? null);
 
             $checkVoucher = new CheckVoucher([
                 'branch_id' => $branchId,
@@ -179,7 +207,7 @@ class CheckVoucherController extends Controller
                 'cost_account_id' => $validated['cost_account_id'] ?? null,
                 'payee_name' => $validated['payee_name'],
                 'address' => $validated['address'] ?? null,
-                'si_no' => $validated['si_no'] ?? null,
+                'si_no' => $siNo,
                 'tin' => $validated['tin'] ?? null,
                 'amount_w_vat' => $amountWVat,
                 'vat' => $vatSplit['vat'],
@@ -196,6 +224,18 @@ class CheckVoucherController extends Controller
             if ($type === 'pcf_replenishment') {
                 PettyCashVoucher::whereIn('id', $pcvs->pluck('id'))->update(['check_voucher_id' => $checkVoucher->id]);
             }
+
+            foreach ($receipts as $receipt) {
+                $receiptSplit = VatCalculator::split($receipt['amount_w_vat']);
+                $checkVoucher->receipts()->create([
+                    'si_no' => $receipt['si_no'],
+                    'amount_w_vat' => $receipt['amount_w_vat'],
+                    'vat' => $receiptSplit['vat'],
+                    'net_purchases' => $receiptSplit['net_purchases'],
+                    'vat_exempt' => $receipt['vat_exempt'],
+                    'non_vat_purchase' => $receipt['non_vat_purchase'],
+                ]);
+            }
         });
 
         return redirect()->route('check-vouchers.index')->with('success', 'Check Voucher created successfully.');
@@ -204,7 +244,7 @@ class CheckVoucherController extends Controller
     public function show(Request $request, CheckVoucher $checkVoucher)
     {
         $this->authorizeBranchRecord($request, $checkVoucher->branch_id);
-        $checkVoucher->load(['purchaseVoucher.vendor', 'pettyCashVouchers.items', 'costAccount', 'checkRegisterEntry']);
+        $checkVoucher->load(['purchaseVoucher.vendor', 'pettyCashVouchers.items', 'costAccount', 'checkRegisterEntry', 'receipts']);
 
         return view('check-vouchers.show', compact('checkVoucher'));
     }

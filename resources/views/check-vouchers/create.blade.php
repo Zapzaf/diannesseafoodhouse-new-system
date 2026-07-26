@@ -51,7 +51,7 @@
                                     <input type="text" name="cv_no" class="form-control @error('cv_no') is-invalid @enderror" value="{{ old('cv_no') }}" required>
                                     @error('cv_no')<div class="invalid-feedback">{{ $message }}</div>@enderror
                                 </div>
-                                <div class="col-md-4">
+                                <div class="col-md-4 cv-type-section" data-type="pcf_replenishment,apv_payment,">
                                     <label class="form-label fw-semibold">SI #</label>
                                     <input type="text" name="si_no" class="form-control" value="{{ old('si_no') }}">
                                 </div>
@@ -137,21 +137,52 @@
                                         @endforeach
                                     </select>
                                 </div>
-                                <div class="row g-3">
-                                    <div class="col-md-4">
-                                        <label class="form-label fw-semibold">Amount w/ VAT</label>
-                                        <input type="number" step="0.01" min="0" name="amount_w_vat" id="standaloneAmount" class="form-control" value="{{ old('amount_w_vat') }}">
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label fw-semibold">VAT-Exempt</label>
-                                        <input type="number" step="0.01" min="0" name="vat_exempt" id="standaloneExempt" class="form-control" value="{{ old('vat_exempt') }}">
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label fw-semibold">Non-VAT</label>
-                                        <input type="number" step="0.01" min="0" name="non_vat_purchase" id="standaloneNonVat" class="form-control" value="{{ old('non_vat_purchase') }}">
-                                    </div>
+
+                                <label class="form-label fw-semibold d-flex align-items-center justify-content-between">
+                                    <span>Receipts / Invoices <span class="text-danger">*</span></span>
+                                    <button type="button" id="addReceiptRow" class="btn btn-sm btn-outline-primary">
+                                        <i data-lucide="plus" style="width:14px;height:14px;"></i> Add Receipt
+                                    </button>
+                                </label>
+                                <p class="small text-muted mb-2">One payment often covers several supplier receipts — add a row per receipt/invoice. The CV total is computed automatically from all rows.</p>
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-bordered align-middle mb-1" id="receiptsTable">
+                                        <thead>
+                                            <tr>
+                                                <th style="min-width:160px;">SI / Receipt #</th>
+                                                <th style="min-width:130px;">Amount w/ VAT</th>
+                                                <th style="min-width:130px;">VAT-Exempt</th>
+                                                <th style="min-width:130px;">Non-VAT</th>
+                                                <th style="width:110px;" class="text-end">Total</th>
+                                                <th style="width:40px;"></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="receiptsTableBody"></tbody>
+                                        <tfoot>
+                                            <tr class="table-light fw-bold">
+                                                <td class="text-end">Sub-Total</td>
+                                                <td id="receiptTotalAmountWVat" class="text-end">₱0.00</td>
+                                                <td id="receiptTotalExempt" class="text-end">₱0.00</td>
+                                                <td id="receiptTotalNonVat" class="text-end">₱0.00</td>
+                                                <td id="receiptTotalGrand" class="text-end">₱0.00</td>
+                                                <td></td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
                                 </div>
-                                <div class="small text-muted mt-2" id="standalonePreview">—</div>
+                                <div class="small text-muted mt-1" id="standalonePreview">—</div>
+                                <template id="receiptRowTemplate">
+                                    <tr class="receipt-row">
+                                        <td><input type="text" name="receipts[__INDEX__][si_no]" class="form-control form-control-sm receipt-si-no"></td>
+                                        <td><input type="number" step="0.01" min="0" name="receipts[__INDEX__][amount_w_vat]" class="form-control form-control-sm receipt-amount"></td>
+                                        <td><input type="number" step="0.01" min="0" name="receipts[__INDEX__][vat_exempt]" class="form-control form-control-sm receipt-exempt"></td>
+                                        <td><input type="number" step="0.01" min="0" name="receipts[__INDEX__][non_vat_purchase]" class="form-control form-control-sm receipt-nonvat"></td>
+                                        <td class="text-end receipt-row-total text-nowrap">₱0.00</td>
+                                        <td class="text-center">
+                                            <button type="button" class="btn btn-sm btn-outline-danger removeReceiptRow"><i data-lucide="trash-2" style="width:14px;height:14px;"></i></button>
+                                        </td>
+                                    </tr>
+                                </template>
                             </div>
 
                             {{-- Amount field shared by PCF replenishment / APV payment (standalone types use their own amount above) --}}
@@ -326,24 +357,74 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // --- Standalone (COD/Other) VAT preview ---
-    const standaloneAmount = document.getElementById('standaloneAmount');
-    const standaloneExempt = document.getElementById('standaloneExempt');
-    const standaloneNonVat = document.getElementById('standaloneNonVat');
+    // --- Standalone (COD/Other) receipts: add / edit / remove multiple receipt rows ---
+    const receiptsTableBody = document.getElementById('receiptsTableBody');
+    const receiptRowTemplate = document.getElementById('receiptRowTemplate');
+    const addReceiptRowBtn = document.getElementById('addReceiptRow');
     const standalonePreview = document.getElementById('standalonePreview');
+    const oldReceipts = @json(old('receipts', []));
+    let receiptRowIndex = 0;
 
-    function updateStandalonePreview() {
-        const amount = parseFloat(standaloneAmount.value || 0) || 0;
-        const exempt = parseFloat(standaloneExempt.value || 0) || 0;
-        const nonVat = parseFloat(standaloneNonVat.value || 0) || 0;
-        const net = amount / 1.12;
-        const vat = amount - net;
-        standalonePreview.textContent = 'Net ₱' + net.toFixed(2) + ' · VAT ₱' + vat.toFixed(2) + ' · Total ₱' + (net + exempt + nonVat).toFixed(2);
+    function money(value) {
+        return '₱' + Number(value || 0).toFixed(2);
     }
-    [standaloneAmount, standaloneExempt, standaloneNonVat].forEach(function (input) {
-        if (input) input.addEventListener('input', updateStandalonePreview);
-    });
-    updateStandalonePreview();
+
+    function addReceiptRow(data) {
+        data = data || {};
+        const html = receiptRowTemplate.innerHTML.replace(/__INDEX__/g, receiptRowIndex++);
+        const wrapper = document.createElement('tbody');
+        wrapper.innerHTML = html.trim();
+        const row = wrapper.firstElementChild;
+
+        row.querySelector('.receipt-si-no').value = data.si_no || '';
+        row.querySelector('.receipt-amount').value = data.amount_w_vat || '';
+        row.querySelector('.receipt-exempt').value = data.vat_exempt || '';
+        row.querySelector('.receipt-nonvat').value = data.non_vat_purchase || '';
+
+        row.querySelectorAll('input').forEach(function (input) {
+            input.addEventListener('input', updateReceiptTotals);
+        });
+        row.querySelector('.removeReceiptRow').addEventListener('click', function () {
+            if (receiptsTableBody.querySelectorAll('.receipt-row').length > 1) {
+                row.remove();
+                updateReceiptTotals();
+            }
+        });
+
+        receiptsTableBody.appendChild(row);
+        if (window.lucide) window.lucide.createIcons();
+        updateReceiptTotals();
+    }
+
+    function updateReceiptTotals() {
+        let totalAmount = 0, totalExempt = 0, totalNonVat = 0;
+        receiptsTableBody.querySelectorAll('.receipt-row').forEach(function (row) {
+            const amount = parseFloat(row.querySelector('.receipt-amount').value || 0) || 0;
+            const exempt = parseFloat(row.querySelector('.receipt-exempt').value || 0) || 0;
+            const nonVat = parseFloat(row.querySelector('.receipt-nonvat').value || 0) || 0;
+            row.querySelector('.receipt-row-total').textContent = money(amount + exempt + nonVat);
+            totalAmount += amount;
+            totalExempt += exempt;
+            totalNonVat += nonVat;
+        });
+
+        document.getElementById('receiptTotalAmountWVat').textContent = money(totalAmount);
+        document.getElementById('receiptTotalExempt').textContent = money(totalExempt);
+        document.getElementById('receiptTotalNonVat').textContent = money(totalNonVat);
+        document.getElementById('receiptTotalGrand').textContent = money(totalAmount + totalExempt + totalNonVat);
+
+        const net = totalAmount / 1.12;
+        const vat = totalAmount - net;
+        standalonePreview.textContent = 'Net ₱' + net.toFixed(2) + ' · VAT ₱' + vat.toFixed(2) + ' · CV Total ₱' + (net + vat + totalExempt + totalNonVat).toFixed(2);
+    }
+
+    addReceiptRowBtn.addEventListener('click', function () { addReceiptRow(); });
+
+    if (oldReceipts && oldReceipts.length) {
+        oldReceipts.forEach(function (r) { addReceiptRow(r); });
+    } else {
+        addReceiptRow();
+    }
 });
 </script>
 @endpush

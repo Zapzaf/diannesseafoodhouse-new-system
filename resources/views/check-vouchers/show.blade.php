@@ -70,6 +70,47 @@
             </div>
         </div>
 
+        @if($checkVoucher->receipts->isNotEmpty())
+        <div class="card mb-4">
+            <div class="card-header"><i class="me-1" data-lucide="receipt"></i> Receipts / Invoices ({{ $checkVoucher->receipts->count() }})</div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>SI / Receipt #</th>
+                                <th class="text-end">Amount w/ VAT</th>
+                                <th class="text-end">VAT-Exempt</th>
+                                <th class="text-end">Non-VAT</th>
+                                <th class="text-end">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($checkVoucher->receipts as $receipt)
+                            <tr>
+                                <td>{{ $receipt->si_no ?: '—' }}</td>
+                                <td class="text-end">₱{{ number_format($receipt->amount_w_vat, 2) }}</td>
+                                <td class="text-end">₱{{ number_format($receipt->vat_exempt, 2) }}</td>
+                                <td class="text-end">₱{{ number_format($receipt->non_vat_purchase, 2) }}</td>
+                                <td class="text-end fw-semibold">₱{{ number_format($receipt->total, 2) }}</td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                        <tfoot>
+                            <tr class="table-light fw-bold">
+                                <td class="text-end">Sub-Total</td>
+                                <td class="text-end">₱{{ number_format($checkVoucher->receipts->sum('amount_w_vat'), 2) }}</td>
+                                <td class="text-end">₱{{ number_format($checkVoucher->receipts->sum('vat_exempt'), 2) }}</td>
+                                <td class="text-end">₱{{ number_format($checkVoucher->receipts->sum('non_vat_purchase'), 2) }}</td>
+                                <td class="text-end">₱{{ number_format($checkVoucher->receipts->sum('total'), 2) }}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+        @endif
+
         <div class="card mb-4">
             <div class="card-header"><i class="me-1" data-lucide="check-square"></i> Check Register</div>
             <div class="card-body">

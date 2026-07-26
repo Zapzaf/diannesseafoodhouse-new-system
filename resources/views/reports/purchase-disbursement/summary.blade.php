@@ -2,6 +2,9 @@
 @section('page_title', 'Purchase & Disbursement Summary')
 @section('content')
     <x-page-header title="Purchase & Disbursement Summary" subtitle="Sub-totals per ledger, split by VAT / VAT-exempt / Non-VAT" icon="bar-chart-2">
+        <a class="btn btn-success text-white" href="{{ route('reports.purchase-disbursement.summary.export', request()->query()) }}">
+            <i data-lucide="file-spreadsheet" class="me-1"></i> Export to Excel
+        </a>
     </x-page-header>
 
     <div class="container-xl px-4">

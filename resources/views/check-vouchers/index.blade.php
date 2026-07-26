@@ -10,6 +10,18 @@
     <div class="container-xl px-4">
         @include('layouts.alerts')
 
+        <div class="row g-4 mb-4">
+            <div class="col-md-6 col-xl-3">
+                <div class="card shadow-sm h-100 detail-stat-card">
+                    <div class="card-body">
+                        <span class="detail-stat-label">Sub-Total Amount</span>
+                        <div class="detail-stat-value">₱{{ number_format((float) $totals->amount_w_vat, 2) }}</div>
+                        <div class="detail-stat-meta">{{ $vouchers->total() }} {{ $vouchers->total() === 1 ? 'CV' : 'CVs' }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="card mb-4">
             <div class="card-header d-flex align-items-center justify-content-between gap-2">
                 <div><i class="me-1" data-lucide="banknote"></i> Disbursements</div>
@@ -114,21 +126,6 @@
                             <tr><td colspan="14" class="text-center text-muted py-4">No check vouchers found.</td></tr>
                             @endforelse
                         </tbody>
-                        @if($vouchers->total() > 0)
-                        <tfoot>
-                            <tr class="table-warning fw-bold">
-                                <td colspan="4" class="text-end">SUB-TOTAL ({{ $vouchers->total() }} CVs)</td>
-                                <td class="text-end text-nowrap">₱{{ number_format((float) $totals->amount_w_vat, 2) }}</td>
-                                <td class="text-end text-nowrap">₱{{ number_format((float) $totals->vat, 2) }}</td>
-                                <td class="text-end text-nowrap">₱{{ number_format((float) $totals->net_purchases, 2) }}</td>
-                                <td class="text-end text-nowrap">₱{{ number_format((float) $totals->vat_exempt, 2) }}</td>
-                                <td class="text-end text-nowrap">₱{{ number_format((float) $totals->non_vat_purchase, 2) }}</td>
-                                <td class="text-end text-nowrap">₱{{ number_format((float) $totals->ewt_amount, 2) }}</td>
-                                <td class="text-end text-nowrap">₱{{ number_format((float) $totals->amount_paid, 2) }}</td>
-                                <td colspan="3"></td>
-                            </tr>
-                        </tfoot>
-                        @endif
                     </table>
                 </div>
             </div>
@@ -138,3 +135,34 @@
         </div>
     </div>
 @endsection
+
+@push('styles')
+<style>
+.detail-stat-card .card-body {
+    padding: 1rem 1.1rem;
+}
+
+.detail-stat-label {
+    display: inline-block;
+    margin-bottom: .45rem;
+    color: var(--text-muted);
+    font-size: .78rem;
+    font-weight: 800;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+.detail-stat-value {
+    color: var(--text-main);
+    font-size: 1.35rem;
+    font-weight: 800;
+    line-height: 1.2;
+}
+
+.detail-stat-meta {
+    margin-top: .45rem;
+    color: var(--text-muted);
+    font-size: .88rem;
+}
+</style>
+@endpush

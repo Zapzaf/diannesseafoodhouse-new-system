@@ -71,6 +71,11 @@ class CheckVoucher extends Model
         return $this->hasOne(CheckRegister::class);
     }
 
+    public function receipts(): HasMany
+    {
+        return $this->hasMany(CheckVoucherReceipt::class);
+    }
+
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
@@ -81,12 +86,18 @@ class CheckVoucher extends Model
      * (Amount w/VAT ÷ 1.12), never on the gross VAT-inclusive amount — regardless
      * of CV type, so this doesn't fall back to amount_w_vat for APV payments or
      * PCF replenishments.
+     *
+     * amount_paid must total amount_w_vat + vat_exempt + non_vat_purchase, not just
+     * amount_w_vat — a CV that's entirely VAT-exempt or non-VAT (amount_w_vat = 0)
+     * was previously left with amount_paid = 0, which the Check Register then
+     * displayed as ₱0.00 even though the CV carried a real amount.
      */
     public function applyEwt(): void
     {
         $netPurchase = VatCalculator::split((float) $this->amount_w_vat)['net_purchases'];
         $this->ewt_amount = round($netPurchase * (float) $this->ewt_rate, 2);
-        $this->amount_paid = round((float) $this->amount_w_vat - $this->ewt_amount, 2);
+        $totalAmount = (float) $this->amount_w_vat + (float) $this->vat_exempt + (float) $this->non_vat_purchase;
+        $this->amount_paid = round($totalAmount - $this->ewt_amount, 2);
     }
 
     public function supplier()

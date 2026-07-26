@@ -2,16 +2,37 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\PurchaseDisbursementSummaryExport;
 use App\Models\CheckVoucher;
 use App\Models\PettyCashVoucher;
 use App\Models\PurchaseVoucher;
 use App\Models\PurchaseVoucherItem;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Maatwebsite\Excel\Facades\Excel;
 
 class PurchaseDisbursementReportController extends Controller
 {
     public function summary(Request $request): View
+    {
+        [$apvTotals, $pcvTotals, $cvTotals, $dateFrom, $dateTo] = $this->buildTotals($request);
+
+        return view('reports.purchase-disbursement.summary', compact('apvTotals', 'pcvTotals', 'cvTotals', 'dateFrom', 'dateTo'));
+    }
+
+    public function exportSummary(Request $request)
+    {
+        [$apvTotals, $pcvTotals, $cvTotals, $dateFrom, $dateTo] = $this->buildTotals($request);
+
+        $filename = 'purchase-disbursement-summary-'.$dateFrom.'-to-'.$dateTo.'.xlsx';
+
+        return Excel::download(
+            new PurchaseDisbursementSummaryExport($apvTotals, $pcvTotals, $cvTotals, $dateFrom, $dateTo),
+            $filename
+        );
+    }
+
+    private function buildTotals(Request $request): array
     {
         $dateFrom = $request->input('date_from', now()->startOfMonth()->toDateString());
         $dateTo = $request->input('date_to', now()->toDateString());
@@ -46,7 +67,7 @@ class PurchaseDisbursementReportController extends Controller
             ->selectRaw('COALESCE(SUM(net_purchases),0) as net_purchases, COALESCE(SUM(vat),0) as vat, COALESCE(SUM(vat_exempt),0) as vat_exempt, COALESCE(SUM(non_vat_purchase),0) as non_vat_purchase, COALESCE(SUM(amount_paid),0) as amount_paid, COALESCE(SUM(ewt_amount),0) as ewt_amount')
             ->first();
 
-        return view('reports.purchase-disbursement.summary', compact('apvTotals', 'pcvTotals', 'cvTotals', 'dateFrom', 'dateTo'));
+        return [$apvTotals, $pcvTotals, $cvTotals, $dateFrom, $dateTo];
     }
 
     public function unpaidApvAging(Request $request): View
