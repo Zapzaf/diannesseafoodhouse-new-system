@@ -15,7 +15,9 @@
     <div class="container-xl px-4">
         @include('layouts.alerts')
 
-        <form action="{{ route('menus.update', $menu) }}" method="POST" enctype="multipart/form-data">
+        <div id="menuFormAlert" class="alert alert-danger d-none" role="alert"></div>
+
+        <form action="{{ route('menus.update', $menu) }}" method="POST" enctype="multipart/form-data" id="menuEditForm" novalidate>
             @csrf @method('PUT')
 
             <div class="card mb-4">
@@ -147,14 +149,18 @@
                         @forelse($existingIngredients as $i => $ing)
                         <div class="row g-2 mb-2 ingredient-row align-items-start">
                             <div class="col-md-7">
-                                <select class="form-select ingredient-select" name="ingredients[{{ $i }}][item_id]" required>
-                                    <option value="">-- Select Inventory Item --</option>
-                                    @foreach($items as $item)
-                                    <option value="{{ $item->id }}" data-branch-id="{{ $item->branch_id }}" data-unit="{{ $item->unit }}" {{ $ing['item_id'] == $item->id ? 'selected' : '' }}>
-                                        {{ $item->name }} ({{ $item->unit }}) — Stock: {{ $item->quantity }}
-                                    </option>
-                                    @endforeach
-                                </select>
+                                <div class="ingredient-combo position-relative">
+                                    <input type="text" class="form-control ingredient-search" placeholder="Search inventory item..." autocomplete="off">
+                                    <select class="form-select ingredient-select d-none" name="ingredients[{{ $i }}][item_id]" required>
+                                        <option value="">-- Select Inventory Item --</option>
+                                        @foreach($items as $item)
+                                        <option value="{{ $item->id }}" data-branch-id="{{ $item->branch_id }}" data-unit="{{ $item->unit }}" {{ $ing['item_id'] == $item->id ? 'selected' : '' }}>
+                                            {{ $item->name }} ({{ $item->unit }}) — Stock: {{ $item->quantity }}
+                                        </option>
+                                        @endforeach
+                                    </select>
+                                    <div class="dropdown-menu ingredient-dropdown-menu w-100" style="max-height: 220px; overflow-y: auto;"></div>
+                                </div>
                             </div>
                             <div class="col-md-4">
                                 <div class="input-group">
@@ -173,14 +179,18 @@
                         @empty
                         <div class="row g-2 mb-2 ingredient-row align-items-start">
                             <div class="col-md-7">
-                                <select class="form-select ingredient-select" name="ingredients[0][item_id]" required>
-                                    <option value="">-- Select Inventory Item --</option>
-                                    @foreach($items as $item)
-                                    <option value="{{ $item->id }}" data-branch-id="{{ $item->branch_id }}" data-unit="{{ $item->unit }}">
-                                        {{ $item->name }} ({{ $item->unit }}) — Stock: {{ $item->quantity }}
-                                    </option>
-                                    @endforeach
-                                </select>
+                                <div class="ingredient-combo position-relative">
+                                    <input type="text" class="form-control ingredient-search" placeholder="Search inventory item..." autocomplete="off">
+                                    <select class="form-select ingredient-select d-none" name="ingredients[0][item_id]" required>
+                                        <option value="">-- Select Inventory Item --</option>
+                                        @foreach($items as $item)
+                                        <option value="{{ $item->id }}" data-branch-id="{{ $item->branch_id }}" data-unit="{{ $item->unit }}">
+                                            {{ $item->name }} ({{ $item->unit }}) — Stock: {{ $item->quantity }}
+                                        </option>
+                                        @endforeach
+                                    </select>
+                                    <div class="dropdown-menu ingredient-dropdown-menu w-100" style="max-height: 220px; overflow-y: auto;"></div>
+                                </div>
                             </div>
                             <div class="col-md-4">
                                 <div class="input-group">
@@ -212,6 +222,7 @@
 @endsection
 
 @push('scripts')
+<script src="{{ asset('js/ingredient-picker.js') }}"></script>
 <script>
 const itemOptions = {!! $items->map(fn($item) => [
     'id'    => $item->id,
@@ -222,20 +233,106 @@ const itemOptions = {!! $items->map(fn($item) => [
 
 let rowIndex = document.querySelectorAll('.ingredient-row').length;
 
+const menuEditForm = document.getElementById('menuEditForm');
+const menuFormAlert = document.getElementById('menuFormAlert');
+const ingredientsContainer = document.getElementById('ingredientsContainer');
 const noIngredientsToggle = document.getElementById('noIngredientsToggle');
 const ingredientsSection = document.getElementById('ingredientsSection');
 const addIngredientBtnEl = document.getElementById('addIngredientBtn');
 
+function isNoIngredients() {
+    return !!noIngredientsToggle?.checked;
+}
+
 function applyNoIngredientsToggle() {
-    const enabled = !!noIngredientsToggle?.checked;
+    const enabled = isNoIngredients();
     ingredientsSection?.classList.toggle('d-none', enabled);
     if (addIngredientBtnEl) addIngredientBtnEl.disabled = enabled;
     document.querySelectorAll('.ingredient-select').forEach((select) => { select.required = !enabled; });
     document.querySelectorAll('.ingredient-row input[name*="[quantity_required]"]').forEach((input) => { input.required = !enabled; });
 }
 
-noIngredientsToggle?.addEventListener('change', applyNoIngredientsToggle);
-applyNoIngredientsToggle();
+noIngredientsToggle?.addEventListener('change', function () {
+    applyNoIngredientsToggle();
+    showMenuFormAlert([]);
+});
+
+function escapeHtml(value) {
+    const div = document.createElement('div');
+    div.textContent = value ?? '';
+    return div.innerHTML;
+}
+
+function showMenuFormAlert(messages = []) {
+    if (!menuFormAlert) return;
+
+    if (!messages.length) {
+        menuFormAlert.classList.add('d-none');
+        menuFormAlert.innerHTML = '';
+        return;
+    }
+
+    menuFormAlert.classList.remove('d-none');
+    menuFormAlert.innerHTML = `<strong>Please fix the following:</strong><ul class="mb-0 mt-2">${messages.map((message) => `<li>${escapeHtml(message)}</li>`).join('')}</ul>`;
+}
+
+function validateMenuEditForm() {
+    const messages = [];
+    const nameInput = document.querySelector('input[name="name"]');
+    const categorySelect = document.querySelector('select[name="menu_category_id"]');
+    const priceInput = document.querySelector('input[name="selling_price"]');
+
+    if (!nameInput || !nameInput.value.trim()) {
+        messages.push('Please enter a menu name.');
+    }
+
+    if (!categorySelect || !categorySelect.value) {
+        messages.push('Please select a menu category.');
+    }
+
+    if (!priceInput || priceInput.value === '' || Number(priceInput.value) < 0) {
+        messages.push('Please enter a valid selling price.');
+    }
+
+    if (!isNoIngredients()) {
+        const ingredientSelects = Array.from(document.querySelectorAll('.ingredient-select'));
+        const selectedIngredients = [];
+
+        if (!ingredientSelects.length) {
+            messages.push('Add at least one ingredient to save this menu item.');
+        }
+
+        ingredientSelects.forEach((select, index) => {
+            const rowLabel = `Ingredient row ${index + 1}`;
+            const quantityInput = select.closest('.ingredient-row')?.querySelector('input[name*="[quantity_required]"]');
+
+            if (!select.value) {
+                messages.push(`${rowLabel}: choose an inventory item.`);
+                return;
+            }
+
+            if (selectedIngredients.includes(select.value)) {
+                messages.push(`${rowLabel}: duplicate ingredients are not allowed.`);
+            }
+
+            selectedIngredients.push(select.value);
+
+            if (!quantityInput || Number(quantityInput.value) <= 0) {
+                messages.push(`${rowLabel}: enter a required quantity greater than zero.`);
+            }
+        });
+    }
+
+    showMenuFormAlert(messages);
+
+    return messages.length === 0;
+}
+
+menuEditForm?.addEventListener('submit', function (event) {
+    if (!validateMenuEditForm()) {
+        event.preventDefault();
+    }
+});
 
 function buildOptions(selectedId = '') {
     const branchId = '{{ $menu->branch_id }}';
@@ -267,9 +364,13 @@ document.getElementById('addIngredientBtn').addEventListener('click', function (
     row.className = 'row g-2 mb-2 ingredient-row align-items-start';
     row.innerHTML = `
         <div class="col-md-7">
-            <select class="form-select ingredient-select" name="ingredients[${rowIndex}][item_id]" required>
-                ${buildOptions()}
-            </select>
+            <div class="ingredient-combo position-relative">
+                <input type="text" class="form-control ingredient-search" placeholder="Search inventory item..." autocomplete="off">
+                <select class="form-select ingredient-select d-none" name="ingredients[${rowIndex}][item_id]" required>
+                    ${buildOptions()}
+                </select>
+                <div class="dropdown-menu ingredient-dropdown-menu w-100" style="max-height: 220px; overflow-y: auto;"></div>
+            </div>
         </div>
         <div class="col-md-4">
             <div class="input-group">
@@ -286,6 +387,9 @@ document.getElementById('addIngredientBtn').addEventListener('click', function (
     document.getElementById('ingredientsContainer').appendChild(row);
     rowIndex++;
     updateIngredientCount();
+    IngredientPicker.enhanceRow(row);
+    applyNoIngredientsToggle();
+    showMenuFormAlert([]);
     if (typeof window.refreshLucideIcons === 'function') window.refreshLucideIcons();
 });
 
@@ -294,16 +398,19 @@ document.getElementById('ingredientsContainer').addEventListener('click', functi
     if (!btn) return;
     const rows = document.querySelectorAll('.ingredient-row');
     if (rows.length <= 1) {
-        alert('A menu item must have at least one ingredient.');
+        showMenuFormAlert(['A menu item must have at least one ingredient.']);
         return;
     }
     btn.closest('.ingredient-row').remove();
     updateIngredientCount();
+    showMenuFormAlert([]);
 });
 
 document.getElementById('ingredientsContainer').addEventListener('change', function (e) {
     if (e.target.classList.contains('ingredient-select')) {
         updateUnitAddon(e.target);
+        const row = e.target.closest('.ingredient-row');
+        if (row) IngredientPicker.syncRow(row);
     }
 });
 
@@ -345,5 +452,7 @@ refreshDescCount();
 // Show each row's unit on load
 document.querySelectorAll('.ingredient-select').forEach(updateUnitAddon);
 updateIngredientCount();
+applyNoIngredientsToggle();
+IngredientPicker.enhanceAll(ingredientsContainer);
 </script>
 @endpush

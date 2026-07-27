@@ -140,14 +140,18 @@
                         @forelse(old('ingredients', []) as $i => $ing)
                         <div class="row g-2 mb-2 ingredient-row">
                             <div class="col-md-7">
-                                <select class="form-select ingredient-select" name="ingredients[{{ $i }}][item_id]" required>
-                                    <option value="">-- Select Inventory Item --</option>
-                                    @foreach($items as $item)
-                                    <option value="{{ $item->id }}" data-branch-id="{{ $item->branch_id }}" {{ ($ing['item_id'] ?? null) == $item->id ? 'selected' : '' }}>
-                                        {{ $item->name }} ({{ $item->unit }}) - Stock: {{ $item->quantity }}
-                                    </option>
-                                    @endforeach
-                                </select>
+                                <div class="ingredient-combo position-relative">
+                                    <input type="text" class="form-control ingredient-search" placeholder="Search inventory item..." autocomplete="off">
+                                    <select class="form-select ingredient-select d-none" name="ingredients[{{ $i }}][item_id]" required>
+                                        <option value="">-- Select Inventory Item --</option>
+                                        @foreach($items as $item)
+                                        <option value="{{ $item->id }}" data-branch-id="{{ $item->branch_id }}" {{ ($ing['item_id'] ?? null) == $item->id ? 'selected' : '' }}>
+                                            {{ $item->name }} ({{ $item->unit }}) - Stock: {{ $item->quantity }}
+                                        </option>
+                                        @endforeach
+                                    </select>
+                                    <div class="dropdown-menu ingredient-dropdown-menu w-100" style="max-height: 220px; overflow-y: auto;"></div>
+                                </div>
                                 <div class="form-text ingredient-stock-label mt-1">Available stock: --</div>
                             </div>
                             <div class="col-md-3">
@@ -171,14 +175,18 @@
                         @empty
                         <div class="row g-2 mb-2 ingredient-row">
                             <div class="col-md-7">
-                                <select class="form-select ingredient-select" name="ingredients[0][item_id]" required>
-                                    <option value="">-- Select Inventory Item --</option>
-                                    @foreach($items as $item)
-                                    <option value="{{ $item->id }}" data-branch-id="{{ $item->branch_id }}">
-                                        {{ $item->name }} ({{ $item->unit }}) - Stock: {{ $item->quantity }}
-                                    </option>
-                                    @endforeach
-                                </select>
+                                <div class="ingredient-combo position-relative">
+                                    <input type="text" class="form-control ingredient-search" placeholder="Search inventory item..." autocomplete="off">
+                                    <select class="form-select ingredient-select d-none" name="ingredients[0][item_id]" required>
+                                        <option value="">-- Select Inventory Item --</option>
+                                        @foreach($items as $item)
+                                        <option value="{{ $item->id }}" data-branch-id="{{ $item->branch_id }}">
+                                            {{ $item->name }} ({{ $item->unit }}) - Stock: {{ $item->quantity }}
+                                        </option>
+                                        @endforeach
+                                    </select>
+                                    <div class="dropdown-menu ingredient-dropdown-menu w-100" style="max-height: 220px; overflow-y: auto;"></div>
+                                </div>
                                 <div class="form-text ingredient-stock-label mt-1">Available stock: --</div>
                             </div>
                             <div class="col-md-3">
@@ -217,6 +225,7 @@
 @endphp
 
 @push('scripts')
+<script src="{{ asset('js/ingredient-picker.js') }}"></script>
 <script>
 const itemOptions = @json($menuItemOptions);
 
@@ -364,9 +373,13 @@ addIngredientBtn?.addEventListener('click', function () {
     row.className = 'row g-2 mb-2 ingredient-row';
     row.innerHTML = `
         <div class="col-md-7">
-            <select class="form-select ingredient-select" name="ingredients[${rowIndex}][item_id]" required>
-                ${buildOptions()}
-            </select>
+            <div class="ingredient-combo position-relative">
+                <input type="text" class="form-control ingredient-search" placeholder="Search inventory item..." autocomplete="off">
+                <select class="form-select ingredient-select d-none" name="ingredients[${rowIndex}][item_id]" required>
+                    ${buildOptions()}
+                </select>
+                <div class="dropdown-menu ingredient-dropdown-menu w-100" style="max-height: 220px; overflow-y: auto;"></div>
+            </div>
             <div class="form-text ingredient-stock-label mt-1">Available stock: --</div>
         </div>
         <div class="col-md-3">
@@ -382,6 +395,8 @@ addIngredientBtn?.addEventListener('click', function () {
     rowIndex++;
     showMenuFormAlert([]);
     refreshAllIngredientStockLabels();
+    IngredientPicker.enhanceRow(row);
+    applyNoIngredientsToggle();
 
     if (typeof window.refreshLucideIcons === 'function') window.refreshLucideIcons();
 });
@@ -455,6 +470,9 @@ ingredientsContainer?.addEventListener('change', function (event) {
             }
 
             updateIngredientStockLabel(select);
+
+            const row = select.closest('.ingredient-row');
+            if (row) IngredientPicker.syncRow(row);
         });
     }
 
@@ -466,6 +484,7 @@ ingredientsContainer?.addEventListener('change', function (event) {
 
 refreshAllIngredientStockLabels();
 applyNoIngredientsToggle();
+IngredientPicker.enhanceAll(ingredientsContainer);
 
 menuCreateForm?.addEventListener('submit', function (event) {
     if (!validateMenuCreateForm()) {
