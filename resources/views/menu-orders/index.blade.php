@@ -145,14 +145,24 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    function syncActiveStatusTab() {
+        document.querySelectorAll('#menuOrderStatusTabs [data-status]').forEach(function (tabButton) {
+            tabButton.classList.toggle('active', (tabButton.getAttribute('data-status') || 'open') === statusFilter.value);
+        });
+    }
+
     document.querySelectorAll('#menuOrderStatusTabs [data-status]').forEach(function(tabButton) {
         tabButton.addEventListener('click', function() {
-            document.querySelectorAll('#menuOrderStatusTabs .nav-link').forEach((tab) => tab.classList.remove('active'));
-            tabButton.classList.add('active');
             statusFilter.value = tabButton.getAttribute('data-status') || 'open';
+            syncActiveStatusTab();
             statusFilter.dispatchEvent(new Event('change'));
         });
     });
+
+    // Keep the active tab in sync when IndexTableBridge restores a saved
+    // filter value from the URL (e.g. after Back-navigating from an edit page).
+    statusFilter.addEventListener('change', syncActiveStatusTab);
+    syncActiveStatusTab();
 });
 
 function openVoidModal(orderId) {

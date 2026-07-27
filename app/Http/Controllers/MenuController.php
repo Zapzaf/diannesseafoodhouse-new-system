@@ -47,13 +47,20 @@ class MenuController extends Controller
             ->orderBy('name')
             ->paginate($this->perPage(request(), 25))->withQueryString();
 
-        return view('menu.index', compact('menus'));
+        $menuCategories = MenuCategory::query()
+            ->when(!auth()->user()->isAdmin(), fn($q) => $q->where('branch_id', auth()->user()->branch_id))
+            ->when(auth()->user()->isAdmin() && session('selected_branch_id'), fn($q) => $q->where('branch_id', session('selected_branch_id')))
+            ->orderBy('name')
+            ->get();
+
+        return view('menu.index', compact('menus', 'menuCategories'));
     }
 
     public function data(Request $request): JsonResponse
     {
         $perPage = max(1, min((int) $request->input('per_page', 10), 100));
         $search = trim((string) $request->input('search', ''));
+        $menuCategoryId = (int) $request->input('menu_category_id', 0);
         $sort = (string) $request->input('sort', 'name');
         $direction = strtolower((string) $request->input('direction', 'asc')) === 'desc' ? 'desc' : 'asc';
         $allowedSort = ['id', 'name', 'menu_description', 'category', 'selling_price', 'items_count', 'branch_id', 'created_at'];
@@ -71,6 +78,7 @@ class MenuController extends Controller
                         ->orWhereHas('branch', fn($q) => $q->where('name', 'like', "%{$search}%"));
                 });
             })
+            ->when($menuCategoryId > 0, fn($query) => $query->where('menu_category_id', $menuCategoryId))
             ->orderBy($sort, $direction)
             ->paginate($perPage);
 

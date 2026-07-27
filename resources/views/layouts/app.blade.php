@@ -527,6 +527,9 @@
                                </li>
                                @if($authUser && ($authUser->isAdmin() || $authUser->isBranchManager()))
                                <li class="nav-item">
+                                   <a class="nav-link py-1.5 px-3 {{ request()->routeIs('reports.menu-order-sales.*') ? 'active' : '' }}" href="{{ route('reports.menu-order-sales.index') }}">Menu Order Sales Report</a>
+                               </li>
+                               <li class="nav-item">
                                    <a class="nav-link py-1.5 px-3 {{ request()->routeIs('reports.purchase-disbursement.summary') ? 'active' : '' }}" href="{{ route('reports.purchase-disbursement.summary') }}">Purchase &amp; Disbursement Summary</a>
                                </li>
                                <li class="nav-item">

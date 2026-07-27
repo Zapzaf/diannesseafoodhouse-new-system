@@ -145,14 +145,24 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    function syncActiveStatusTab() {
+        document.querySelectorAll('#tableStatusTabs [data-status]').forEach(function (tabButton) {
+            tabButton.classList.toggle('active', (tabButton.getAttribute('data-status') || '') === statusFilter.value);
+        });
+    }
+
     document.querySelectorAll('#tableStatusTabs [data-status]').forEach(function(tabButton) {
         tabButton.addEventListener('click', function() {
-            document.querySelectorAll('#tableStatusTabs .nav-link').forEach((tab) => tab.classList.remove('active'));
-            tabButton.classList.add('active');
             statusFilter.value = tabButton.getAttribute('data-status') || '';
+            syncActiveStatusTab();
             statusFilter.dispatchEvent(new Event('change'));
         });
     });
+
+    // Keep the active tab in sync when IndexTableBridge restores a saved
+    // filter value from the URL (e.g. after Back-navigating from an edit page).
+    statusFilter.addEventListener('change', syncActiveStatusTab);
+    syncActiveStatusTab();
 
     window.handleTableAction = function(tableId, status) {
         if (status === 'available') {

@@ -136,6 +136,115 @@ window.IndexTableBridge = (function () {
         let direction = config.defaultDirection || 'desc';
         const sortColumns = config.sortColumns || [];
 
+        // ===== List-state preservation (page, search, sort, filters, scroll) =====
+        // State is mirrored into the current URL's query string so a normal
+        // browser Back/Forward navigation (e.g. after following an edit link)
+        // restores the exact same list state on reload, and the scroll offset
+        // is remembered separately since it isn't part of the URL.
+        const scrollStateKey = 'indexTableScroll:' + (config.stateKey || config.tableId);
+        let hasRestoredScroll = false;
+
+        (function restoreStateFromUrl() {
+            const params = new URLSearchParams(window.location.search);
+
+            if (params.has('page')) {
+                const page = parseInt(params.get('page'), 10);
+                if (Number.isInteger(page) && page > 0) currentPage = page;
+            }
+
+            if (params.has('per_page')) {
+                const pp = parseInt(params.get('per_page'), 10);
+                if (Number.isInteger(pp) && pp > 0) perPage = pp;
+            }
+
+            if (params.has('search')) {
+                search = params.get('search') || '';
+            }
+
+            if (params.has('sort')) {
+                sort = params.get('sort') || sort;
+            }
+
+            if (params.has('direction')) {
+                direction = params.get('direction') === 'desc' ? 'desc' : 'asc';
+            }
+
+            if (config.filterParam && params.has(config.filterParam)) {
+                filter = params.get(config.filterParam) || '';
+            }
+
+            // First pass: apply each restored value and dispatch a native
+            // 'change' event so page-specific listeners can react (e.g. a
+            // category filter repopulating a dependent subcategory <select>).
+            // Second pass: re-apply the restored values once more, since a
+            // cascade triggered above may have reset a dependent filter's
+            // value/options after it was first set.
+            filters.forEach(function (filterConfig) {
+                if (params.has(filterConfig.param)) {
+                    filterConfig.element.value = params.get(filterConfig.param) || '';
+                    filterConfig.element.dispatchEvent(new Event('change'));
+                }
+            });
+
+            filters.forEach(function (filterConfig) {
+                if (params.has(filterConfig.param)) {
+                    filterConfig.element.value = params.get(filterConfig.param) || '';
+                }
+            });
+
+            if (searchInput) searchInput.value = search;
+
+            // Only touch filterInput when the URL actually carries the param —
+            // otherwise a fresh visit (no query string) would blank out
+            // whatever default value/UI state the page itself set up.
+            if (filterInput && config.filterParam && params.has(config.filterParam)) {
+                filterInput.value = filter;
+                filterInput.dispatchEvent(new Event('change'));
+            }
+
+            if (perPageInput) perPageInput.value = String(perPage);
+        })();
+
+        function syncUrl(params) {
+            const url = window.location.pathname + '?' + params.toString();
+            window.history.replaceState(window.history.state, '', url);
+        }
+
+        function saveScroll() {
+            try {
+                sessionStorage.setItem(scrollStateKey, String(window.scrollY));
+            } catch (e) {
+                // ignore - sessionStorage may be unavailable
+            }
+        }
+
+        let scrollSaveDebounce = null;
+        window.addEventListener('scroll', function () {
+            clearTimeout(scrollSaveDebounce);
+            scrollSaveDebounce = setTimeout(saveScroll, 150);
+        }, { passive: true });
+
+        function restoreScrollOnce() {
+            if (hasRestoredScroll) return;
+            hasRestoredScroll = true;
+
+            let savedY = null;
+            try {
+                savedY = sessionStorage.getItem(scrollStateKey);
+            } catch (e) {
+                savedY = null;
+            }
+
+            if (savedY === null) return;
+
+            const targetY = parseInt(savedY, 10);
+            if (!Number.isInteger(targetY) || targetY <= 0) return;
+
+            requestAnimationFrame(function () {
+                window.scrollTo(0, targetY);
+            });
+        }
+
         function loadData() {
             const params = new URLSearchParams({
                 page: currentPage,
@@ -155,6 +264,8 @@ window.IndexTableBridge = (function () {
                 }
             });
 
+            syncUrl(params);
+
             fetch(config.dataUrl + '?' + params.toString())
                 .then(function (response) {
                     return response.json();
@@ -169,6 +280,7 @@ window.IndexTableBridge = (function () {
                         if (window.WelheimUI && typeof window.WelheimUI.enhanceTables === 'function') {
                             window.WelheimUI.enhanceTables();
                         }
+                        restoreScrollOnce();
                         return;
                     }
 
@@ -190,6 +302,8 @@ window.IndexTableBridge = (function () {
                     if (typeof window.refreshLucideIcons === 'function') {
                         window.refreshLucideIcons();
                     }
+
+                    restoreScrollOnce();
                 });
         }
 
@@ -215,7 +329,7 @@ window.IndexTableBridge = (function () {
                 loadData();
             });
         });
-        
+
         if (perPageInput) {
             perPageInput.addEventListener('change', function (event) {
                 perPage = Number(event.target.value);
@@ -244,7 +358,9 @@ window.IndexTableBridge = (function () {
                 }
 
                 currentPage = nextPage;
+                saveScroll();
                 loadData();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
             });
         }
 

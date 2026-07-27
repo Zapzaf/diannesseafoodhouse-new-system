@@ -15,6 +15,7 @@ use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\MenuCategoryController;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\MenuOrderController;
+use App\Http\Controllers\MenuOrderSalesReportController;
 use App\Http\Controllers\PaymentsController;
 use App\Http\Controllers\PettyCashVoucherController;
 use App\Http\Controllers\ProductionManagementController;
@@ -304,6 +305,12 @@ Route::middleware('auth')->group(function (): void {
 		Route::get('/costing/{costingReport}', [CostingReportController::class, 'show'])->name('costing.show');
 		Route::post('/costing/{costingReport}/approve', [CostingReportController::class, 'approve'])->name('costing.approve');
 		Route::post('/costing/{costingReport}/reject', [CostingReportController::class, 'reject'])->name('costing.reject');
+
+		Route::middleware('role:admin,branch_manager')->group(function (): void {
+			Route::get('/menu-order-sales', [MenuOrderSalesReportController::class, 'index'])->name('menu-order-sales.index');
+			Route::get('/menu-order-sales/export/excel', [MenuOrderSalesReportController::class, 'exportExcel'])->name('menu-order-sales.export-excel');
+			Route::get('/menu-order-sales/export/pdf', [MenuOrderSalesReportController::class, 'exportPdf'])->name('menu-order-sales.export-pdf');
+		});
 	});
 
 	// Settings route (from nav)

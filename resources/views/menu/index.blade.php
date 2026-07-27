@@ -16,6 +16,12 @@
             <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <div><i data-lucide="coffee" class="me-1"></i> All Menu Items</div>
                 <div class="d-flex gap-2">
+                    <select id="categoryFilter" class="form-select form-select-sm" style="width: auto;">
+                        <option value="">All Categories</option>
+                        @foreach($menuCategories as $cat)
+                        <option value="{{ $cat->id }}">{{ $cat->name }}</option>
+                        @endforeach
+                    </select>
                     <select id="perPage" class="form-select form-select-sm" style="width: auto;">
                         <option value="5">5</option>
                         <option value="10" selected>10</option>
@@ -66,6 +72,9 @@ document.addEventListener('DOMContentLoaded', function() {
         dataUrl: @json(route('menus.data')),
         searchInputId: 'searchInput',
         perPageId: 'perPage',
+        filters: [
+            { inputId: 'categoryFilter', param: 'menu_category_id' }
+        ],
         sortColumns: ['id', 'name', 'menu_description', 'category', 'selling_price', 'items_count', 'branch_id'],
         defaultSort: 'name',
         defaultDirection: 'asc',
