@@ -72,6 +72,18 @@ class CheckVoucherController extends Controller
     {
         $type = $request->input('type');
 
+        // The create form can't distinguish "typo, pick another number" from "I meant
+        // to add another receipt to that existing CV" — so point the user at the
+        // existing CV's Add Receipt feature instead of a bare "already taken" error.
+        if ($request->filled('cv_no') && $type) {
+            $duplicate = CheckVoucher::where('type', $type)->where('cv_no', $request->input('cv_no'))->first();
+            if ($duplicate) {
+                return back()->withInput()->withErrors([
+                    'cv_no' => 'CV # '.$duplicate->cv_no.' already exists for this Disbursement Type.',
+                ])->with('duplicate_cv', $duplicate);
+            }
+        }
+
         $rules = [
             'date' => ['required', 'date'],
             'branch_id' => ['nullable', 'exists:branches,id'],

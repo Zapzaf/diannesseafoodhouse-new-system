@@ -50,6 +50,12 @@
                                     <label class="form-label fw-semibold">CV # <span class="text-danger">*</span></label>
                                     <input type="text" name="cv_no" class="form-control @error('cv_no') is-invalid @enderror" value="{{ old('cv_no') }}" required>
                                     @error('cv_no')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                    @if(session('duplicate_cv'))
+                                    <div class="small mt-1">
+                                        Adding another receipt to this same payment?
+                                        <a href="{{ route('check-vouchers.show', session('duplicate_cv')) }}" class="fw-semibold">Open CV {{ session('duplicate_cv')->cv_no }} and use "Add Receipt" there →</a>
+                                    </div>
+                                    @endif
                                 </div>
                                 <div class="col-md-4 cv-type-section" data-type="pcf_replenishment,apv_payment,">
                                     <label class="form-label fw-semibold">SI #</label>
