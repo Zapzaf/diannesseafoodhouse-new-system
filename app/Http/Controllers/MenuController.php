@@ -118,8 +118,8 @@ class MenuController extends Controller
             'menu_category_id'  => 'required|exists:menu_categories,id',
             'image'             => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
             'ingredients'       => $noIngredients ? 'nullable|array' : 'required|array|min:1',
-            'ingredients.*.item_id'            => ['required', 'exists:items,id', 'distinct'],
-            'ingredients.*.quantity_required'  => 'required|numeric|min:0.01',
+            'ingredients.*.item_id'            => $noIngredients ? 'nullable' : ['required', 'exists:items,id', 'distinct'],
+            'ingredients.*.quantity_required'  => $noIngredients ? 'nullable' : 'required|numeric|min:0.01',
         ], [
             'ingredients.required' => 'Add at least one ingredient to save this menu item.',
             'ingredients.min' => 'Add at least one ingredient to save this menu item.',
@@ -227,8 +227,8 @@ class MenuController extends Controller
             'menu_category_id'  => 'required|exists:menu_categories,id',
             'image'             => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
             'ingredients'       => $noIngredients ? 'nullable|array' : 'required|array|min:1',
-            'ingredients.*.item_id'            => ['required', 'exists:items,id', 'distinct'],
-            'ingredients.*.quantity_required'  => 'required|numeric|min:0.01',
+            'ingredients.*.item_id'            => $noIngredients ? 'nullable' : ['required', 'exists:items,id', 'distinct'],
+            'ingredients.*.quantity_required'  => $noIngredients ? 'nullable' : 'required|numeric|min:0.01',
         ], [
             'ingredients.required' => 'Add at least one ingredient to save this menu item.',
             'ingredients.min' => 'Add at least one ingredient to save this menu item.',
