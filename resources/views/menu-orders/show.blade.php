@@ -175,7 +175,18 @@
                                             <div class="fw-semibold">{{ $item->menu->name ?? 'N/A' }}</div>
                                             <div class="small text-muted">Line #{{ $loop->iteration }}</div>
                                         </td>
-                                        <td class="text-end fw-semibold">{{ $item->quantity }}</td>
+                                        <td class="text-end">
+                                            @if($canModifyItems)
+                                            <form action="{{ route('menu-orders.items.update', [$menuOrder, $item]) }}" method="POST" class="qty-edit-form d-flex align-items-center justify-content-end gap-1">
+                                                @csrf
+                                                @method('PUT')
+                                                <input type="number" name="quantity" class="form-control form-control-sm qty-input text-end" style="width:64px;" value="{{ $item->quantity }}" min="1" max="999" data-original="{{ $item->quantity }}">
+                                                <button type="submit" class="btn btn-sm btn-outline-primary qty-save-btn d-none" title="Save quantity"><i data-lucide="check" style="width:14px;height:14px;"></i></button>
+                                            </form>
+                                            @else
+                                            <span class="fw-semibold">{{ $item->quantity }}</span>
+                                            @endif
+                                        </td>
                                         <td class="text-end">₱{{ number_format((float) $item->unit_price, 2) }}</td>
                                         <td class="text-end fw-semibold">₱{{ number_format((float) $item->subtotal, 2) }}</td>
                                         <td class="text-end text-muted">₱{{ number_format((float) $item->cost, 2) }}</td>
@@ -479,6 +490,22 @@
 })();
 </script>
 @endif
+
+<script>
+(function () {
+    document.querySelectorAll('.qty-edit-form').forEach(function (form) {
+        var input = form.querySelector('.qty-input');
+        var saveBtn = form.querySelector('.qty-save-btn');
+        if (!input || !saveBtn) return;
+
+        input.addEventListener('input', function () {
+            var original = parseInt(input.dataset.original, 10);
+            var current = parseInt(input.value, 10);
+            saveBtn.classList.toggle('d-none', !current || current === original);
+        });
+    });
+})();
+</script>
 
 @if($canModifyItems)
 <script>

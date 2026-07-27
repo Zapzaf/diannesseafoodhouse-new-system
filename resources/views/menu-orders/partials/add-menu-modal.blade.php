@@ -2,6 +2,7 @@
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <form action="{{ $formAction ?? '#' }}" method="{{ $formMethod ?? 'POST' }}" id="{{ $formId ?? 'addMenuItemsForm' }}" class="modal-content">
             @csrf
+            <input type="hidden" name="return_to" value="{{ $returnTo ?? 'show' }}">
             <div id="{{ $fieldsContainerId ?? 'selectedMenuItemsFields' }}"></div>
             <div class="modal-header">
                 <h5 class="modal-title" id="addMenuModalLabel"><i data-lucide="plus-circle" class="me-1"></i> Add Menu Items</h5>

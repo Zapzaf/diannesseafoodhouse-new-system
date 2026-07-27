@@ -259,7 +259,7 @@ class MenuOrderController extends Controller
             abort(403, 'Orders with payments can no longer be edited.');
         }
 
-        $menuOrder->load(['branch', 'items.menu', 'table']);
+        $menuOrder->load(['branch', 'items.menu', 'table', 'payments']);
         $user = auth()->user();
         $branches = Branch::where('is_active', true)->orderBy('name')->get();
         $selectedBranchId = $menuOrder->branch_id;
@@ -277,7 +277,12 @@ class MenuOrderController extends Controller
             ->orderBy('table_number')
             ->get();
 
-        return view('menu-orders.edit', compact('branches', 'selectedBranchId', 'menuOrder', 'tables'));
+        $menus = Menu::with('items')
+            ->where('branch_id', $menuOrder->branch_id)
+            ->orderBy('name')
+            ->get();
+
+        return view('menu-orders.edit', compact('branches', 'selectedBranchId', 'menuOrder', 'tables', 'menus'));
     }
 
     public function update(Request $request, MenuOrder $menuOrder): RedirectResponse
@@ -409,10 +414,74 @@ class MenuOrderController extends Controller
             $this->refreshOrderTotalsFromCurrentItems($lockedOrder);
         });
 
-        return redirect()->route('menu-orders.show', $menuOrder)->with('success', 'Menu order items added and inventory deducted.');
+        return $this->redirectToOrder($request, $menuOrder)->with('success', 'Menu order items added and inventory deducted.');
     }
 
-    public function destroyItem(MenuOrder $menuOrder, MenuOrderItem $item): RedirectResponse
+    public function updateItemQuantity(Request $request, MenuOrder $menuOrder, MenuOrderItem $item): RedirectResponse
+    {
+        $this->authorizeBranch($menuOrder->branch_id);
+
+        if ((int) $item->menu_order_id !== (int) $menuOrder->id) {
+            abort(404);
+        }
+
+        if ((string) $menuOrder->status !== 'open') {
+            return back()->with('error', 'Items can only be edited on open orders.');
+        }
+
+        if ($menuOrder->payments()->exists()) {
+            return back()->with('error', 'Cannot edit an order item after payments have been recorded.');
+        }
+
+        $data = $request->validate([
+            'quantity' => 'required|integer|min:1|max:999',
+        ]);
+
+        DB::transaction(function () use ($menuOrder, $item, $data) {
+            $lockedOrder = MenuOrder::whereKey($menuOrder->id)->lockForUpdate()->firstOrFail();
+            $lockedItem = MenuOrderItem::whereKey($item->id)
+                ->where('menu_order_id', $lockedOrder->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+            $lockedItem->loadMissing('menu.items');
+
+            $newQuantity = (int) $data['quantity'];
+            $oldQuantity = (int) $lockedItem->quantity;
+
+            if ($newQuantity === $oldQuantity) {
+                return;
+            }
+
+            $menu = $lockedItem->menu;
+            $delta = $newQuantity - $oldQuantity;
+
+            if ($lockedItem->inventory_deducted && $menu && $menu->items->isNotEmpty()) {
+                if ($delta > 0) {
+                    $this->deductQuantityDeltaForMenu($lockedOrder, $menu, $delta);
+                } else {
+                    $this->replenishQuantityDeltaForMenu($lockedOrder, $menu, abs($delta));
+                }
+            }
+
+            $unitPrice = round((float) $lockedItem->unit_price, 2);
+            $unitCost = $menu ? round((float) $menu->computeUnitCost(), 2) : 0.0;
+            $subtotal = round($unitPrice * $newQuantity, 2);
+            $cost = round($unitCost * $newQuantity, 2);
+
+            $lockedItem->update([
+                'quantity' => $newQuantity,
+                'subtotal' => $subtotal,
+                'cost' => $cost,
+                'profit' => round($subtotal - $cost, 2),
+            ]);
+
+            $this->refreshOrderTotalsFromCurrentItems($lockedOrder);
+        });
+
+        return $this->redirectToOrder($request, $menuOrder)->with('success', 'Item quantity updated.');
+    }
+
+    public function destroyItem(Request $request, MenuOrder $menuOrder, MenuOrderItem $item): RedirectResponse
     {
         $this->authorizeBranch($menuOrder->branch_id);
 
@@ -442,7 +511,124 @@ class MenuOrderController extends Controller
             $this->refreshOrderTotalsFromCurrentItems($lockedOrder);
         });
 
-        return redirect()->route('menu-orders.show', $menuOrder)->with('success', 'Menu order item deleted and inventory replenished.');
+        return $this->redirectToOrder($request, $menuOrder)->with('success', 'Menu order item deleted and inventory replenished.');
+    }
+
+    /**
+     * Item add/edit/remove actions are triggered from both the order's show page
+     * and its edit page — send the user back to wherever they started instead of
+     * always bouncing to show.
+     */
+    private function redirectToOrder(Request $request, MenuOrder $menuOrder): RedirectResponse
+    {
+        return $request->input('return_to') === 'edit'
+            ? redirect()->route('menu-orders.edit', $menuOrder)
+            : redirect()->route('menu-orders.show', $menuOrder);
+    }
+
+    /**
+     * Deduct ingredients for an incremental quantity increase on an existing order
+     * item, locking and validating stock for just the delta (not the full line).
+     */
+    private function deductQuantityDeltaForMenu(MenuOrder $order, Menu $menu, int $deltaQuantity): void
+    {
+        $userId = auth()->id();
+        $now = now();
+
+        $ingredientIds = $menu->items->pluck('id')->all();
+        $stocks = Item::whereIn('id', $ingredientIds)
+            ->where('branch_id', $order->branch_id)
+            ->lockForUpdate()
+            ->get()
+            ->keyBy('id');
+
+        foreach ($menu->items as $ingredient) {
+            $needed = round((float) $ingredient->pivot->quantity_required * $deltaQuantity, 4);
+            if ($needed <= 0) {
+                continue;
+            }
+
+            $stock = $stocks->get($ingredient->id);
+            $available = $stock ? (float) $stock->quantity : 0.0;
+
+            if (! $stock || $available < $needed) {
+                throw ValidationException::withMessages([
+                    'quantity' => 'Insufficient stock for ingredient "'.($ingredient->name ?? 'Unknown ingredient').'" to increase this item\'s quantity.',
+                ]);
+            }
+        }
+
+        foreach ($menu->items as $ingredient) {
+            $needed = round((float) $ingredient->pivot->quantity_required * $deltaQuantity, 4);
+            if ($needed <= 0) {
+                continue;
+            }
+
+            $stock = $stocks->get($ingredient->id);
+            $beginning = (float) $stock->quantity;
+            $this->inventoryService->decrease($stock, $needed);
+            $remaining = (float) $stock->quantity;
+
+            InventoryTransaction::create([
+                'item_id' => $stock->id,
+                'branch_id' => $order->branch_id,
+                'type' => 'out',
+                'quantity' => $needed,
+                'beginning_quantity' => $beginning,
+                'remaining_quantity' => $remaining,
+                'transaction_price' => $stock->unit_price ? (float) $stock->unit_price * $needed : null,
+                'transaction_date' => $now,
+                'reason' => 'Sale — '.$order->orderNumber().' (quantity increased)',
+                'status' => 'approved',
+                'notes' => 'Auto-deducted for a menu order item quantity increase.',
+                'created_by' => $userId,
+            ]);
+        }
+    }
+
+    /**
+     * Replenish ingredients for an incremental quantity decrease on an existing
+     * order item.
+     */
+    private function replenishQuantityDeltaForMenu(MenuOrder $order, Menu $menu, int $deltaQuantity): void
+    {
+        $userId = auth()->id();
+        $now = now();
+
+        foreach ($menu->items as $ingredient) {
+            $replenishQty = round((float) $ingredient->pivot->quantity_required * $deltaQuantity, 4);
+            if ($replenishQty <= 0) {
+                continue;
+            }
+
+            $stock = Item::whereKey($ingredient->id)
+                ->where('branch_id', $order->branch_id)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $stock) {
+                continue;
+            }
+
+            $beginning = (float) $stock->quantity;
+            $this->inventoryService->increase($stock, $replenishQty);
+            $remaining = (float) $stock->quantity;
+
+            InventoryTransaction::create([
+                'item_id' => $stock->id,
+                'branch_id' => $order->branch_id,
+                'type' => 'in',
+                'quantity' => $replenishQty,
+                'beginning_quantity' => $beginning,
+                'remaining_quantity' => $remaining,
+                'transaction_price' => $stock->unit_price ? (float) $stock->unit_price * $replenishQty : null,
+                'transaction_date' => $now,
+                'reason' => 'Menu Order Item Quantity Decreased',
+                'status' => 'approved',
+                'notes' => 'Auto-replenished because the order item quantity was reduced.',
+                'created_by' => $userId,
+            ]);
+        }
     }
 
     public function destroy(MenuOrder $menuOrder): RedirectResponse

@@ -235,6 +235,7 @@ Route::middleware('auth')->group(function (): void {
         Route::get('/create', [MenuOrderController::class, 'create'])->name('create');
         Route::post('/', [MenuOrderController::class, 'store'])->name('store');
         Route::post('/{menuOrder}/items', [MenuOrderController::class, 'storeItem'])->name('items.store');
+        Route::put('/{menuOrder}/items/{item}', [MenuOrderController::class, 'updateItemQuantity'])->name('items.update');
         Route::delete('/{menuOrder}/items/{item}', [MenuOrderController::class, 'destroyItem'])->name('items.destroy');
         Route::get('/{menuOrder}/billing', [MenuOrderController::class, 'billingReceipt'])->name('billing');
         Route::get('/{menuOrder}', [MenuOrderController::class, 'show'])->name('show');
