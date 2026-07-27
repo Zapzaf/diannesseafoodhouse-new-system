@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             SupplierSeeder::class,
             InventorySeeder::class,
             MenuSeeder::class,
+            MandaueBranchSeeder::class,
             ChartOfAccountSeeder::class,
             FeedbackSeeder::class,
         ]);
