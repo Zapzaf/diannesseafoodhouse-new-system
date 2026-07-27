@@ -119,6 +119,13 @@
                     </button>
                 </div>
                 <div class="card-body">
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" role="switch" name="no_ingredients" value="1" id="noIngredientsToggle" {{ old('no_ingredients', $menu->no_ingredients) ? 'checked' : '' }}>
+                        <label class="form-check-label fw-bold" for="noIngredientsToggle">No Ingredients</label>
+                        <div class="form-text">Enable this if this menu item does not consume inventory ingredients (e.g. a beverage add-on or a flat fee).</div>
+                    </div>
+
+                    <div id="ingredientsSection">
                     <p class="text-muted small mb-3">Define how much inventory stock is consumed per one unit of this menu item. Ingredients are filtered to the menu's branch.</p>
 
                     <div class="row g-2 mb-1 d-none d-md-flex text-muted small fw-semibold text-uppercase" style="letter-spacing: .04em;">
@@ -190,6 +197,7 @@
                         </div>
                         @endforelse
                     </div>
+                    </div>
                 </div>
             </div>
 
@@ -213,6 +221,21 @@ const itemOptions = {!! $items->map(fn($item) => [
 ])->values()->toJson() !!};
 
 let rowIndex = document.querySelectorAll('.ingredient-row').length;
+
+const noIngredientsToggle = document.getElementById('noIngredientsToggle');
+const ingredientsSection = document.getElementById('ingredientsSection');
+const addIngredientBtnEl = document.getElementById('addIngredientBtn');
+
+function applyNoIngredientsToggle() {
+    const enabled = !!noIngredientsToggle?.checked;
+    ingredientsSection?.classList.toggle('d-none', enabled);
+    if (addIngredientBtnEl) addIngredientBtnEl.disabled = enabled;
+    document.querySelectorAll('.ingredient-select').forEach((select) => { select.required = !enabled; });
+    document.querySelectorAll('.ingredient-row input[name*="[quantity_required]"]').forEach((input) => { input.required = !enabled; });
+}
+
+noIngredientsToggle?.addEventListener('change', applyNoIngredientsToggle);
+applyNoIngredientsToggle();
 
 function buildOptions(selectedId = '') {
     const branchId = '{{ $menu->branch_id }}';

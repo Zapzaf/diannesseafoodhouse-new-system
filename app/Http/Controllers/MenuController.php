@@ -107,14 +107,17 @@ class MenuController extends Controller
     {
         $user = auth()->user();
 
+        $noIngredients = $request->boolean('no_ingredients');
+
         $data = $request->validate([
             'branch_id'         => 'required|exists:branches,id',
             'name'              => 'required|string|max:255',
             'menu_description'  => 'nullable|string|max:2000',
+            'no_ingredients'    => 'nullable|boolean',
             'selling_price'     => 'required|numeric|min:0',
             'menu_category_id'  => 'required|exists:menu_categories,id',
             'image'             => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
-            'ingredients'       => 'required|array|min:1',
+            'ingredients'       => $noIngredients ? 'nullable|array' : 'required|array|min:1',
             'ingredients.*.item_id'            => ['required', 'exists:items,id', 'distinct'],
             'ingredients.*.quantity_required'  => 'required|numeric|min:0.01',
         ], [
@@ -137,12 +140,16 @@ class MenuController extends Controller
             ]);
         }
 
+        $ingredients = $noIngredients ? [] : $data['ingredients'];
+
         $ingredientItems = Item::query()
-            ->whereIn('id', collect($data['ingredients'])->pluck('item_id')->all())
+            ->whereIn('id', collect($ingredients)->pluck('item_id')->all())
             ->get()
             ->keyBy('id');
 
-        $primaryCategoryId = $this->resolveMenuCategoryIdFromIngredients($data['ingredients'], $ingredientItems, (int) $data['branch_id']);
+        $primaryCategoryId = $noIngredients
+            ? null
+            : $this->resolveMenuCategoryIdFromIngredients($ingredients, $ingredientItems, (int) $data['branch_id']);
 
         $imagePath = null;
         try {
@@ -150,20 +157,21 @@ class MenuController extends Controller
                 $imagePath = $request->file('image')->store('menus', 'public');
             }
 
-            DB::transaction(function () use ($data, $menuCategory, $primaryCategoryId, $imagePath, $user, $ingredientItems): void {
+            DB::transaction(function () use ($data, $menuCategory, $primaryCategoryId, $imagePath, $user, $ingredientItems, $ingredients, $noIngredients): void {
                 $menu = Menu::create([
                     'branch_id'        => $data['branch_id'],
                     'category_id'      => $primaryCategoryId,
                     'menu_category_id' => $menuCategory->id,
                     'name'             => $data['name'],
                     'menu_description' => $data['menu_description'] ?? null,
+                    'no_ingredients'   => $noIngredients,
                     'selling_price'    => $data['selling_price'],
                     'image'            => $imagePath,
                     'category'         => $menuCategory->name,
                     'created_by'       => $user->id,
                 ]);
 
-                $this->syncIngredients($menu, $data['ingredients'], $ingredientItems);
+                $this->syncIngredients($menu, $ingredients, $ingredientItems);
             });
         } catch (\Throwable $e) {
             if ($imagePath && Storage::disk('public')->exists($imagePath)) {
@@ -209,13 +217,16 @@ class MenuController extends Controller
     {
         $this->authorizeBranch($menu->branch_id);
 
+        $noIngredients = $request->boolean('no_ingredients');
+
         $data = $request->validate([
             'name'              => 'required|string|max:255',
             'menu_description'  => 'nullable|string|max:2000',
+            'no_ingredients'    => 'nullable|boolean',
             'selling_price'     => 'required|numeric|min:0',
             'menu_category_id'  => 'required|exists:menu_categories,id',
             'image'             => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
-            'ingredients'       => 'required|array|min:1',
+            'ingredients'       => $noIngredients ? 'nullable|array' : 'required|array|min:1',
             'ingredients.*.item_id'            => ['required', 'exists:items,id', 'distinct'],
             'ingredients.*.quantity_required'  => 'required|numeric|min:0.01',
         ], [
@@ -234,18 +245,23 @@ class MenuController extends Controller
             ]);
         }
 
+        $ingredients = $noIngredients ? [] : $data['ingredients'];
+
         $ingredientItems = Item::query()
-            ->whereIn('id', collect($data['ingredients'])->pluck('item_id')->all())
+            ->whereIn('id', collect($ingredients)->pluck('item_id')->all())
             ->get()
             ->keyBy('id');
 
-        $primaryCategoryId = $this->resolveMenuCategoryIdFromIngredients($data['ingredients'], $ingredientItems, (int) $menu->branch_id);
+        $primaryCategoryId = $noIngredients
+            ? null
+            : $this->resolveMenuCategoryIdFromIngredients($ingredients, $ingredientItems, (int) $menu->branch_id);
 
         $updateData = [
             'category_id'      => $primaryCategoryId,
             'menu_category_id' => $menuCategory->id,
             'name'             => $data['name'],
             'menu_description' => $data['menu_description'] ?? null,
+            'no_ingredients'   => $noIngredients,
             'selling_price'    => $data['selling_price'],
             'category'         => $menuCategory->name,
         ];
@@ -258,9 +274,9 @@ class MenuController extends Controller
         }
 
         try {
-            DB::transaction(function () use ($menu, $updateData, $data, $ingredientItems): void {
+            DB::transaction(function () use ($menu, $updateData, $ingredients, $ingredientItems): void {
                 $menu->update($updateData);
-                $this->syncIngredients($menu, $data['ingredients'], $ingredientItems);
+                $this->syncIngredients($menu, $ingredients, $ingredientItems);
             });
         } catch (\Throwable $e) {
             if ($newImagePath && Storage::disk('public')->exists($newImagePath)) {

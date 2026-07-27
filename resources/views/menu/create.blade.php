@@ -124,6 +124,13 @@
                     </button>
                 </div>
                 <div class="card-body">
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" role="switch" name="no_ingredients" value="1" id="noIngredientsToggle" {{ old('no_ingredients') ? 'checked' : '' }}>
+                        <label class="form-check-label fw-bold" for="noIngredientsToggle">No Ingredients</label>
+                        <div class="form-text">Enable this if this menu item does not consume inventory ingredients (e.g. a beverage add-on or a flat fee).</div>
+                    </div>
+
+                    <div id="ingredientsSection">
                     <div id="branchWarning" class="alert alert-warning {{ auth()->user()->isAdmin() && !old('branch_id', $branchId) ? '' : 'd-none' }}">
                         <i data-lucide="alert-triangle" class="me-1"></i> Please select a branch first before choosing ingredients.
                     </div>
@@ -185,6 +192,7 @@
                         </div>
                         @endforelse
                     </div>
+                    </div>
                 </div>
             </div>
 
@@ -219,6 +227,25 @@ const menuCreateSubmitBtn = document.getElementById('menuCreateSubmitBtn');
 const menuFormAlert = document.getElementById('menuFormAlert');
 const ingredientsContainer = document.getElementById('ingredientsContainer');
 const addIngredientBtn = document.getElementById('addIngredientBtn');
+const noIngredientsToggle = document.getElementById('noIngredientsToggle');
+const ingredientsSection = document.getElementById('ingredientsSection');
+
+function isNoIngredients() {
+    return !!noIngredientsToggle?.checked;
+}
+
+function applyNoIngredientsToggle() {
+    const enabled = isNoIngredients();
+    ingredientsSection?.classList.toggle('d-none', enabled);
+    if (addIngredientBtn) addIngredientBtn.disabled = enabled;
+    document.querySelectorAll('.ingredient-select').forEach((select) => { select.required = !enabled; });
+    document.querySelectorAll('.ingredient-row input[name*="[quantity_required]"]').forEach((input) => { input.required = !enabled; });
+}
+
+noIngredientsToggle?.addEventListener('change', function () {
+    applyNoIngredientsToggle();
+    showMenuFormAlert([]);
+});
 
 function getBranchId() {
     const branchSelect = document.getElementById('branchSelect');
@@ -290,6 +317,11 @@ function validateMenuCreateForm() {
 
     if (!categorySelect || !categorySelect.value) {
         messages.push('Please select a menu category.');
+    }
+
+    if (isNoIngredients()) {
+        showMenuFormAlert(messages);
+        return messages.length === 0;
     }
 
     if (!ingredientSelects.length) {
@@ -433,6 +465,7 @@ ingredientsContainer?.addEventListener('change', function (event) {
 })();
 
 refreshAllIngredientStockLabels();
+applyNoIngredientsToggle();
 
 menuCreateForm?.addEventListener('submit', function (event) {
     if (!validateMenuCreateForm()) {

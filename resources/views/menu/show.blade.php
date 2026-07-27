@@ -67,6 +67,12 @@
                 <div class="card shadow-sm">
                     <div class="card-header fw-semibold">Recipe / Bill of Materials</div>
                     <div class="card-body">
+                        @if($menu->no_ingredients)
+                        <div class="text-center text-muted py-3">
+                            <i data-lucide="ban" class="mb-2"></i>
+                            <div>This menu item is marked as "No Ingredients" and does not consume inventory stock.</div>
+                        </div>
+                        @else
                         <div class="table-responsive">
                             <table class="table table-sm">
                                 <thead class="table-light">
@@ -114,6 +120,7 @@
                                 @endif
                             </table>
                         </div>
+                        @endif
                     </div>
                 </div>
             </div>

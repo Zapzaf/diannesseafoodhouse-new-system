@@ -74,9 +74,11 @@ document.addEventListener('DOMContentLoaded', function() {
         renderRow: function(menu, ctx) {
             const description = menu.menu_description || '';
             const shortDescription = description.length > 32 ? description.slice(0, 32) + '...' : description;
-            const ingredientText = Number(menu.items_count || 0) > 0
-                ? `<span class="text-muted small">${menu.items_count} ingredient(s)</span>`
-                : '<span class="text-warning small">No ingredients</span>';
+            const ingredientText = menu.no_ingredients
+                ? '<span class="text-muted small fst-italic">No Ingredients</span>'
+                : (Number(menu.items_count || 0) > 0
+                    ? `<span class="text-muted small">${menu.items_count} ingredient(s)</span>`
+                    : '<span class="text-warning small">No ingredients</span>');
 
             return `<tr>
                     <td>${ctx.index}</td>

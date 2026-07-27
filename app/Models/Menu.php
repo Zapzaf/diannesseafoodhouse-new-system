@@ -8,10 +8,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Menu extends Model
 {
-    protected $fillable = ['branch_id', 'category_id', 'menu_category_id', 'name', 'menu_description', 'selling_price', 'image', 'category', 'created_by'];
+    protected $fillable = ['branch_id', 'category_id', 'menu_category_id', 'name', 'menu_description', 'no_ingredients', 'selling_price', 'image', 'category', 'created_by'];
 
     protected $casts = [
         'selling_price' => 'decimal:2',
+        'no_ingredients' => 'boolean',
     ];
 
     public function branch(): BelongsTo
