@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Branch;
+use App\Models\CashShift;
 use App\Models\DiningTable;
 use App\Models\InventoryTransaction;
 use App\Models\Item;
@@ -680,9 +681,16 @@ class MenuOrderController extends Controller
             $applied = min($amount, $balance);
             $change  = max(0, $tendered - $applied);
 
+            $activeShift = CashShift::where('cashier_id', $user->id)
+                ->where('branch_id', $lockedOrder->branch_id)
+                ->where('status', 'open')
+                ->first();
+
             $payment = MenuOrderPayment::create([
                 'branch_id'               => $lockedOrder->branch_id,
                 'menu_order_id'           => $lockedOrder->id,
+                'cash_shift_id'           => $activeShift?->id,
+                'pos_terminal_id'         => $activeShift?->pos_terminal_id,
                 'amount'                  => $applied,
                 'amount_tendered'         => $tendered,
                 'change_amount'           => $change,

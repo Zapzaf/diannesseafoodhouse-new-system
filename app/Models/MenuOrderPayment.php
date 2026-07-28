@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class MenuOrderPayment extends Model
 {
     protected $fillable = [
-        'branch_id', 'menu_order_id', 'amount', 'amount_tendered', 'change_amount', 'subtotal',
+        'branch_id', 'menu_order_id', 'cash_shift_id', 'pos_terminal_id', 'amount', 'amount_tendered', 'change_amount', 'subtotal',
         'additional_charge_label', 'additional_charge_amount', 'additional_charges',
         'total_vat_exempt', 'total_discount', 'final_total',
         'discount_type', 'discount_amount', 'vat_amount', 'is_vat_exempt',
@@ -45,6 +45,16 @@ class MenuOrderPayment extends Model
     public function receivedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'received_by');
+    }
+
+    public function cashShift(): BelongsTo
+    {
+        return $this->belongsTo(CashShift::class, 'cash_shift_id');
+    }
+
+    public function terminal(): BelongsTo
+    {
+        return $this->belongsTo(PosTerminal::class, 'pos_terminal_id');
     }
 
     public function additionalChargesList(): array

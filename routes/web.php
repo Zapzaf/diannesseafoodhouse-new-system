@@ -3,6 +3,7 @@
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\BranchMailSettingController;
 use App\Http\Controllers\BranchManagementController;
+use App\Http\Controllers\CashShiftController;
 use App\Http\Controllers\CategoryManagementController;
 use App\Http\Controllers\ChartOfAccountController;
 use App\Http\Controllers\CheckRegisterController;
@@ -18,6 +19,7 @@ use App\Http\Controllers\MenuOrderController;
 use App\Http\Controllers\MenuOrderSalesReportController;
 use App\Http\Controllers\PaymentsController;
 use App\Http\Controllers\PettyCashVoucherController;
+use App\Http\Controllers\PosTerminalController;
 use App\Http\Controllers\ProductionManagementController;
 use App\Http\Controllers\PurchaseDisbursementReportController;
 use App\Http\Controllers\PurchaseVoucherController;
@@ -29,6 +31,9 @@ use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\SupplierManagementController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WasteReportController;
+use App\Http\Controllers\XReadingController;
+use App\Http\Controllers\YReadingController;
+use App\Http\Controllers\ZReadingController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -311,6 +316,44 @@ Route::middleware('auth')->group(function (): void {
 			Route::get('/menu-order-sales/export/excel', [MenuOrderSalesReportController::class, 'exportExcel'])->name('menu-order-sales.export-excel');
 			Route::get('/menu-order-sales/export/pdf', [MenuOrderSalesReportController::class, 'exportPdf'])->name('menu-order-sales.export-pdf');
 		});
+
+		Route::prefix('x-reading')->name('x-reading.')->group(function (): void {
+			Route::get('/', [XReadingController::class, 'index'])->name('index');
+			Route::get('/export/excel', [XReadingController::class, 'exportExcel'])->name('export-excel');
+			Route::get('/export/pdf', [XReadingController::class, 'exportPdf'])->name('export-pdf');
+		});
+
+		Route::prefix('y-reading')->name('y-reading.')->group(function (): void {
+			Route::get('/', [YReadingController::class, 'index'])->name('index');
+			Route::get('/export/excel', [YReadingController::class, 'exportExcel'])->name('export-excel');
+			Route::get('/export/pdf', [YReadingController::class, 'exportPdf'])->name('export-pdf');
+		});
+
+		Route::prefix('z-reading')->name('z-reading.')->group(function (): void {
+			Route::get('/', [ZReadingController::class, 'index'])->name('index');
+			Route::get('/preview', [ZReadingController::class, 'preview'])->name('preview');
+			Route::post('/', [ZReadingController::class, 'store'])->name('store');
+			Route::get('/{zReading}', [ZReadingController::class, 'show'])->name('show');
+			Route::post('/{zReading}/void', [ZReadingController::class, 'void'])->name('void');
+			Route::get('/{zReading}/export/excel', [ZReadingController::class, 'exportExcel'])->name('export-excel');
+			Route::get('/{zReading}/export/pdf', [ZReadingController::class, 'exportPdf'])->name('export-pdf');
+		});
+	});
+
+	Route::prefix('pos-terminals')->name('pos-terminals.')->group(function (): void {
+		Route::get('/', [PosTerminalController::class, 'index'])->name('index');
+		Route::post('/', [PosTerminalController::class, 'store'])->name('store');
+		Route::post('/{posTerminal}/toggle-active', [PosTerminalController::class, 'toggleActive'])->name('toggle-active');
+		Route::delete('/{posTerminal}', [PosTerminalController::class, 'destroy'])->name('destroy');
+	});
+
+	Route::prefix('cash-shifts')->name('cash-shifts.')->group(function (): void {
+		Route::get('/', [CashShiftController::class, 'index'])->name('index');
+		Route::get('/create', [CashShiftController::class, 'create'])->name('create');
+		Route::post('/', [CashShiftController::class, 'store'])->name('store');
+		Route::get('/{cashShift}', [CashShiftController::class, 'show'])->name('show');
+		Route::post('/{cashShift}/cash-movement', [CashShiftController::class, 'cashMovement'])->name('cash-movement');
+		Route::post('/{cashShift}/close', [CashShiftController::class, 'close'])->name('close');
 	});
 
 	// Settings route (from nav)

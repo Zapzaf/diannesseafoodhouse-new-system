@@ -332,6 +332,31 @@
                         </div>
                     </li>
 
+                    <!-- Cash Shifts -->
+                    <li class="nav-item">
+                        <a class="nav-link collapsed {{ request()->routeIs('cash-shifts.*') ? 'active' : '' }}" href="#" data-bs-toggle="collapse"
+                           data-bs-target="#collapseCashShifts" aria-expanded="{{ request()->routeIs('cash-shifts.*') ? 'true' : 'false' }}">
+                            <i data-lucide="wallet"></i>
+                            <span>Cash Shifts</span>
+                            <i data-lucide="chevron-down" class="ms-auto collapse-arrow" style="width: 14px; height: 14px;"></i>
+                        </a>
+                        <div class="collapse {{ request()->routeIs('cash-shifts.*') ? 'show' : '' }} ps-3" id="collapseCashShifts">
+                           <ul class="nav flex-column mt-1 gap-1">
+                               <li class="nav-item">
+                                   <a class="nav-link py-1.5 px-3 {{ request()->routeIs('cash-shifts.index') ? 'active' : '' }}" href="{{ route('cash-shifts.index') }}">All Shifts</a>
+                               </li>
+                               <li class="nav-item">
+                                   <a class="nav-link py-1.5 px-3 {{ request()->routeIs('cash-shifts.create') ? 'active' : '' }}" href="{{ route('cash-shifts.create') }}">Open Shift</a>
+                               </li>
+                               @if($authUser && ($authUser->isAdmin() || $authUser->isBranchManager()))
+                               <li class="nav-item">
+                                   <a class="nav-link py-1.5 px-3 {{ request()->routeIs('pos-terminals.*') ? 'active' : '' }}" href="{{ route('pos-terminals.index') }}">POS Terminals</a>
+                               </li>
+                               @endif
+                           </ul>
+                        </div>
+                    </li>
+
                     <!-- Production & Delivery Section -->
                     <div class="sidenav-menu-heading text-uppercase px-3 py-2 mt-2 small fw-bold text-white-50" style="font-size: 0.7rem; letter-spacing: 0.08em; opacity: 0.7;">Production &amp; Delivery</div>
                     
@@ -524,6 +549,12 @@
                                </li>
                                <li class="nav-item">
                                    <a class="nav-link py-1.5 px-3 {{ request()->routeIs('reports.feedback.*') ? 'active' : '' }}" href="{{ route('reports.feedback.index') }}">Feedback Report</a>
+                               </li>
+                               <li class="nav-item">
+                                   <a class="nav-link py-1.5 px-3 {{ request()->routeIs('reports.x-reading.*') ? 'active' : '' }}" href="{{ route('reports.x-reading.index') }}">X Reading</a>
+                               </li>
+                               <li class="nav-item">
+                                   <a class="nav-link py-1.5 px-3 {{ request()->routeIs('reports.z-reading.*') ? 'active' : '' }}" href="{{ route('reports.z-reading.index') }}">Z Reading</a>
                                </li>
                                @if($authUser && ($authUser->isAdmin() || $authUser->isBranchManager()))
                                <li class="nav-item">
