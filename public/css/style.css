@@ -597,6 +597,10 @@ body {
     min-width: 720px;
 }
 
+.main-content .table-responsive > .table.menu-order-items-table {
+    min-width: 760px;
+}
+
 .main-content .card-header form {
     min-width: 0;
 }
@@ -1732,6 +1736,18 @@ body {
 .menu-order-section .text-muted,
 .menu-order-side-card .text-muted {
     color: var(--text-muted) !important;
+}
+
+.table-responsive:has(> .menu-order-items-table) {
+    background:
+        linear-gradient(to right, var(--bg-card) 30%, rgba(255, 255, 255, 0)) left,
+        linear-gradient(to right, rgba(255, 255, 255, 0), var(--bg-card) 70%) right,
+        linear-gradient(to right, rgba(15, 23, 42, 0.14), rgba(15, 23, 42, 0)) left,
+        linear-gradient(to left, rgba(15, 23, 42, 0.14), rgba(15, 23, 42, 0)) right;
+    background-repeat: no-repeat;
+    background-color: var(--bg-card);
+    background-size: 32px 100%, 32px 100%, 12px 100%, 12px 100%;
+    background-attachment: local, local, scroll, scroll;
 }
 
 .menu-order-items-table {
