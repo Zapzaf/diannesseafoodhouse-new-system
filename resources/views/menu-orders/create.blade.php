@@ -409,7 +409,7 @@
                                 
                                 <div class="position-relative menu-card-img-wrapper" title="Click to add to order">
                                     @if($menu->image)
-                                    <img src="{{ asset('storage/' . $menu->image) }}" alt="{{ $menu->name }}">
+                                    <img src="{{ asset('storage/' . $menu->image) }}" alt="{{ $menu->name }}" loading="lazy" decoding="async">
                                     @else
                                     <div class="text-center text-muted">
                                         <i data-lucide="image" style="width:32px; height:32px; opacity: 0.5; margin-bottom: 0.5rem;"></i>
@@ -1221,17 +1221,21 @@
     filterTableOptions();
 
     if (modalSearch) {
+        var modalSearchTimer = null;
         modalSearch.addEventListener('input', function() {
             var term = this.value.toLowerCase();
-            var branchId = selectedBranchId();
-            if (!modalGrid) return;
-            modalGrid.querySelectorAll('.menu-modal-card').forEach(function(card) {
-                var name = (card.dataset.menuName || '').toLowerCase();
-                var cardBranch = Number(card.dataset.menuBranch || 0);
-                var matchesSearch = name.indexOf(term) !== -1;
-                var matchesBranch = !branchId || cardBranch === branchId;
-                card.parentElement.style.display = matchesSearch && matchesBranch ? '' : 'none';
-            });
+            window.clearTimeout(modalSearchTimer);
+            modalSearchTimer = window.setTimeout(function() {
+                var branchId = selectedBranchId();
+                if (!modalGrid) return;
+                modalGrid.querySelectorAll('.menu-modal-card').forEach(function(card) {
+                    var name = (card.dataset.menuName || '').toLowerCase();
+                    var cardBranch = Number(card.dataset.menuBranch || 0);
+                    var matchesSearch = name.indexOf(term) !== -1;
+                    var matchesBranch = !branchId || cardBranch === branchId;
+                    card.parentElement.style.display = matchesSearch && matchesBranch ? '' : 'none';
+                });
+            }, 120);
         });
     }
 

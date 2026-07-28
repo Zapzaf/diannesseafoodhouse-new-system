@@ -1795,7 +1795,7 @@ body {
 
 .menu-order-sticky,
 .order-sidebar {
-    position: sticky;
+    position: sticky !important;
     top: 5.25rem;
 }
 

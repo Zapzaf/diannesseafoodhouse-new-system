@@ -30,7 +30,7 @@
                                  data-menu-image="{{ $menu->image ? asset('storage/' . $menu->image) : '' }}">
                                 <div class="position-relative menu-card-img-wrapper" title="Click to add to order">
                                     @if($menu->image)
-                                    <img src="{{ asset('storage/' . $menu->image) }}" alt="{{ $menu->name }}">
+                                    <img src="{{ asset('storage/' . $menu->image) }}" alt="{{ $menu->name }}" loading="lazy" decoding="async">
                                     @else
                                     <div class="text-center text-muted">
                                         <i data-lucide="image" style="width:32px; height:32px; opacity: 0.5; margin-bottom: 0.5rem;"></i>

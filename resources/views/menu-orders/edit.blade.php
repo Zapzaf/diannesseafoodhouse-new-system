@@ -282,20 +282,18 @@
                     <div class="card mb-4 menu-order-form-card menu-order-sticky">
                         <div class="card-header fw-semibold">Billing Preview</div>
                         <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-sm mb-0">
-                                    <tbody>
-                                        <tr><td>Menu Subtotal</td><td class="text-end fw-semibold" id="previewSubtotal">₱{{ number_format((float) $order->subtotal, 2) }}</td></tr>
-                                        <tr id="previewAdditionalRow"><td>Additional Charges</td><td class="text-end" id="previewAdditional">₱{{ number_format((float) $order->additional_charge_amount, 2) }}</td></tr>
-                                        <tr id="previewPromoRow" class="{{ $order->promo_discount_amount > 0 ? '' : 'd-none' }}"><td>Promo Discount</td><td class="text-end text-danger" id="previewPromo">₱{{ number_format((float) $order->promo_discount_amount, 2) }}</td></tr>
-                                        <tr id="previewDiscountRow"><td>PWD/Senior Discount</td><td class="text-end text-danger" id="previewDiscount">₱{{ number_format((float) $order->discount_amount, 2) }}</td></tr>
-                                        <tr id="previewVatRow"><td>VAT</td><td class="text-end" id="previewVat">₱{{ number_format((float) $order->vat_amount, 2) }}</td></tr>
-                                    </tbody>
-                                    <tfoot>
-                                        <tr class="fw-bold"><td>Total</td><td class="text-end" id="previewTotal">₱{{ number_format((float) $order->total_amount, 2) }}</td></tr>
-                                    </tfoot>
-                                </table>
-                            </div>
+                            <table class="billing-preview-table">
+                                <tbody>
+                                    <tr><td>Menu Subtotal</td><td class="text-end fw-semibold" id="previewSubtotal">₱{{ number_format((float) $order->subtotal, 2) }}</td></tr>
+                                    <tr id="previewAdditionalRow"><td>Additional Charges</td><td class="text-end" id="previewAdditional">₱{{ number_format((float) $order->additional_charge_amount, 2) }}</td></tr>
+                                    <tr id="previewPromoRow" class="{{ $order->promo_discount_amount > 0 ? '' : 'd-none' }}"><td>Promo Discount</td><td class="text-end text-danger" id="previewPromo">₱{{ number_format((float) $order->promo_discount_amount, 2) }}</td></tr>
+                                    <tr id="previewDiscountRow"><td>PWD/Senior Discount</td><td class="text-end text-danger" id="previewDiscount">₱{{ number_format((float) $order->discount_amount, 2) }}</td></tr>
+                                    <tr id="previewVatRow"><td>VAT</td><td class="text-end" id="previewVat">₱{{ number_format((float) $order->vat_amount, 2) }}</td></tr>
+                                </tbody>
+                                <tfoot>
+                                    <tr class="fw-bold"><td>Total</td><td class="text-end" id="previewTotal">₱{{ number_format((float) $order->total_amount, 2) }}</td></tr>
+                                </tfoot>
+                            </table>
                         </div>
                     </div>
                     <div class="d-grid gap-2">
@@ -358,7 +356,11 @@
     }
 
     if (modalSearch) {
-        modalSearch.addEventListener('input', filterModal);
+        var modalSearchTimer = null;
+        modalSearch.addEventListener('input', function () {
+            window.clearTimeout(modalSearchTimer);
+            modalSearchTimer = window.setTimeout(filterModal, 120);
+        });
     }
 
     if (addMenuModal) {
