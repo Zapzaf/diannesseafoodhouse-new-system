@@ -18,14 +18,24 @@
                     <div class="card-body">
                         @if($terminals->isEmpty())
                         <div class="alert alert-warning mb-0">
-                            No active POS terminals are available for your branch. Ask an administrator to
-                            <a href="{{ route('pos-terminals.index') }}">add one</a> first.
+                            @if(auth()->user()->isAdmin())
+                                Please select a branch from the branch switcher above before opening a shift.
+                            @else
+                                No active POS terminals are available for your branch. Ask an administrator to
+                                <a href="{{ route('pos-terminals.index') }}">add one</a> first.
+                            @endif
                         </div>
                         @else
                         <form method="POST" action="{{ route('cash-shifts.store') }}">
                             @csrf
                             <div class="mb-3">
                                 <label class="form-label fw-bold">POS Terminal <span class="text-danger">*</span></label>
+                                @if($terminals->count() === 1)
+                                    @php $onlyTerminal = $terminals->first(); @endphp
+                                    <input type="hidden" name="pos_terminal_id" value="{{ $onlyTerminal->id }}">
+                                    <input type="text" class="form-control" value="{{ $onlyTerminal->name }} ({{ $onlyTerminal->code }})" disabled>
+                                    <div class="form-text">This branch has one register. <a href="{{ route('pos-terminals.index') }}">Add another</a> if you need more.</div>
+                                @else
                                 <select name="pos_terminal_id" class="form-select @error('pos_terminal_id') is-invalid @enderror" required>
                                     <option value="">Select Terminal</option>
                                     @foreach($terminals as $terminal)
@@ -33,6 +43,7 @@
                                     @endforeach
                                 </select>
                                 @error('pos_terminal_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                @endif
                             </div>
                             <div class="mb-3">
                                 <label class="form-label fw-bold">Opening Cash Float (PHP) <span class="text-danger">*</span></label>

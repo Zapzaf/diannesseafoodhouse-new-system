@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Branch;
+use App\Models\PosTerminal;
 use App\Models\User;
 use Illuminate\Http\Request;
 
@@ -33,12 +34,17 @@ class BranchManagementController extends Controller
             'is_active' => ['nullable', 'boolean'],
         ]);
 
-        Branch::create([
+        $branch = Branch::create([
             'name' => $validated['name'],
             'address' => $validated['address'],
             'manager_id' => $validated['manager_id'] ?? null,
             'is_active' => (bool) ($validated['is_active'] ?? true),
         ]);
+
+        // Auto-provision a default POS terminal so the branch can open cash
+        // shifts and generate X/Y/Z Readings immediately, with no manual
+        // terminal setup step required for the common single-register case.
+        PosTerminal::ensureDefaultForBranch($branch->id);
 
         return redirect()->route('branches.index')->with('success', 'Branch created successfully.');
     }

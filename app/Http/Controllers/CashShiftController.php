@@ -50,6 +50,14 @@ class CashShiftController extends Controller
         $user = $request->user();
         $branchId = $user->isAdmin() ? ($request->session()->get('selected_branch_id') ?: null) : $user->branch_id;
 
+        // Belt-and-suspenders: branches created before terminal
+        // auto-provisioning existed (or that somehow still have none) get
+        // their default terminal filled in here too, so this page never
+        // shows "no terminals available" for a single, known branch.
+        if ($branchId) {
+            PosTerminal::ensureDefaultForBranch((int) $branchId);
+        }
+
         $terminals = PosTerminal::query()
             ->where('is_active', true)
             ->when($branchId, fn (Builder $q, $id) => $q->where('branch_id', $id))
