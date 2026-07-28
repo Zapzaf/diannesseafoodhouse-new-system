@@ -284,7 +284,7 @@
 
         headers.forEach((th, index) => {
             const headerText = (th.textContent || '').trim().toLowerCase();
-            if (th.classList.contains('table-actions-head') || headerText.includes('action')) {
+            if (th.classList.contains('table-actions-head') || /\baction(s)?\b/.test(headerText)) {
                 actionIndex = index;
             }
             th.classList.remove('table-actions-head');

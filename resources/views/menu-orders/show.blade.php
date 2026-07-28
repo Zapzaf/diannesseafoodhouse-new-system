@@ -163,9 +163,7 @@
                                         <th class="text-end">COGS</th>
                                         <th class="text-end">Profit</th>
                                         <th>Status</th>
-                                        @if($canModifyItems)
-                                        <th class="text-center">Action</th>
-                                        @endif
+                                        <x-table.th-actions :show="$canModifyItems" />
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -202,8 +200,7 @@
                                                 <span class="badge bg-secondary text-white">Pending</span>
                                             @endif
                                         </td>
-                                        @if($canModifyItems)
-                                        <td class="text-center">
+                                        <x-table.td-actions :show="$canModifyItems">
                                             @if($menuOrder->items->count() > 1)
                                             <form action="{{ route('menu-orders.items.destroy', [$menuOrder, $item]) }}" method="POST" onsubmit="return confirm('Delete this item and replenish its deducted inventory?')" class="d-inline">
                                                 @csrf
@@ -215,8 +212,7 @@
                                             @else
                                             <span class="text-muted">-</span>
                                             @endif
-                                        </td>
-                                        @endif
+                                        </x-table.td-actions>
                                     </tr>
                                     @empty
                                     <tr><td colspan="{{ $canModifyItems ? 8 : 7 }}" class="text-center text-muted py-4">No items on this order.</td></tr>
