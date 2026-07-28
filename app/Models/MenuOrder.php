@@ -16,6 +16,7 @@ class MenuOrder extends Model
         'subtotal', 'additional_charge_label', 'additional_charge_amount', 'additional_charges',
         'regular_pax', 'pwd_pax', 'senior_pax', 'total_pax',
         'discount_type', 'discount_id_number', 'discount_name', 'discount_amount',
+        'promo_campaign_id', 'promo_discount_source', 'promo_discount_code', 'promo_discount_label', 'promo_discount_amount',
         'total_vat_exempt', 'vat_rate', 'vat_amount',
         'total_amount', 'amount_paid', 'balance',
         'payment_status', 'status', 'notes', 'created_by',
@@ -27,6 +28,7 @@ class MenuOrder extends Model
         'additional_charge_amount' => 'decimal:2',
         'additional_charges' => 'array',
         'discount_amount' => 'decimal:2',
+        'promo_discount_amount' => 'decimal:2',
         'total_vat_exempt' => 'decimal:2',
         'vat_rate' => 'decimal:2',
         'vat_amount' => 'decimal:2',
@@ -70,6 +72,16 @@ class MenuOrder extends Model
     public function payments(): HasMany
     {
         return $this->hasMany(MenuOrderPayment::class);
+    }
+
+    public function promoCampaign(): BelongsTo
+    {
+        return $this->belongsTo(DiscountCampaign::class, 'promo_campaign_id');
+    }
+
+    public function discountRedemptions(): HasMany
+    {
+        return $this->hasMany(DiscountRedemption::class);
     }
 
     public function voidedBy(): BelongsTo

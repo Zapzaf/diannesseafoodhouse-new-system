@@ -36,10 +36,13 @@
         <div class="section-title">Sales Summary</div>
         <table>
             <tr><td>Gross Sales</td><td class="text-end">₱{{ number_format($summary['gross_sales'], 2) }}</td></tr>
-            <tr><td>Less: Discounts</td><td class="text-end">₱{{ number_format($summary['total_discount'], 2) }}</td></tr>
+            <tr><td>Less: PWD/Senior Discounts</td><td class="text-end">₱{{ number_format($summary['total_discount'], 2) }}</td></tr>
             <tr><td>&nbsp;&nbsp;Senior Citizen ({{ $summary['senior_count'] }})</td><td class="text-end">₱{{ number_format($summary['senior_discount_amount'], 2) }}</td></tr>
             <tr><td>&nbsp;&nbsp;PWD ({{ $summary['pwd_count'] }})</td><td class="text-end">₱{{ number_format($summary['pwd_discount_amount'], 2) }}</td></tr>
             <tr><td>&nbsp;&nbsp;Other</td><td class="text-end">₱{{ number_format($summary['other_discount_amount'], 2) }}</td></tr>
+            <tr><td>Less: Promotional Discounts</td><td class="text-end">₱{{ number_format($summary['promo_discount_amount'] ?? 0, 2) }}</td></tr>
+            <tr><td>&nbsp;&nbsp;Coupon</td><td class="text-end">₱{{ number_format($summary['promo_coupon_discount_amount'] ?? 0, 2) }}</td></tr>
+            <tr><td>&nbsp;&nbsp;Manual</td><td class="text-end">₱{{ number_format($summary['promo_manual_discount_amount'] ?? 0, 2) }}</td></tr>
             <tr><td class="grand">Net Sales</td><td class="text-end grand">₱{{ number_format($summary['net_sales'], 2) }}</td></tr>
         </table>
 
@@ -55,6 +58,7 @@
         <table>
             <tr><td>Number of Transactions</td><td class="text-end">{{ number_format($summary['transaction_count']) }}</td></tr>
             <tr><td>Customers Served</td><td class="text-end">{{ number_format($summary['customers_served']) }}</td></tr>
+            <tr><td>Discounted Transactions (Promo)</td><td class="text-end">{{ number_format($summary['promo_discount_count'] ?? 0) }}</td></tr>
             <tr><td>Refunds / Void Transactions</td><td class="text-end">{{ number_format($summary['voided_count']) }} (₱{{ number_format($summary['voided_amount'], 2) }})</td></tr>
         </table>
 

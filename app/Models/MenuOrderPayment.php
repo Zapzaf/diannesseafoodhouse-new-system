@@ -12,6 +12,7 @@ class MenuOrderPayment extends Model
         'additional_charge_label', 'additional_charge_amount', 'additional_charges',
         'total_vat_exempt', 'total_discount', 'final_total',
         'discount_type', 'discount_amount', 'vat_amount', 'is_vat_exempt',
+        'promo_campaign_id', 'promo_discount_source', 'promo_discount_code', 'promo_discount_label', 'promo_discount_amount',
         'method', 'reference_number', 'or_number', 'payment_date',
         'notes', 'received_by',
     ];
@@ -27,6 +28,7 @@ class MenuOrderPayment extends Model
         'total_discount' => 'decimal:2',
         'final_total' => 'decimal:2',
         'discount_amount' => 'decimal:2',
+        'promo_discount_amount' => 'decimal:2',
         'vat_amount' => 'decimal:2',
         'is_vat_exempt' => 'boolean',
         'payment_date' => 'date',
@@ -55,6 +57,11 @@ class MenuOrderPayment extends Model
     public function terminal(): BelongsTo
     {
         return $this->belongsTo(PosTerminal::class, 'pos_terminal_id');
+    }
+
+    public function promoCampaign(): BelongsTo
+    {
+        return $this->belongsTo(DiscountCampaign::class, 'promo_campaign_id');
     }
 
     public function additionalChargesList(): array

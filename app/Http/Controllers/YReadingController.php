@@ -46,7 +46,7 @@ class YReadingController extends Controller
         }
     }
 
-    public function exportExcel(Request $request): Response|RedirectResponse
+    public function exportExcel(Request $request)
     {
         try {
             $shift = $this->resolveShift($request);

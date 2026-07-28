@@ -154,6 +154,9 @@ DESC          QTY    AMOUNT
 @if((float) $order->additional_charge_amount > 0)
 {{ $formatTotal('ADDL CHARGES', (float) $order->additional_charge_amount) }}
 @endif
+@if((float) $order->promo_discount_amount > 0)
+{{ $formatTotal(strtoupper(Illuminate\Support\Str::limit($order->promo_discount_label ?? 'PROMO', 20, '')), -((float) $order->promo_discount_amount)) }}
+@endif
 @if((float) $order->discount_amount > 0)
 {{ $formatTotal('DISCOUNT ' . strtoupper($discountType), -((float) $order->discount_amount)) }}
 @endif

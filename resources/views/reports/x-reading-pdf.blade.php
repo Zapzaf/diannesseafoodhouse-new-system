@@ -31,7 +31,7 @@
             <td>VATable Sales</td><td class="text-end">₱{{ number_format($summary['vatable_sales'], 2) }}</td>
         </tr>
         <tr>
-            <td>Total Discounts</td><td class="text-end">₱{{ number_format($summary['total_discount'], 2) }}</td>
+            <td>PWD/Senior Discounts</td><td class="text-end">₱{{ number_format($summary['total_discount'], 2) }}</td>
             <td>VAT-Exempt Sales</td><td class="text-end">₱{{ number_format($summary['vat_exempt_sales'], 2) }}</td>
         </tr>
         <tr>
@@ -52,6 +52,22 @@
         </tr>
         <tr>
             <td>Refunds / Void Transactions</td><td class="text-end">{{ number_format($summary['voided_count']) }} (₱{{ number_format($summary['voided_amount'], 2) }})</td>
+            <td></td><td></td>
+        </tr>
+    </table>
+
+    <div class="section-title">Promotional Discounts (separate from PWD/Senior)</div>
+    <table class="kpi-table">
+        <tr>
+            <td>Total Promotional Discounts</td><td class="text-end">₱{{ number_format($summary['promo_discount_amount'] ?? 0, 2) }}</td>
+            <td>Discounted Transactions</td><td class="text-end">{{ number_format($summary['promo_discount_count'] ?? 0) }}</td>
+        </tr>
+        <tr>
+            <td>Coupon Discounts</td><td class="text-end">₱{{ number_format($summary['promo_coupon_discount_amount'] ?? 0, 2) }}</td>
+            <td>Manual Promotional Discounts</td><td class="text-end">₱{{ number_format($summary['promo_manual_discount_amount'] ?? 0, 2) }}</td>
+        </tr>
+        <tr>
+            <td>Net Sales After Promo Discounts</td><td class="text-end">₱{{ number_format($summary['net_sales_after_promo_discount'] ?? 0, 2) }}</td>
             <td></td><td></td>
         </tr>
     </table>

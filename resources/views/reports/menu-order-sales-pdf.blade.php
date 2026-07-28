@@ -32,7 +32,7 @@
             <td>VATable Sales</td><td class="text-end">₱{{ number_format($summary['vatable_sales'], 2) }}</td>
         </tr>
         <tr>
-            <td>Total Discounts</td><td class="text-end">₱{{ number_format($summary['total_discount'], 2) }}</td>
+            <td>PWD/Senior Discounts</td><td class="text-end">₱{{ number_format($summary['total_discount'], 2) }}</td>
             <td>VAT-Exempt Sales</td><td class="text-end">₱{{ number_format($summary['vat_exempt_sales'], 2) }}</td>
         </tr>
         <tr>
@@ -50,6 +50,22 @@
         <tr>
             <td>Senior Citizen Discounts</td><td class="text-end">{{ number_format($summary['senior_count']) }} (₱{{ number_format($summary['senior_discount_amount'], 2) }})</td>
             <td>PWD Discounts</td><td class="text-end">{{ number_format($summary['pwd_count']) }} (₱{{ number_format($summary['pwd_discount_amount'], 2) }})</td>
+        </tr>
+    </table>
+
+    <div class="section-title">Promotional Discounts (separate from PWD/Senior)</div>
+    <table class="kpi-table">
+        <tr>
+            <td>Total Promotional Discounts</td><td class="text-end">₱{{ number_format($summary['promo_discount_amount'] ?? 0, 2) }}</td>
+            <td>Discounted Transactions</td><td class="text-end">{{ number_format($summary['promo_discount_count'] ?? 0) }}</td>
+        </tr>
+        <tr>
+            <td>Coupon Discounts</td><td class="text-end">₱{{ number_format($summary['promo_coupon_discount_amount'] ?? 0, 2) }}</td>
+            <td>Manual Promotional Discounts</td><td class="text-end">₱{{ number_format($summary['promo_manual_discount_amount'] ?? 0, 2) }}</td>
+        </tr>
+        <tr>
+            <td>Net Sales After Promo Discounts</td><td class="text-end">₱{{ number_format($summary['net_sales_after_promo_discount'] ?? 0, 2) }}</td>
+            <td></td><td></td>
         </tr>
     </table>
 
@@ -96,7 +112,7 @@
         <thead>
             <tr>
                 <th>OR #</th><th>Date</th><th>Branch</th><th>Order #</th><th>Customer</th>
-                <th>Method</th><th>Discount</th><th class="text-end">Gross</th><th class="text-end">VAT</th><th class="text-end">Net</th><th>Received By</th>
+                <th>Method</th><th>PWD/Senior</th><th>Promo</th><th class="text-end">Gross</th><th class="text-end">VAT</th><th class="text-end">Net</th><th>Received By</th>
             </tr>
         </thead>
         <tbody>
@@ -117,17 +133,24 @@
                         —
                     @endif
                 </td>
+                <td>
+                    @if($payment->promo_discount_amount > 0)
+                        {{ $payment->promo_discount_label ?? ucfirst($payment->promo_discount_source) }} (₱{{ number_format($payment->promo_discount_amount, 2) }})
+                    @else
+                        —
+                    @endif
+                </td>
                 <td class="text-end">₱{{ number_format($payment->subtotal + $payment->additional_charge_amount, 2) }}</td>
                 <td class="text-end">₱{{ number_format($payment->vat_amount, 2) }}</td>
                 <td class="text-end">₱{{ number_format($payment->amount, 2) }}</td>
                 <td>{{ $payment->receivedBy?->name ?? '—' }}</td>
             </tr>
             @empty
-            <tr><td colspan="11">No transactions in this period.</td></tr>
+            <tr><td colspan="12">No transactions in this period.</td></tr>
             @endforelse
             @if($payments->isNotEmpty())
             <tr class="totals-row">
-                <td colspan="9">TOTAL NET SALES</td>
+                <td colspan="10">TOTAL NET SALES</td>
                 <td class="text-end">₱{{ number_format($totalNet, 2) }}</td>
                 <td></td>
             </tr>

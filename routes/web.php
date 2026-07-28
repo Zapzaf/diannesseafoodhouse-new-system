@@ -11,6 +11,7 @@ use App\Http\Controllers\CheckVoucherController;
 use App\Http\Controllers\CostingReportController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeliveryManagementController;
+use App\Http\Controllers\DiscountCampaignController;
 use App\Http\Controllers\FeedbackController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\MenuCategoryController;
@@ -354,6 +355,22 @@ Route::middleware('auth')->group(function (): void {
 		Route::get('/{cashShift}', [CashShiftController::class, 'show'])->name('show');
 		Route::post('/{cashShift}/cash-movement', [CashShiftController::class, 'cashMovement'])->name('cash-movement');
 		Route::post('/{cashShift}/close', [CashShiftController::class, 'close'])->name('close');
+	});
+
+	Route::prefix('discount-campaigns')->name('discount-campaigns.')->group(function (): void {
+		Route::get('/', [DiscountCampaignController::class, 'index'])->name('index');
+		Route::get('/validate-coupon', [DiscountCampaignController::class, 'validateCoupon'])->name('validate-coupon');
+
+		Route::middleware('role:admin,branch_manager')->group(function (): void {
+			Route::get('/create', [DiscountCampaignController::class, 'create'])->name('create');
+			Route::post('/', [DiscountCampaignController::class, 'store'])->name('store');
+			Route::get('/{discountCampaign}/edit', [DiscountCampaignController::class, 'edit'])->name('edit');
+			Route::put('/{discountCampaign}', [DiscountCampaignController::class, 'update'])->name('update');
+			Route::post('/{discountCampaign}/toggle-active', [DiscountCampaignController::class, 'toggleActive'])->name('toggle-active');
+			Route::delete('/{discountCampaign}', [DiscountCampaignController::class, 'destroy'])->name('destroy');
+		});
+
+		Route::get('/{discountCampaign}/redemptions', [DiscountCampaignController::class, 'redemptions'])->name('redemptions');
 	});
 
 	// Settings route (from nav)

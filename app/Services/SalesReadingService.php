@@ -36,7 +36,18 @@ class SalesReadingService
         $totalDiscount = $this->money((float) $base()->sum('discount_amount'));
         $vatExemptSales = $this->money((float) $base()->sum('total_vat_exempt'));
         $vatAmount = $this->money((float) $base()->sum('vat_amount'));
-        $netOfDiscount = $this->money($grossSales - $totalDiscount);
+
+        // Promotional discounts (coupon/automatic/manual) are entirely
+        // separate from the PWD/Senior discount above — never combined into
+        // $totalDiscount/$discount_amount, so PWD/Senior figures stay exactly
+        // as BIR requires them regardless of what promotions exist.
+        $promoDiscountAmount = $this->money((float) $base()->sum('promo_discount_amount'));
+        $promoCouponDiscountAmount = $this->money((float) $base()->whereIn('promo_discount_source', ['coupon', 'automatic'])->sum('promo_discount_amount'));
+        $promoManualDiscountAmount = $this->money((float) $base()->where('promo_discount_source', 'manual')->sum('promo_discount_amount'));
+        $promoDiscountCount = $base()->where('promo_discount_amount', '>', 0)->count();
+
+        $netSalesAfterPromoDiscount = $this->money(max(0, $grossSales - $promoDiscountAmount));
+        $netOfDiscount = $this->money($grossSales - $totalDiscount - $promoDiscountAmount);
         $netSales = $this->money($netOfDiscount - $vatAmount);
         $vatableSales = $this->money(max(0, $netSales - $vatExemptSales));
         $amountCollected = $this->money((float) $base()->sum('amount'));
@@ -119,6 +130,11 @@ class SalesReadingService
             'senior_count' => $seniorCount,
             'pwd_count' => $pwdCount,
             'other_discount_count' => $otherDiscountCount,
+            'promo_discount_amount' => $promoDiscountAmount,
+            'promo_coupon_discount_amount' => $promoCouponDiscountAmount,
+            'promo_manual_discount_amount' => $promoManualDiscountAmount,
+            'promo_discount_count' => $promoDiscountCount,
+            'net_sales_after_promo_discount' => $netSalesAfterPromoDiscount,
             'vat_exempt_sales' => $vatExemptSales,
             'vatable_sales' => $vatableSales,
             'zero_rated_sales' => 0.0,

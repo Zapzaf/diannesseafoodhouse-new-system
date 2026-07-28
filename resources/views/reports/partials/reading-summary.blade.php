@@ -11,7 +11,7 @@
     <div class="col-md-3">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body">
-                <div class="text-muted small">Total Discounts</div>
+                <div class="text-muted small">PWD/Senior Discounts</div>
                 <div class="fs-4 fw-bold text-danger">₱{{ number_format($summary['total_discount'], 2) }}</div>
             </div>
         </div>
@@ -29,6 +29,40 @@
             <div class="card-body">
                 <div class="text-muted small">Net Sales</div>
                 <div class="fs-4 fw-bold text-success">₱{{ number_format($summary['net_sales'], 2) }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-muted small">Total Promotional Discounts</div>
+                <div class="fs-5 fw-bold text-danger">₱{{ number_format($summary['promo_discount_amount'] ?? 0, 2) }}</div>
+                <div class="text-muted small">{{ number_format($summary['promo_discount_count'] ?? 0) }} discounted tx</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-muted small">Coupon Discounts</div>
+                <div class="fs-5 fw-bold">₱{{ number_format($summary['promo_coupon_discount_amount'] ?? 0, 2) }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-muted small">Manual Promotional Discounts</div>
+                <div class="fs-5 fw-bold">₱{{ number_format($summary['promo_manual_discount_amount'] ?? 0, 2) }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-muted small">Net Sales After Promo Discounts</div>
+                <div class="fs-5 fw-bold">₱{{ number_format($summary['net_sales_after_promo_discount'] ?? 0, 2) }}</div>
             </div>
         </div>
     </div>

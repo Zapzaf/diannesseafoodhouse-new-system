@@ -299,9 +299,15 @@
                                 @endforeach
                             </div>
                             @endif
+                            @if((float) $menuOrder->promo_discount_amount > 0)
+                            <div class="billing-row text-danger">
+                                <span>Promo Discount ({{ $menuOrder->promo_discount_label ?? ucfirst($menuOrder->promo_discount_source) }})</span>
+                                <strong>- ₱{{ number_format((float) $menuOrder->promo_discount_amount, 2) }}</strong>
+                            </div>
+                            @endif
                             @if($showDiscountSummary)
                             <div class="billing-row text-danger">
-                                <span>Discount</span>
+                                <span>PWD/Senior Discount</span>
                                 <strong>- ₱{{ number_format((float) $menuOrder->discount_amount, 2) }}</strong>
                             </div>
                             @endif

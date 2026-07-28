@@ -60,7 +60,7 @@ class XReadingController extends Controller
         }
     }
 
-    public function exportExcel(Request $request): Response|RedirectResponse
+    public function exportExcel(Request $request)
     {
         try {
             [$branchId, $terminalId, $businessDate] = $this->resolveFilters($request);

@@ -357,6 +357,14 @@
                         </div>
                     </li>
 
+                    <!-- Discounts & Coupons -->
+                    <li class="nav-item">
+                        <a class="nav-link {{ request()->routeIs('discount-campaigns.*') ? 'active' : '' }}" href="{{ route('discount-campaigns.index') }}">
+                            <i data-lucide="tag"></i>
+                            <span>Discounts &amp; Coupons</span>
+                        </a>
+                    </li>
+
                     <!-- Production & Delivery Section -->
                     <div class="sidenav-menu-heading text-uppercase px-3 py-2 mt-2 small fw-bold text-white-50" style="font-size: 0.7rem; letter-spacing: 0.08em; opacity: 0.7;">Production &amp; Delivery</div>
                     

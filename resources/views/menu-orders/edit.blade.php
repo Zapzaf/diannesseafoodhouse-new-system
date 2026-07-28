@@ -181,6 +181,68 @@
                     </div>
 
                     <div class="card mb-4 menu-order-form-card">
+                        <div class="card-header fw-semibold">Promo / Coupon Discount</div>
+                        <div class="card-body">
+                            <div class="text-muted small mb-3">Promotional discounts only. PWD and Senior Citizen discounts are handled separately below and always follow BIR rules.</div>
+
+                            <input type="hidden" name="promo_coupon_code" id="promoCouponCode" value="{{ old('promo_coupon_code', $order->promo_discount_source === 'coupon' ? $order->promo_discount_code : '') }}">
+                            <input type="hidden" name="promo_manual_type" id="promoManualType" value="{{ old('promo_manual_type', $order->promo_discount_source === 'manual' ? 'fixed' : '') }}">
+                            <input type="hidden" name="promo_manual_value" id="promoManualValue" value="{{ old('promo_manual_value', $order->promo_discount_source === 'manual' ? $order->promo_discount_amount : '') }}">
+                            <input type="hidden" name="promo_manual_label" id="promoManualLabel" value="{{ old('promo_manual_label', $order->promo_discount_source === 'manual' ? $order->promo_discount_label : '') }}">
+
+                            <div class="row g-2 align-items-end mb-2">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold small mb-1">Coupon Code</label>
+                                    <input type="text" id="couponCodeInput" class="form-control text-uppercase" placeholder="Enter coupon code" value="{{ old('promo_coupon_code', $order->promo_discount_source === 'coupon' ? $order->promo_discount_code : '') }}">
+                                </div>
+                                <div class="col-md-3">
+                                    <button type="button" class="btn btn-outline-primary w-100" id="applyCouponBtn">Apply</button>
+                                </div>
+                                <div class="col-md-3">
+                                    <button type="button" class="btn btn-outline-secondary w-100 {{ $order->promo_discount_source ? '' : 'd-none' }}" id="removeCouponBtn">Remove</button>
+                                </div>
+                            </div>
+                            @error('promo_coupon_code')<div class="text-danger small mb-2">{{ $message }}</div>@enderror
+                            <div id="couponResult" class="small mb-2 {{ $order->promo_discount_amount > 0 ? 'text-success' : '' }}">
+                                @if($order->promo_discount_amount > 0)
+                                    "{{ $order->promo_discount_label }}" applied: -₱{{ number_format($order->promo_discount_amount, 2) }}
+                                @endif
+                            </div>
+
+                            @php
+                                $manualRestored = old('promo_manual_value', $order->promo_discount_source === 'manual' ? $order->promo_discount_amount : '');
+                            @endphp
+                            @if(auth()->user()->isAdmin() || auth()->user()->isBranchManager())
+                            <hr>
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" role="switch" id="manualDiscountToggle" {{ $manualRestored ? 'checked' : '' }}>
+                                <label class="form-check-label fw-semibold small" for="manualDiscountToggle">Apply a manual discount instead</label>
+                            </div>
+                            <div class="row g-2" id="manualDiscountFields" style="{{ $manualRestored ? '' : 'display:none;' }}">
+                                <div class="col-md-4">
+                                    <label class="form-label small mb-1">Type</label>
+                                    <select class="form-select form-select-sm" id="manualDiscountType">
+                                        <option value="percentage" {{ old('promo_manual_type') === 'percentage' ? 'selected' : '' }}>Percentage</option>
+                                        <option value="fixed" {{ old('promo_manual_type', 'fixed') === 'fixed' ? 'selected' : '' }}>Fixed Amount</option>
+                                    </select>
+                                    @if($order->promo_discount_source === 'manual' && !old('promo_manual_type'))
+                                    <div class="form-text">Restored as a fixed ₱ amount matching the previously applied discount.</div>
+                                    @endif
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small mb-1">Value</label>
+                                    <input type="number" class="form-control form-control-sm" id="manualDiscountValue" step="0.01" min="0" value="{{ $manualRestored }}">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label small mb-1">Reason / Label</label>
+                                    <input type="text" class="form-control form-control-sm" id="manualDiscountLabel" placeholder="e.g. Manager comp" maxlength="255" value="{{ old('promo_manual_label', $order->promo_discount_source === 'manual' ? $order->promo_discount_label : '') }}">
+                                </div>
+                            </div>
+                            @endif
+                        </div>
+                    </div>
+
+                    <div class="card mb-4 menu-order-form-card">
                         <div class="card-header fw-semibold">Pax Breakdown</div>
                         <div class="card-body">
                             <div class="row">
@@ -225,7 +287,8 @@
                                     <tbody>
                                         <tr><td>Menu Subtotal</td><td class="text-end fw-semibold" id="previewSubtotal">₱{{ number_format((float) $order->subtotal, 2) }}</td></tr>
                                         <tr id="previewAdditionalRow"><td>Additional Charges</td><td class="text-end" id="previewAdditional">₱{{ number_format((float) $order->additional_charge_amount, 2) }}</td></tr>
-                                        <tr id="previewDiscountRow"><td>Discount</td><td class="text-end text-danger" id="previewDiscount">₱{{ number_format((float) $order->discount_amount, 2) }}</td></tr>
+                                        <tr id="previewPromoRow" class="{{ $order->promo_discount_amount > 0 ? '' : 'd-none' }}"><td>Promo Discount</td><td class="text-end text-danger" id="previewPromo">₱{{ number_format((float) $order->promo_discount_amount, 2) }}</td></tr>
+                                        <tr id="previewDiscountRow"><td>PWD/Senior Discount</td><td class="text-end text-danger" id="previewDiscount">₱{{ number_format((float) $order->discount_amount, 2) }}</td></tr>
                                         <tr id="previewVatRow"><td>VAT</td><td class="text-end" id="previewVat">₱{{ number_format((float) $order->vat_amount, 2) }}</td></tr>
                                     </tbody>
                                     <tfoot>
@@ -497,6 +560,12 @@
         section.style.display = (pwd + senior) > 0 ? '' : 'none';
     }
 
+    var currentPromoAmount = {{ (float) $order->promo_discount_amount }};
+
+    function currentGross() {
+        return subtotal + collectAdditionalCharges();
+    }
+
     function recalcPreview() {
         var additional = collectAdditionalCharges();
         var regular = Math.max(0, Number(regularPaxInput.value || 0));
@@ -505,14 +574,20 @@
         var totalPax = Math.max(1, regular + pwd + senior);
         var discountedPax = pwd + senior;
         var gross = subtotal + additional;
-        var perPaxGross = gross / totalPax;
+        // Promotional discounts come off first and stay fully VATable — only
+        // the PWD/Senior share below is VAT-exempt.
+        var promoDiscount = Math.min(Math.max(0, currentPromoAmount), gross);
+        var netAfterPromo = Math.max(0, gross - promoDiscount);
+        var perPaxGross = netAfterPromo / totalPax;
         var discountBase = perPaxGross * discountedPax;
         var discount = Math.round(discountBase * 0.20 * 100) / 100;
-        var vat = branchRules.vatEnabled ? Math.round(Math.max(0, gross - discountBase) * (branchRules.vatPercentage / (100 + branchRules.vatPercentage)) * 100) / 100 : 0;
-        var total = Math.max(0, gross - discount);
+        var vat = branchRules.vatEnabled ? Math.round(Math.max(0, netAfterPromo - discountBase) * (branchRules.vatPercentage / (100 + branchRules.vatPercentage)) * 100) / 100 : 0;
+        var total = Math.max(0, netAfterPromo - discount);
 
         document.getElementById('previewSubtotal').textContent = formatMoney(subtotal);
         document.getElementById('previewAdditional').textContent = formatMoney(additional);
+        document.getElementById('previewPromo').textContent = formatMoney(promoDiscount);
+        document.getElementById('previewPromoRow').classList.toggle('d-none', promoDiscount <= 0);
         document.getElementById('previewDiscount').textContent = formatMoney(discount);
         document.getElementById('previewVat').textContent = formatMoney(vat);
         document.getElementById('previewTotal').textContent = formatMoney(total);
@@ -532,6 +607,125 @@
             recalcPreview();
         });
     });
+
+    // PROMO / COUPON DISCOUNT
+    (function () {
+        var couponCodeInput = document.getElementById('couponCodeInput');
+        var applyCouponBtn = document.getElementById('applyCouponBtn');
+        var removeCouponBtn = document.getElementById('removeCouponBtn');
+        var couponResult = document.getElementById('couponResult');
+        var promoCouponCodeField = document.getElementById('promoCouponCode');
+        var manualToggle = document.getElementById('manualDiscountToggle');
+        var manualFields = document.getElementById('manualDiscountFields');
+        var manualTypeSelect = document.getElementById('manualDiscountType');
+        var manualValueInput = document.getElementById('manualDiscountValue');
+        var manualLabelInput = document.getElementById('manualDiscountLabel');
+        var promoManualTypeField = document.getElementById('promoManualType');
+        var promoManualValueField = document.getElementById('promoManualValue');
+        var promoManualLabelField = document.getElementById('promoManualLabel');
+        var orderBranchId = {{ (int) $order->branch_id }};
+
+        function setCouponResult(message, isError) {
+            if (!couponResult) return;
+            couponResult.textContent = message || '';
+            couponResult.className = 'small mb-2 ' + (isError ? 'text-danger' : 'text-success');
+        }
+
+        if (applyCouponBtn) {
+            applyCouponBtn.addEventListener('click', function () {
+                var code = (couponCodeInput.value || '').trim();
+                if (!code) {
+                    setCouponResult('Enter a coupon code.', true);
+                    return;
+                }
+
+                var params = new URLSearchParams({
+                    code: code,
+                    branch_id: orderBranchId,
+                    purchase_amount: currentGross()
+                });
+
+                applyCouponBtn.disabled = true;
+                fetch(@json(route('discount-campaigns.validate-coupon')) + '?' + params.toString())
+                    .then(function (r) { return r.json(); })
+                    .then(function (result) {
+                        applyCouponBtn.disabled = false;
+                        if (!result.ok) {
+                            setCouponResult(result.message || 'This coupon cannot be applied.', true);
+                            return;
+                        }
+
+                        currentPromoAmount = Number(result.amount || 0);
+                        promoCouponCodeField.value = code;
+                        if (manualToggle) manualToggle.checked = false;
+                        if (manualFields) manualFields.style.display = 'none';
+                        promoManualTypeField.value = '';
+                        promoManualValueField.value = '';
+                        promoManualLabelField.value = '';
+                        setCouponResult('"' + result.label + '" applied: -' + formatMoney(result.amount), false);
+                        if (removeCouponBtn) removeCouponBtn.classList.remove('d-none');
+                        recalcPreview();
+                    })
+                    .catch(function () {
+                        applyCouponBtn.disabled = false;
+                        setCouponResult('Could not validate this coupon right now. Please try again.', true);
+                    });
+            });
+        }
+
+        if (removeCouponBtn) {
+            removeCouponBtn.addEventListener('click', function () {
+                currentPromoAmount = 0;
+                promoCouponCodeField.value = '';
+                couponCodeInput.value = '';
+                setCouponResult('', false);
+                removeCouponBtn.classList.add('d-none');
+                recalcPreview();
+            });
+        }
+
+        if (manualToggle) {
+            var updateManualDiscount = function () {
+                var type = manualTypeSelect.value;
+                var value = Number(manualValueInput.value || 0);
+                promoManualTypeField.value = type;
+                promoManualValueField.value = value > 0 ? value : '';
+                promoManualLabelField.value = manualLabelInput.value || '';
+
+                if (value <= 0) {
+                    currentPromoAmount = 0;
+                } else {
+                    var gross = currentGross();
+                    currentPromoAmount = type === 'percentage' ? (gross * (value / 100)) : value;
+                }
+
+                recalcPreview();
+            };
+
+            manualToggle.addEventListener('change', function () {
+                manualFields.style.display = manualToggle.checked ? '' : 'none';
+
+                if (!manualToggle.checked) {
+                    promoManualTypeField.value = '';
+                    promoManualValueField.value = '';
+                    promoManualLabelField.value = '';
+                    currentPromoAmount = 0;
+                    recalcPreview();
+                    return;
+                }
+
+                promoCouponCodeField.value = '';
+                couponCodeInput.value = '';
+                setCouponResult('', false);
+                if (removeCouponBtn) removeCouponBtn.classList.add('d-none');
+                updateManualDiscount();
+            });
+
+            [manualTypeSelect, manualValueInput, manualLabelInput].forEach(function (el) {
+                if (el) el.addEventListener('input', updateManualDiscount);
+            });
+        }
+    })();
 
     buildDiscountRows();
     updateAdditionalChargeEmptyState();

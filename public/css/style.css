@@ -2065,7 +2065,8 @@ body {
 }
 
 .menu-card-img-wrapper {
-    height: 142px;
+    aspect-ratio: 1 / 1;
+    width: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2078,6 +2079,7 @@ body {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    object-position: center;
 }
 
 .menu-modal-card .hover-overlay {
@@ -2225,9 +2227,6 @@ body {
         margin: 0.5rem;
     }
 
-    .menu-card-img-wrapper {
-        height: 120px;
-    }
 }
 
 /* Branch Selector Custom Styles */

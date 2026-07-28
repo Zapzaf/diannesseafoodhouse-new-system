@@ -40,6 +40,8 @@ class MenuOrderSalesReportExport implements FromCollection, WithHeadings, WithTi
             strtoupper((string) $payment->method),
             $payment->discount_type && $payment->discount_type !== 'none' ? ucfirst($payment->discount_type) : '',
             (float) ($payment->discount_amount ?? 0),
+            $payment->promo_discount_label ?: ($payment->promo_discount_source ? ucfirst($payment->promo_discount_source) : ''),
+            (float) ($payment->promo_discount_amount ?? 0),
             (float) $payment->subtotal + (float) ($payment->additional_charge_amount ?? 0),
             (float) ($payment->total_vat_exempt ?? 0),
             (float) ($payment->vat_amount ?? 0),
@@ -48,7 +50,7 @@ class MenuOrderSalesReportExport implements FromCollection, WithHeadings, WithTi
         ]);
 
         if ($rows->isNotEmpty()) {
-            $rows->push(['', '', '', '', '', '', 'TOTAL', (float) $this->summary['total_discount'], (float) $this->summary['gross_sales'], (float) $this->summary['vat_exempt_sales'], (float) $this->summary['vat_amount'], (float) $this->summary['amount_collected'], '']);
+            $rows->push(['', '', '', '', '', '', 'TOTAL', (float) $this->summary['total_discount'], '', (float) $this->summary['promo_discount_amount'], (float) $this->summary['gross_sales'], (float) $this->summary['vat_exempt_sales'], (float) $this->summary['vat_amount'], (float) $this->summary['amount_collected'], '']);
         }
 
         return $rows;
@@ -63,8 +65,10 @@ class MenuOrderSalesReportExport implements FromCollection, WithHeadings, WithTi
             'Order Number',
             'Customer',
             'Method',
-            'Discount Type',
-            'Discount Amount',
+            'PWD/Senior Discount',
+            'PWD/Senior Amount',
+            'Promo Discount',
+            'Promo Amount',
             'Gross',
             'VAT-Exempt',
             'VAT Amount',
@@ -82,10 +86,11 @@ class MenuOrderSalesReportExport implements FromCollection, WithHeadings, WithTi
     {
         return [
             'H' => '"₱"#,##0.00',
-            'I' => '"₱"#,##0.00',
             'J' => '"₱"#,##0.00',
             'K' => '"₱"#,##0.00',
             'L' => '"₱"#,##0.00',
+            'M' => '"₱"#,##0.00',
+            'N' => '"₱"#,##0.00',
         ];
     }
 
@@ -155,7 +160,7 @@ class MenuOrderSalesReportExport implements FromCollection, WithHeadings, WithTi
                     ->setLeft(0.25);
 
                 $sheet->getPageSetup()->setRowsToRepeatAtTopByStartAndEnd(1, 1);
-                $sheet->getStyle('H:L')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+                $sheet->getStyle('H:N')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
             },
         ];
     }

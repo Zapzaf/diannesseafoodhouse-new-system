@@ -92,6 +92,8 @@
     $subtotal = (float) ($payment->subtotal ?? $order->subtotal ?? 0);
     $additionalChargeAmount = (float) ($payment->additional_charge_amount ?? 0);
     $discount = (float) ($payment->discount_amount ?? $order->discount_amount ?? 0);
+    $promoDiscount = (float) ($payment->promo_discount_amount ?? $order->promo_discount_amount ?? 0);
+    $promoLabel = $payment->promo_discount_label ?? $order->promo_discount_label ?? 'PROMO';
     $vatRate = (float) ($order->vat_rate ?? 12);
     $vatAmount = (float) ($payment->vat_amount ?? 0);
     $finalTotal = (float) ($payment->final_total ?? $order->total_amount ?? 0);
@@ -170,6 +172,9 @@ DESC          QTY    AMOUNT
 {{ $formatTotal('SUBTOTAL', $subtotal) }}
 @if($additionalChargeAmount > 0)
 {{ $formatTotal('ADDL CHARGES', $additionalChargeAmount) }}
+@endif
+@if($promoDiscount > 0)
+{{ $formatTotal(strtoupper(Illuminate\Support\Str::limit($promoLabel, 20, '')), -$promoDiscount) }}
 @endif
 @if($discount > 0)
 {{ $formatTotal('DISCOUNT (' . strtoupper($discountType ?: 'GENERAL') . ')', -$discount) }}
