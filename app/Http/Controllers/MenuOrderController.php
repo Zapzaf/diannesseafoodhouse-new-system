@@ -13,6 +13,7 @@ use App\Models\Menu;
 use App\Models\MenuOrder;
 use App\Models\MenuOrderItem;
 use App\Models\MenuOrderPayment;
+use App\Models\ZReading;
 use App\Services\DiscountCampaignService;
 use App\Services\InventoryService;
 use Illuminate\Http\JsonResponse;
@@ -70,6 +71,22 @@ class MenuOrderController extends Controller
             'current_order_id' => $order->id,
             'status' => 'occupied',
         ]);
+    }
+
+    /**
+     * Items/details are normally locked once a payment is recorded, to
+     * protect billing integrity. An admin-reactivated order (previously
+     * completed) explicitly opts back into being editable, and Admins can
+     * always edit regardless — they're the ones authorized to correct
+     * mistakes (e.g. an accidental additional charge) after the fact.
+     */
+    private function itemsLockedByPayments(MenuOrder $order): bool
+    {
+        if (auth()->user()?->isAdmin()) {
+            return false;
+        }
+
+        return $order->payments()->exists() && !$order->is_reactivated;
     }
 
     private function releaseTableForOrder(MenuOrder $order): void
@@ -272,7 +289,7 @@ class MenuOrderController extends Controller
     {
         $this->authorizeBranch($menuOrder->branch_id);
 
-        if ($menuOrder->payments()->exists()) {
+        if ($this->itemsLockedByPayments($menuOrder)) {
             abort(403, 'Orders with payments can no longer be edited.');
         }
 
@@ -306,7 +323,7 @@ class MenuOrderController extends Controller
     {
         $this->authorizeBranch($menuOrder->branch_id);
 
-        if ($menuOrder->payments()->exists()) {
+        if ($this->itemsLockedByPayments($menuOrder)) {
             return back()->with('error', 'Orders with payments can no longer be edited.');
         }
 
@@ -422,7 +439,7 @@ class MenuOrderController extends Controller
             return back()->with('error', 'Items can only be added to open orders.');
         }
 
-        if ($menuOrder->payments()->exists()) {
+        if ($this->itemsLockedByPayments($menuOrder)) {
             return back()->with('error', 'Cannot add order items after payments have been recorded.');
         }
 
@@ -458,7 +475,7 @@ class MenuOrderController extends Controller
             return back()->with('error', 'Items can only be edited on open orders.');
         }
 
-        if ($menuOrder->payments()->exists()) {
+        if ($this->itemsLockedByPayments($menuOrder)) {
             return back()->with('error', 'Cannot edit an order item after payments have been recorded.');
         }
 
@@ -518,7 +535,7 @@ class MenuOrderController extends Controller
             abort(404);
         }
 
-        if ($menuOrder->payments()->exists()) {
+        if ($this->itemsLockedByPayments($menuOrder)) {
             return back()->with('error', 'Cannot delete an order item after payments have been recorded.');
         }
 
@@ -842,6 +859,165 @@ class MenuOrderController extends Controller
         });
 
         return redirect()->route('menu-orders.show', $menuOrder)->with('success', 'Order has been voided.');
+    }
+
+    public function reactivate(MenuOrder $menuOrder): RedirectResponse
+    {
+        $this->authorizeBranch($menuOrder->branch_id);
+
+        if (!auth()->user()->isAdmin()) {
+            abort(403, 'Only Admins can reactivate an order.');
+        }
+
+        $reactivatableStatuses = ['cancelled', 'voided', 'completed'];
+
+        if (!in_array((string) $menuOrder->status, $reactivatableStatuses, true)) {
+            return back()->with('error', 'Only cancelled, voided, or completed orders can be reactivated.');
+        }
+
+        $wasCompleted = (string) $menuOrder->status === 'completed';
+
+        DB::transaction(function () use ($menuOrder, $reactivatableStatuses, $wasCompleted) {
+            $lockedOrder = MenuOrder::whereKey($menuOrder->id)->lockForUpdate()->firstOrFail();
+
+            if (!in_array((string) $lockedOrder->status, $reactivatableStatuses, true)) {
+                return;
+            }
+
+            $updates = [
+                'status' => 'open',
+                'is_reactivated' => true,
+            ];
+
+            // Cancelled/voided orders always have zero payments (enforced when
+            // they were cancelled/voided), so it's safe to zero these out. A
+            // completed order already has real payments recorded — leave its
+            // payment_status/amount_paid/balance alone so paid money stays paid.
+            if (!$wasCompleted) {
+                $updates['payment_status'] = 'unpaid';
+                $updates['void_reason'] = null;
+                $updates['voided_by'] = null;
+                $updates['voided_at'] = null;
+            }
+
+            $lockedOrder->update($updates);
+        });
+
+        $message = $wasCompleted
+            ? 'Order reopened. Items and payments can be added again since it was previously completed.'
+            : 'Order reactivated. Note: table assignment, promo redemption, and inventory are not automatically restored — re-apply them manually if needed.';
+
+        return redirect()->route('menu-orders.show', $menuOrder)->with('success', $message);
+    }
+
+    /**
+     * A payment can no longer be edited/deleted once the business day it
+     * belongs to has been closed with a locked Z Reading — that reading is
+     * an immutable snapshot, and letting the underlying payment drift out
+     * from under it would silently desynchronize the audit trail.
+     */
+    private function paymentLockedByZReading(MenuOrderPayment $payment): bool
+    {
+        if (!$payment->pos_terminal_id || !$payment->payment_date) {
+            return false;
+        }
+
+        return ZReading::where('pos_terminal_id', $payment->pos_terminal_id)
+            ->where('business_date', $payment->payment_date->toDateString())
+            ->where('status', 'locked')
+            ->exists();
+    }
+
+    private function refreshOrderAfterPaymentChange(MenuOrder $order): void
+    {
+        $order->refresh();
+        $amountPaid = round((float) $order->payments()->sum('amount'), 2);
+        $balance = round(max(0, (float) $order->total_amount - $amountPaid), 2);
+
+        $updates = [
+            'amount_paid' => $amountPaid,
+            'balance' => $balance,
+            'payment_status' => $balance <= 0 ? 'paid' : ($amountPaid > 0 ? 'partial' : 'unpaid'),
+        ];
+
+        // Only ever flip between open/completed here — never touch a
+        // cancelled/voided order (those can't have payments in the first place).
+        if (in_array((string) $order->status, ['open', 'completed'], true)) {
+            $updates['status'] = $balance <= 0 ? 'completed' : 'open';
+        }
+
+        $order->update($updates);
+    }
+
+    public function updatePayment(Request $request, MenuOrderPayment $payment): RedirectResponse
+    {
+        $this->authorizeBranch($payment->branch_id);
+
+        if (!auth()->user()->isAdmin()) {
+            abort(403, 'Only Admins can edit a payment.');
+        }
+
+        if ($this->paymentLockedByZReading($payment)) {
+            return back()->with('error', 'This payment belongs to a business day that already has a locked Z Reading and can no longer be edited. Void that Z Reading first if a correction is truly needed.');
+        }
+
+        $data = $request->validate([
+            'amount'           => 'required|numeric|min:0.01',
+            'amount_tendered'  => 'required|numeric|min:0.01|gte:amount',
+            'method'           => 'required|in:cash,gcash,card,bank',
+            'reference_number' => 'nullable|string|max:100',
+            'notes'            => 'nullable|string',
+        ]);
+
+        DB::transaction(function () use ($payment, $data) {
+            $order = MenuOrder::whereKey($payment->menu_order_id)->lockForUpdate()->firstOrFail();
+            $lockedPayment = MenuOrderPayment::whereKey($payment->id)->lockForUpdate()->firstOrFail();
+
+            $otherPaymentsTotal = round((float) $order->payments()->where('id', '!=', $payment->id)->sum('amount'), 2);
+            $newAmount = round((float) $data['amount'], 2);
+
+            if ($otherPaymentsTotal + $newAmount > round((float) $order->total_amount, 2) + 0.01) {
+                throw ValidationException::withMessages([
+                    'amount' => 'This amount would make total payments exceed the order total.',
+                ]);
+            }
+
+            $tendered = round((float) $data['amount_tendered'], 2);
+
+            $lockedPayment->update([
+                'amount' => $newAmount,
+                'amount_tendered' => $tendered,
+                'change_amount' => max(0, round($tendered - $newAmount, 2)),
+                'method' => $data['method'],
+                'reference_number' => $data['reference_number'] ?? null,
+                'notes' => $data['notes'] ?? null,
+            ]);
+
+            $this->refreshOrderAfterPaymentChange($order);
+        });
+
+        return back()->with('success', 'Payment updated.');
+    }
+
+    public function destroyPayment(MenuOrderPayment $payment): RedirectResponse
+    {
+        $this->authorizeBranch($payment->branch_id);
+
+        if (!auth()->user()->isAdmin()) {
+            abort(403, 'Only Admins can delete a payment.');
+        }
+
+        if ($this->paymentLockedByZReading($payment)) {
+            return back()->with('error', 'This payment belongs to a business day that already has a locked Z Reading and can no longer be deleted. Void that Z Reading first if a correction is truly needed.');
+        }
+
+        DB::transaction(function () use ($payment) {
+            $order = MenuOrder::whereKey($payment->menu_order_id)->lockForUpdate()->firstOrFail();
+            MenuOrderPayment::whereKey($payment->id)->lockForUpdate()->firstOrFail()->delete();
+            $this->refreshOrderAfterPaymentChange($order);
+        });
+
+        return back()->with('success', 'Payment deleted.');
     }
 
     public function paymentReceipt(MenuOrderPayment $payment): View

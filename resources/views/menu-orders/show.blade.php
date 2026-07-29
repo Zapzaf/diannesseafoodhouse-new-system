@@ -6,11 +6,13 @@
     $additionalCharges = $menuOrder->additionalChargesList();
     $showDiscountSummary = (float) $menuOrder->discount_amount > 0 || (int) ($menuOrder->pwd_pax ?? 0) > 0 || (int) ($menuOrder->senior_pax ?? 0) > 0;
     $showVatSummary = (float) $menuOrder->vat_rate > 0 || (float) $menuOrder->vat_amount > 0;
-    $canModifyItems = (string) $menuOrder->status === 'open' && $menuOrder->payments->isEmpty();
+    $itemsUnlocked = $menuOrder->payments->isEmpty() || $menuOrder->is_reactivated || auth()->user()->isAdmin();
+    $canModifyItems = (string) $menuOrder->status === 'open' && $itemsUnlocked;
     $canRecordPayment = (string) $menuOrder->status === 'open' && (string) $menuOrder->payment_status !== 'paid' && (float) $menuOrder->balance > 0;
-    $canEditOrder = (string) $menuOrder->status === 'open' && $menuOrder->payments->isEmpty();
+    $canEditOrder = (string) $menuOrder->status === 'open' && $itemsUnlocked;
     $canDeleteOrder = $menuOrder->payments->isEmpty() && in_array((string) $menuOrder->status, ['open', 'cancelled'], true);
     $canVoidOrder = auth()->user()->isBranchManager() && ! in_array((string) $menuOrder->status, ['voided', 'cancelled'], true) && $menuOrder->payments->isEmpty();
+    $canReactivateOrder = auth()->user()->isAdmin() && in_array((string) $menuOrder->status, ['voided', 'cancelled', 'completed'], true);
     $itemCount = (int) $menuOrder->items->sum('quantity');
     $paymentCount = $menuOrder->payments->count();
     $rPax = (int) ($menuOrder->regular_pax ?? 0);
@@ -49,6 +51,19 @@
         <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#voidModal">
             <i class="me-1" data-lucide="slash"></i> Void
         </button>
+        @endif
+        @if($canReactivateOrder)
+        @php
+            $reactivateConfirm = (string) $menuOrder->status === 'completed'
+                ? 'Reopen this completed order? Items and payments can be added again.'
+                : 'Reactivate this order and set it back to Open? Table assignment, promo redemption, and inventory will not be automatically restored.';
+        @endphp
+        <form action="{{ route('menu-orders.reactivate', $menuOrder) }}" method="POST" onsubmit="return confirm('{{ $reactivateConfirm }}')">
+            @csrf
+            <button type="submit" class="btn btn-outline-success">
+                <i class="me-1" data-lucide="rotate-ccw"></i> Reactivate
+            </button>
+        </form>
         @endif
         @if($canDeleteOrder)
         <form action="{{ route('menu-orders.destroy', $menuOrder) }}" method="POST" onsubmit="return confirm('Delete this menu order?')">
@@ -237,7 +252,7 @@
                                         <th class="text-end">Change</th>
                                         <th>Reference</th>
                                         <th>OR No.</th>
-                                        <th class="text-center">Receipt</th>
+                                        <th class="text-center">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -251,9 +266,30 @@
                                         <td>{{ $payment->reference_number ?: '-' }}</td>
                                         <td class="fw-semibold">{{ $payment->or_number ?: '-' }}</td>
                                         <td class="text-center">
-                                            <a href="{{ route('menu-orders.payments.receipt', $payment) }}" target="_blank" class="btn btn-sm btn-outline-secondary" title="Print receipt">
-                                                <i data-lucide="printer" style="width:14px;height:14px;"></i>
-                                            </a>
+                                            <div class="d-inline-flex gap-1">
+                                                <a href="{{ route('menu-orders.payments.receipt', $payment) }}" target="_blank" class="btn btn-sm btn-outline-secondary" title="Print receipt">
+                                                    <i data-lucide="printer" style="width:14px;height:14px;"></i>
+                                                </a>
+                                                @if(auth()->user()->isAdmin())
+                                                <button type="button" class="btn btn-sm btn-outline-primary edit-payment-btn"
+                                                    data-action="{{ route('menu-orders.payments.update', $payment) }}"
+                                                    data-amount="{{ number_format((float) $payment->amount, 2, '.', '') }}"
+                                                    data-tendered="{{ number_format((float) $payment->amount_tendered, 2, '.', '') }}"
+                                                    data-method="{{ $payment->method }}"
+                                                    data-reference="{{ $payment->reference_number }}"
+                                                    data-notes="{{ $payment->notes }}"
+                                                    title="Edit payment">
+                                                    <i data-lucide="pencil" style="width:14px;height:14px;"></i>
+                                                </button>
+                                                <form action="{{ route('menu-orders.payments.destroy', $payment) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this payment? The order balance and status will be recomputed.')">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete payment">
+                                                        <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
+                                                    </button>
+                                                </form>
+                                                @endif
+                                            </div>
                                         </td>
                                     </tr>
                                     @empty
@@ -450,6 +486,57 @@
     </div>
 </div>
 
+@if(auth()->user()->isAdmin())
+<div class="modal fade" id="editPaymentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form id="editPaymentForm" method="POST">
+            @csrf
+            @method('PUT')
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i data-lucide="pencil" class="me-1"></i> Edit Payment</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning small">Editing a recorded payment will recompute this order's balance and status. This is only possible while the business day is not yet locked by a Z Reading.</div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Amount Applied <span class="text-danger">*</span></label>
+                            <input type="number" step="0.01" min="0.01" name="amount" id="editPaymentAmount" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Amount Tendered <span class="text-danger">*</span></label>
+                            <input type="number" step="0.01" min="0.01" name="amount_tendered" id="editPaymentTendered" class="form-control" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Method <span class="text-danger">*</span></label>
+                            <select name="method" id="editPaymentMethod" class="form-select" required>
+                                <option value="cash">Cash</option>
+                                <option value="gcash">GCash</option>
+                                <option value="card">Card</option>
+                                <option value="bank">Bank</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Reference No.</label>
+                            <input type="text" name="reference_number" id="editPaymentReference" class="form-control" maxlength="100">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold">Notes</label>
+                            <textarea name="notes" id="editPaymentNotes" class="form-control" rows="2"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+@endif
+
 @if($canModifyItems)
     @include('menu-orders.partials.add-menu-modal', [
         'menus' => $menus,
@@ -620,6 +707,35 @@
             }
         });
     }
+})();
+</script>
+@endif
+
+@if(auth()->user()->isAdmin())
+<script>
+(function () {
+    var editForm = document.getElementById('editPaymentForm');
+    var amountInput = document.getElementById('editPaymentAmount');
+    var tenderedInput = document.getElementById('editPaymentTendered');
+    var methodSelect = document.getElementById('editPaymentMethod');
+    var referenceInput = document.getElementById('editPaymentReference');
+    var notesInput = document.getElementById('editPaymentNotes');
+
+    document.querySelectorAll('.edit-payment-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            if (!editForm) return;
+            editForm.action = btn.dataset.action;
+            amountInput.value = btn.dataset.amount || '';
+            tenderedInput.value = btn.dataset.tendered || '';
+            methodSelect.value = btn.dataset.method || 'cash';
+            referenceInput.value = btn.dataset.reference || '';
+            notesInput.value = btn.dataset.notes || '';
+
+            var modalEl = document.getElementById('editPaymentModal');
+            var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            modal.show();
+        });
+    });
 })();
 </script>
 @endif

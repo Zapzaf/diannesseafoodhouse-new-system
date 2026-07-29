@@ -250,9 +250,12 @@ Route::middleware('auth')->group(function (): void {
         Route::put('/{menuOrder}', [MenuOrderController::class, 'update'])->name('update');
         Route::delete('/{menuOrder}', [MenuOrderController::class, 'destroy'])->name('destroy');
         Route::post('/{menuOrder}/payments', [MenuOrderController::class, 'storePayment'])->name('payments.store');
+        Route::put('/payments/{payment}', [MenuOrderController::class, 'updatePayment'])->name('payments.update');
+        Route::delete('/payments/{payment}', [MenuOrderController::class, 'destroyPayment'])->name('payments.destroy');
         Route::get('/payments/{payment}/receipt', [MenuOrderController::class, 'paymentReceipt'])->name('payments.receipt');
         Route::post('/{menuOrder}/cancel', [MenuOrderController::class, 'cancel'])->name('cancel');
         Route::post('/{menuOrder}/void', [MenuOrderController::class, 'void'])->name('void');
+        Route::post('/{menuOrder}/reactivate', [MenuOrderController::class, 'reactivate'])->name('reactivate');
     });
 
     Route::prefix('tables')->name('tables.')->group(function (): void {

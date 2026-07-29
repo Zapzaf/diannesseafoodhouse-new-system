@@ -20,10 +20,11 @@ class MenuOrder extends Model
         'total_vat_exempt', 'vat_rate', 'vat_amount',
         'total_amount', 'amount_paid', 'balance',
         'payment_status', 'status', 'notes', 'created_by',
-        'void_reason', 'voided_by', 'voided_at',
+        'void_reason', 'voided_by', 'voided_at', 'is_reactivated',
     ];
 
     protected $casts = [
+        'is_reactivated' => 'boolean',
         'subtotal' => 'decimal:2',
         'additional_charge_amount' => 'decimal:2',
         'additional_charges' => 'array',

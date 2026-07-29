@@ -11,7 +11,7 @@
     $existingAdditionalCharges = old('additional_charges', $order->additionalChargesList());
     $finalBranchId = old('branch_id', $order->branch_id);
     $selectedBranch = $branches->firstWhere('id', (int) $finalBranchId) ?? $order->branch;
-    $canModifyItems = (string) $order->status === 'open' && $order->payments->isEmpty();
+    $canModifyItems = (string) $order->status === 'open' && ($order->payments->isEmpty() || $order->is_reactivated || auth()->user()->isAdmin());
 @endphp
 
 @section('page_title', 'Edit Menu Order ' . $order->orderNumber() . ' - Dianne\'s Seafood House')
