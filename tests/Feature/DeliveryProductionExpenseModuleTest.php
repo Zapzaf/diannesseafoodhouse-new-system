@@ -547,9 +547,6 @@ it('finishes production with scrap conversion when the input comes from a delive
             'unit' => 'kg',
         ]],
         'wastage' => [[
-            'scrap_name' => 'Fish trim',
-            'quantity_lost' => 1,
-            'quantity_lost_unit' => 'kg',
             'convert_to_item_id' => $output->id,
             'converted_quantity' => 0.5,
         ]],
@@ -562,9 +559,6 @@ it('finishes production with scrap conversion when the input comes from a delive
 
     $this->assertDatabaseHas('wastage_items', [
         'item_id' => null,
-        'scrap_name' => 'Fish trim',
-        'quantity_lost' => 1,
-        'quantity_lost_unit' => 'kg',
         'convert_to_item_id' => $output->id,
         'converted_quantity' => 0.5,
     ]);
@@ -591,9 +585,6 @@ it('rejects production scrap conversion without convert qty', function () {
             'unit' => 'kg',
         ]],
         'wastage' => [[
-            'scrap_name' => 'Fish trim',
-            'quantity_lost' => 1,
-            'quantity_lost_unit' => 'kg',
             'convert_to_item_id' => $output->id,
         ]],
     ])->assertSessionHasErrors('wastage.0.converted_quantity');
@@ -624,9 +615,6 @@ it('rejects production scrap conversion without convert to item', function () {
             'unit' => 'kg',
         ]],
         'wastage' => [[
-            'scrap_name' => 'Fish trim',
-            'quantity_lost' => 1,
-            'quantity_lost_unit' => 'kg',
             'converted_quantity' => 0.5,
         ]],
     ])->assertSessionHasErrors('wastage.0.convert_to_item_id');

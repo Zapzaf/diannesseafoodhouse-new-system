@@ -490,9 +490,6 @@ class ProductionManagementController extends Controller
             'outputs.*.quantity_produced' => ['required', 'numeric', 'gt:0'],
             'outputs.*.unit' => ['nullable', 'string', 'max:32'],
             'wastage' => ['nullable', 'array'],
-            'wastage.*.scrap_name' => ['nullable', 'string', 'max:255', 'required_with:wastage.*.quantity_lost'],
-            'wastage.*.quantity_lost' => ['nullable', 'numeric', 'gt:0', 'required_with:wastage.*.scrap_name,wastage.*.convert_to_item_id,wastage.*.converted_quantity'],
-            'wastage.*.quantity_lost_unit' => ['nullable', 'string', 'max:32', 'required_with:wastage.*.quantity_lost'],
             // Converting scrap into another item is optional; the pair is only
             // required together when one half of the conversion is provided.
             'wastage.*.convert_to_item_id' => ['nullable', 'exists:items,id', 'required_with:wastage.*.converted_quantity'],
@@ -503,9 +500,6 @@ class ProductionManagementController extends Controller
     private function finishProductionMessages(): array
     {
         return [
-            'wastage.*.scrap_name.required_with' => 'Scrap Name is required when a scrap quantity is entered.',
-            'wastage.*.quantity_lost.required_with' => 'Scrap Qty is required for every scrap row.',
-            'wastage.*.quantity_lost_unit.required_with' => 'Scrap Unit is required when a scrap quantity is entered.',
             'wastage.*.convert_to_item_id.required_with' => 'Convert To is required when a converted quantity is entered.',
             'wastage.*.converted_quantity.required_with' => 'Convert Qty is required when a Convert To item is selected.',
         ];
