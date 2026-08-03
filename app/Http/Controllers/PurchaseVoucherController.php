@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BankAccount;
 use App\Models\ChartOfAccount;
+use App\Models\CheckVoucher;
 use App\Models\PurchaseVoucher;
+use App\Models\Service;
 use App\Models\Supplier;
 use App\Support\VatCalculator;
 use Illuminate\Http\Request;
@@ -21,6 +24,8 @@ class PurchaseVoucherController extends Controller
             ->when($request->input('status'), fn ($q, $s) => $q->where('status', $s))
             ->when($request->input('search'), fn ($q, $s) => $q->where(function ($query) use ($s): void {
                 $query->where('apv_no', 'like', "%{$s}%")
+                    ->orWhere('buyer', 'like', "%{$s}%")
+                    ->orWhere('si_no', 'like', "%{$s}%")
                     ->orWhereHas('vendor', fn ($inner) => $inner->where('name', 'like', "%{$s}%"));
             }))
             ->latest('date')
@@ -30,11 +35,11 @@ class PurchaseVoucherController extends Controller
         return view('purchase-vouchers.index', compact('vouchers'));
     }
 
-    public function create()
+    public function create(Request $request)
     {
         return view('purchase-vouchers.create', [
             'suggestedApvNo' => PurchaseVoucher::nextApvNo(),
-            ...$this->formOptions(),
+            ...$this->formOptions($request),
         ]);
     }
 
@@ -44,7 +49,7 @@ class PurchaseVoucherController extends Controller
 
         DB::transaction(function () use ($validated, $request): void {
             $voucher = PurchaseVoucher::create([
-                ...Arr::except($validated, 'items'),
+                ...Arr::except($validated, ['items', 'bank_account_id', 'payment_method', 'allow_duplicate_invoice']),
                 // Always generated server-side so concurrent forms can't collide.
                 'apv_no' => PurchaseVoucher::nextApvNo(),
                 'branch_id' => $this->activeBranchId($request) ?? ($validated['branch_id'] ?? null),
@@ -52,15 +57,61 @@ class PurchaseVoucherController extends Controller
             ]);
 
             $this->syncItems($voucher, $validated['items']);
+
+            // COD purchases still live in the Purchase Module's history, but are
+            // immediately settled — auto-create the matching disbursement so the
+            // Cr Cash-in-Bank side is recorded through the normal CV/bank flow.
+            if ($validated['purchase_type'] === 'cod') {
+                $this->createCodDisbursement($voucher, $validated, $request);
+            }
         });
 
         return redirect()->route('purchase-vouchers.index')->with('success', 'Purchase Voucher (APV) created successfully.');
     }
 
+    private function createCodDisbursement(PurchaseVoucher $voucher, array $validated, Request $request): void
+    {
+        $voucher->refresh()->load('items');
+        // Sum each component separately — payable_total blends all three together,
+        // which would mislabel VAT-exempt/non-VAT peso amounts as taxable if fed
+        // straight into VatCalculator::split().
+        $amountWVat = (float) $voucher->items->sum('amount_w_vat');
+        $vatExempt = (float) $voucher->items->sum('vat_exempt');
+        $nonVat = (float) $voucher->items->sum('non_vat_purchase');
+        $vatSplit = VatCalculator::split($amountWVat);
+        $referenceNo = CheckVoucher::nextDisbursementNo();
+
+        $checkVoucher = new CheckVoucher([
+            'branch_id' => $voucher->branch_id,
+            'supplier_id' => $voucher->vendor_id,
+            'date' => $voucher->date,
+            'cv_no' => $referenceNo,
+            'reference_no' => $referenceNo,
+            'purchase_voucher_id' => $voucher->id,
+            'type' => 'cod_purchase',
+            'status' => 'issued',
+            'particulars' => 'COD Purchase — '.$voucher->apv_no,
+            'bank_account_id' => $validated['bank_account_id'] ?? null,
+            'payment_method' => $validated['payment_method'] ?? 'cash',
+            'payee_name' => $voucher->vendor?->name ?? $voucher->buyer,
+            'si_no' => $voucher->si_no,
+            'amount_w_vat' => $amountWVat,
+            'vat' => $vatSplit['vat'],
+            'net_purchases' => $vatSplit['net_purchases'],
+            'vat_exempt' => $vatExempt,
+            'non_vat_purchase' => $nonVat,
+            'created_by' => $request->user()->id,
+        ]);
+        $checkVoucher->applyEwt();
+        $checkVoucher->save();
+
+        $voucher->recomputeStatus();
+    }
+
     public function show(Request $request, PurchaseVoucher $purchaseVoucher)
     {
         $this->authorizeBranchRecord($request, $purchaseVoucher->branch_id);
-        $purchaseVoucher->load(['items.costAccount', 'vendor', 'creditAccount', 'checkVouchers.checkRegisterEntry']);
+        $purchaseVoucher->load(['items.costAccount', 'vendor', 'creditAccount', 'checkVouchers.checkRegisterEntry', 'attachments']);
 
         return view('purchase-vouchers.show', compact('purchaseVoucher'));
     }
@@ -72,7 +123,7 @@ class PurchaseVoucherController extends Controller
 
         return view('purchase-vouchers.edit', [
             'purchaseVoucher' => $purchaseVoucher,
-            ...$this->formOptions(),
+            ...$this->formOptions($request),
         ]);
     }
 
@@ -88,8 +139,11 @@ class PurchaseVoucherController extends Controller
 
         $validated = $this->validateVoucher($request, $purchaseVoucher);
 
-        DB::transaction(function () use ($validated, $purchaseVoucher): void {
-            $purchaseVoucher->update(Arr::except($validated, ['items', 'apv_no']));
+        DB::transaction(function () use ($validated, $purchaseVoucher, $request): void {
+            $purchaseVoucher->update([
+                ...Arr::except($validated, ['items', 'apv_no', 'bank_account_id', 'payment_method', 'allow_duplicate_invoice']),
+                'updated_by' => $request->user()->id,
+            ]);
             $purchaseVoucher->items()->delete();
             $this->syncItems($purchaseVoucher, $validated['items']);
         });
@@ -112,6 +166,8 @@ class PurchaseVoucherController extends Controller
 
     private function validateVoucher(Request $request, ?PurchaseVoucher $purchaseVoucher = null): array
     {
+        $purchaseType = $request->input('purchase_type', 'credit');
+
         $validated = $request->validate([
             'date' => ['required', 'date'],
             'branch_id' => [
@@ -123,15 +179,23 @@ class PurchaseVoucherController extends Controller
                 'nullable', 'string', 'max:50',
                 Rule::unique('purchase_vouchers', 'apv_no')->ignore($purchaseVoucher?->id),
             ],
+            'purchase_type' => ['required', Rule::in(['credit', 'cod'])],
             'vendor_id' => ['nullable', 'exists:suppliers,id'],
+            'buyer' => ['required', 'string', 'max:255'],
             'si_no' => ['nullable', 'string', 'max:100'],
-            'credit_account_id' => ['required', Rule::exists('chart_of_accounts', 'id')->where('type', 'credit_liability')],
+            'allow_duplicate_invoice' => ['nullable', 'boolean'],
+            'credit_account_id' => [
+                Rule::requiredIf(fn () => $purchaseType === 'credit'),
+                'nullable', Rule::exists('chart_of_accounts', 'id')->where('type', 'credit_liability'),
+            ],
+            'bank_account_id' => [Rule::requiredIf(fn () => $purchaseType === 'cod'), 'nullable', 'exists:bank_accounts,id'],
+            'payment_method' => [Rule::requiredIf(fn () => $purchaseType === 'cod'), 'nullable', Rule::in(['cash', 'bank_transfer', 'online'])],
             'remarks' => ['nullable', 'string'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.quantity' => ['nullable', 'numeric', 'min:0'],
             'items.*.unit' => ['nullable', 'string', 'max:50'],
             'items.*.particulars' => ['required', 'string', 'max:255'],
-            'items.*.cost_account_id' => ['required', Rule::exists('chart_of_accounts', 'id')->where('type', 'debit_expense')],
+            'items.*.cost_account_id' => ['required', Rule::exists('chart_of_accounts', 'id')->whereIn('type', ['debit_expense', 'debit_asset'])],
             'items.*.amount_w_vat' => ['nullable', 'numeric', 'min:0'],
             'items.*.vat_exempt' => ['nullable', 'numeric', 'min:0'],
             'items.*.non_vat_purchase' => ['nullable', 'numeric', 'min:0'],
@@ -139,6 +203,7 @@ class PurchaseVoucherController extends Controller
         ]);
 
         $this->ensureEachItemHasAnAmount($validated['items']);
+        $this->ensureInvoiceNotDuplicated($validated, $purchaseVoucher);
 
         // Only admins browsing all branches may choose the branch explicitly.
         if (! $request->user()->isAdmin()) {
@@ -146,6 +211,28 @@ class PurchaseVoucherController extends Controller
         }
 
         return $validated;
+    }
+
+    /**
+     * Prevent the same supplier's invoice from being recorded twice unless the
+     * user explicitly opts in (e.g. a supplier really did issue a duplicate SI #).
+     */
+    private function ensureInvoiceNotDuplicated(array $validated, ?PurchaseVoucher $purchaseVoucher): void
+    {
+        if (empty($validated['si_no']) || empty($validated['vendor_id']) || ! empty($validated['allow_duplicate_invoice'])) {
+            return;
+        }
+
+        $exists = PurchaseVoucher::where('vendor_id', $validated['vendor_id'])
+            ->where('si_no', $validated['si_no'])
+            ->when($purchaseVoucher, fn ($q) => $q->whereKeyNot($purchaseVoucher->id))
+            ->exists();
+
+        if ($exists) {
+            throw ValidationException::withMessages([
+                'si_no' => 'This supplier already has a Purchase recorded with Invoice # '.$validated['si_no'].'. Check "allow duplicate" if this is intentional.',
+            ]);
+        }
     }
 
     private function ensureEachItemHasAnAmount(array $items): void
@@ -188,12 +275,15 @@ class PurchaseVoucherController extends Controller
         }
     }
 
-    private function formOptions(): array
+    private function formOptions(Request $request): array
     {
         return [
             'vendors' => Supplier::orderBy('name')->get(),
             'creditAccounts' => ChartOfAccount::where('type', 'credit_liability')->where('is_active', true)->orderBy('name')->get(),
-            'costAccounts' => ChartOfAccount::where('type', 'debit_expense')->where('is_active', true)->orderBy('name')->get(),
+            'costAccounts' => ChartOfAccount::whereIn('type', ['debit_expense', 'debit_asset'])->where('is_active', true)->orderBy('type')->orderBy('name')->get(),
+            'bankAccounts' => BankAccount::where('is_active', true)
+                ->when($this->activeBranchId($request), fn ($q, $id) => $q->where(fn ($inner) => $inner->whereNull('branch_id')->orWhere('branch_id', $id)))
+                ->orderBy('bank_name')->get(),
         ];
     }
 }

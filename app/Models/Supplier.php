@@ -73,6 +73,11 @@ class Supplier extends Model
         return $this->hasMany(PettyCashVoucher::class);
     }
 
+    public function services(): HasMany
+    {
+        return $this->hasMany(Service::class);
+    }
+
     /**
      * Whether this supplier has purchase/delivery history that would be
      * orphaned (vendor_id/supplier_id set to null) if the record were deleted.
@@ -82,6 +87,7 @@ class Supplier extends Model
         return $this->deliveries()->exists()
             || $this->purchaseVouchers()->exists()
             || $this->checkVouchers()->exists()
-            || $this->pettyCashVouchers()->exists();
+            || $this->pettyCashVouchers()->exists()
+            || $this->services()->exists();
     }
 }

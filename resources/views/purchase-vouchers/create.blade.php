@@ -19,5 +19,6 @@
 
 @push('scripts')
 <script src="{{ asset('js/voucher-item-repeater.js') }}"></script>
+<script src="{{ asset('js/supplier-picker.js') }}"></script>
 @include('purchase-vouchers._form-script')
 @endpush

@@ -23,6 +23,7 @@
                         <select name="type" class="form-select">
                             <option value="">All Types</option>
                             <option value="debit_expense" {{ request('type') === 'debit_expense' ? 'selected' : '' }}>Debit / Expense</option>
+                            <option value="debit_asset" {{ request('type') === 'debit_asset' ? 'selected' : '' }}>Debit / Asset</option>
                             <option value="credit_liability" {{ request('type') === 'credit_liability' ? 'selected' : '' }}>Credit / Liability</option>
                         </select>
                     </div>
@@ -48,8 +49,8 @@
                                 <td>{{ $account->code ?? '—' }}</td>
                                 <td class="fw-semibold">{{ $account->name }}</td>
                                 <td>
-                                    <span class="badge {{ $account->type === 'debit_expense' ? 'bg-primary-soft text-primary' : 'bg-warning-soft text-warning' }}">
-                                        {{ $account->type === 'debit_expense' ? 'Debit / Expense' : 'Credit / Liability' }}
+                                    <span class="badge {{ match($account->type) { 'debit_expense' => 'bg-primary-soft text-primary', 'debit_asset' => 'bg-info-soft text-info', default => 'bg-warning-soft text-warning' } }}">
+                                        {{ match($account->type) { 'debit_expense' => 'Debit / Expense', 'debit_asset' => 'Debit / Asset', default => 'Credit / Liability' } }}
                                     </span>
                                 </td>
                                 <td>

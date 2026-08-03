@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Branch;
 use App\Models\MenuOrder;
+use App\Models\MenuOrderItem;
 use App\Models\MenuOrderPayment;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -67,6 +68,27 @@ class SalesReadingService
         $customersServed = $orderIds->isNotEmpty()
             ? (int) MenuOrder::query()->whereIn('id', $orderIds)->sum('total_pax')
             : 0;
+
+        // Grouped by menu item, once per order — not per payment — so a
+        // split-payment order never double-counts its items.
+        $itemsSold = $orderIds->isNotEmpty()
+            ? MenuOrderItem::query()
+                ->whereIn('menu_order_id', $orderIds)
+                ->selectRaw('menu_id, SUM(quantity) as quantity_sold, SUM(subtotal) as total_sales')
+                ->groupBy('menu_id')
+                ->with('menu:id,name')
+                ->get()
+                ->map(function ($row) {
+                    $row->menu_name = $row->menu?->name ?? 'Unknown Item';
+                    $row->quantity_sold = (float) $row->quantity_sold;
+                    $row->total_sales = $this->money((float) $row->total_sales);
+
+                    return $row;
+                })
+                ->sortByDesc('quantity_sold')
+                ->values()
+            : collect();
+        $totalItemsSold = (float) $itemsSold->sum('quantity_sold');
 
         $salesByBranch = $base()
             ->selectRaw('branch_id, COUNT(*) as transactions, SUM(subtotal + additional_charge_amount) as gross, SUM(discount_amount) as discount, SUM(amount) as collected')
@@ -143,6 +165,8 @@ class SalesReadingService
             'amount_collected' => $amountCollected,
             'transaction_count' => $transactionCount,
             'customers_served' => $customersServed,
+            'items_sold' => $itemsSold,
+            'total_items_sold' => $totalItemsSold,
             'sales_by_branch' => $salesByBranch,
             'sales_by_cashier' => $salesByCashier,
             'by_method' => $byMethod,

@@ -10,6 +10,7 @@ class CheckVoucherReceipt extends Model
     protected $fillable = [
         'check_voucher_id',
         'si_no',
+        'supplier_id',
         'amount_w_vat',
         'vat',
         'net_purchases',
@@ -36,5 +37,10 @@ class CheckVoucherReceipt extends Model
     public function checkVoucher(): BelongsTo
     {
         return $this->belongsTo(CheckVoucher::class);
+    }
+
+    public function supplier(): BelongsTo
+    {
+        return $this->belongsTo(Supplier::class);
     }
 }

@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\AccountController;
+use App\Http\Controllers\AttachmentController;
+use App\Http\Controllers\BankAccountController;
 use App\Http\Controllers\BranchMailSettingController;
 use App\Http\Controllers\BranchManagementController;
 use App\Http\Controllers\CashShiftController;
@@ -24,6 +26,7 @@ use App\Http\Controllers\PosTerminalController;
 use App\Http\Controllers\ProductionManagementController;
 use App\Http\Controllers\PurchaseDisbursementReportController;
 use App\Http\Controllers\PurchaseVoucherController;
+use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\TableManagementController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SaleManagementController;
@@ -398,6 +401,28 @@ Route::middleware('auth')->group(function (): void {
 		Route::delete('/{purchaseVoucher}', [PurchaseVoucherController::class, 'destroy'])->name('destroy');
 	});
 
+	Route::prefix('services')->name('services.')->middleware('role:admin,branch_manager')->group(function (): void {
+		Route::get('/', [ServiceController::class, 'index'])->name('index');
+		Route::get('/create', [ServiceController::class, 'create'])->name('create');
+		Route::post('/', [ServiceController::class, 'store'])->name('store');
+		Route::get('/{service}', [ServiceController::class, 'show'])->name('show');
+		Route::get('/{service}/edit', [ServiceController::class, 'edit'])->name('edit');
+		Route::put('/{service}', [ServiceController::class, 'update'])->name('update');
+		Route::delete('/{service}', [ServiceController::class, 'destroy'])->name('destroy');
+	});
+
+	Route::prefix('bank-accounts')->name('bank-accounts.')->middleware('role:admin,branch_manager')->group(function (): void {
+		Route::get('/', [BankAccountController::class, 'index'])->name('index');
+		Route::get('/create', [BankAccountController::class, 'create'])->name('create');
+		Route::post('/', [BankAccountController::class, 'store'])->name('store');
+		Route::post('/{bankAccount}/toggle-active', [BankAccountController::class, 'toggleActive'])->name('toggle-active');
+	});
+
+	Route::prefix('attachments/{type}/{id}')->name('attachments.')->middleware('role:admin,branch_manager')->group(function (): void {
+		Route::post('/', [AttachmentController::class, 'store'])->name('store');
+		Route::delete('/{attachment}', [AttachmentController::class, 'destroy'])->name('destroy');
+	});
+
 	Route::prefix('petty-cash-vouchers')->name('petty-cash-vouchers.')->middleware('role:admin,branch_manager')->group(function (): void {
 		Route::get('/', [PettyCashVoucherController::class, 'index'])->name('index');
 		Route::get('/create', [PettyCashVoucherController::class, 'create'])->name('create');
@@ -414,11 +439,14 @@ Route::middleware('auth')->group(function (): void {
 		Route::post('/', [CheckVoucherController::class, 'store'])->name('store');
 		Route::get('/unreplenished-pcvs', [CheckVoucherController::class, 'unreplenishedPcvs'])->name('unreplenished-pcvs');
 		Route::get('/unpaid-apvs', [CheckVoucherController::class, 'unpaidApvs'])->name('unpaid-apvs');
+		Route::get('/unpaid-services', [CheckVoucherController::class, 'unpaidServices'])->name('unpaid-services');
 		Route::get('/{checkVoucher}', [CheckVoucherController::class, 'show'])->name('show');
 		Route::post('/{checkVoucher}/issue-check', [CheckVoucherController::class, 'issueCheck'])->name('issue-check');
+		Route::post('/{checkVoucher}/mark-paid', [CheckVoucherController::class, 'markPaid'])->name('mark-paid');
 		Route::post('/{checkVoucher}/receipts', [CheckVoucherController::class, 'addReceipt'])->name('receipts.store');
 		Route::put('/{checkVoucher}/receipts/{receipt}', [CheckVoucherController::class, 'updateReceipt'])->name('receipts.update');
 		Route::delete('/{checkVoucher}/receipts/{receipt}', [CheckVoucherController::class, 'deleteReceipt'])->name('receipts.destroy');
+		Route::post('/{checkVoucher}/liquidate-advance', [CheckVoucherController::class, 'liquidateAdvance'])->name('liquidate-advance');
 	});
 
 	Route::prefix('check-register')->name('check-register.')->middleware('role:admin,branch_manager')->group(function (): void {
@@ -432,6 +460,12 @@ Route::middleware('auth')->group(function (): void {
 		Route::get('/summary/export', [PurchaseDisbursementReportController::class, 'exportSummary'])->name('summary.export');
 		Route::get('/aging', [PurchaseDisbursementReportController::class, 'unpaidApvAging'])->name('aging');
 		Route::get('/petty-cash-fund', [PurchaseDisbursementReportController::class, 'pettyCashFund'])->name('petty-cash-fund');
+	});
+
+	Route::prefix('reports/payables')->name('reports.payables.')->middleware('role:admin,branch_manager')->group(function (): void {
+		Route::get('/', [PurchaseDisbursementReportController::class, 'payables'])->name('index');
+		Route::get('/export/pdf', [PurchaseDisbursementReportController::class, 'payablesPdf'])->name('export.pdf');
+		Route::get('/advances', [PurchaseDisbursementReportController::class, 'advances'])->name('advances');
 	});
 
 	Route::get('/global-search-suggestions', function (Request $request) {

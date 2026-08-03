@@ -17,7 +17,7 @@
             <div class="card-body">
                 <form method="GET" class="row g-2 mb-3">
                     <div class="col-md-4">
-                        <input type="text" name="search" class="form-control" placeholder="Search APV # or vendor" value="{{ request('search') }}">
+                        <input type="text" name="search" class="form-control" placeholder="Search APV #, buyer, SI #, or vendor" value="{{ request('search') }}">
                     </div>
                     <div class="col-md-3">
                         <select name="status" class="form-select">
@@ -38,7 +38,9 @@
                             <tr>
                                 <th>Date</th>
                                 <th>APV #</th>
+                                <th>Type</th>
                                 <th>Vendor</th>
+                                <th>Buyer</th>
                                 <th>Branch</th>
                                 <th>Credit Account</th>
                                 <th class="text-end">Total Purchases</th>
@@ -51,9 +53,11 @@
                             <tr>
                                 <td>{{ $voucher->date->format('M d, Y') }}</td>
                                 <td class="fw-semibold">{{ $voucher->apv_no }}</td>
+                                <td><span class="badge {{ $voucher->purchase_type === 'cod' ? 'bg-info-soft text-info' : 'bg-secondary-soft text-secondary' }}">{{ strtoupper($voucher->purchase_type) }}</span></td>
                                 <td>{{ $voucher->vendor?->name ?? '—' }}</td>
+                                <td>{{ $voucher->buyer ?? '—' }}</td>
                                 <td class="text-muted small">{{ $voucher->branch?->name ?? '—' }}</td>
-                                <td>{{ $voucher->creditAccount?->name }}</td>
+                                <td>{{ $voucher->creditAccount?->name ?? '—' }}</td>
                                 <td class="text-end">₱{{ number_format($voucher->total, 2) }}</td>
                                 <td>
                                     <span class="badge {{ match($voucher->status) { 'paid' => 'bg-success-soft text-success', 'partially_paid' => 'bg-warning-soft text-warning', default => 'bg-danger-soft text-danger' } }}">
@@ -74,7 +78,7 @@
                                 </td>
                             </tr>
                             @empty
-                            <tr><td colspan="8" class="text-center text-muted py-4">No purchase vouchers found.</td></tr>
+                            <tr><td colspan="10" class="text-center text-muted py-4">No purchase vouchers found.</td></tr>
                             @endforelse
                         </tbody>
                     </table>

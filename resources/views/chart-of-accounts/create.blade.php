@@ -29,6 +29,7 @@
                         <select name="type" class="form-select @error('type') is-invalid @enderror" required>
                             <option value="">Select Type</option>
                             <option value="debit_expense" {{ old('type') === 'debit_expense' ? 'selected' : '' }}>Debit / Expense (cost account)</option>
+                            <option value="debit_asset" {{ old('type') === 'debit_asset' ? 'selected' : '' }}>Debit / Asset (e.g. Fixed Asset, Advances)</option>
                             <option value="credit_liability" {{ old('type') === 'credit_liability' ? 'selected' : '' }}>Credit / Liability (e.g. Accounts Payable)</option>
                         </select>
                         @error('type')<div class="invalid-feedback">{{ $message }}</div>@enderror

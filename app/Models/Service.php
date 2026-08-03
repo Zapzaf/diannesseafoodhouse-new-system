@@ -6,17 +6,22 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class PurchaseVoucher extends Model
+class Service extends Model
 {
     protected $fillable = [
         'branch_id',
         'date',
-        'apv_no',
-        'purchase_type',
-        'vendor_id',
-        'buyer',
+        'ref_no',
+        'supplier_id',
+        'payor',
+        'expense_account_id',
         'si_no',
-        'credit_account_id',
+        'service_payment_type',
+        'amount_w_vat',
+        'vat',
+        'net_purchases',
+        'vat_exempt',
+        'non_vat_purchase',
         'status',
         'remarks',
         'created_by',
@@ -30,19 +35,19 @@ class PurchaseVoucher extends Model
         ];
     }
 
-    public function items(): HasMany
+    public function branch(): BelongsTo
     {
-        return $this->hasMany(PurchaseVoucherItem::class);
+        return $this->belongsTo(Branch::class);
     }
 
-    public function vendor(): BelongsTo
+    public function supplier(): BelongsTo
     {
-        return $this->belongsTo(Supplier::class, 'vendor_id');
+        return $this->belongsTo(Supplier::class);
     }
 
-    public function creditAccount(): BelongsTo
+    public function expenseAccount(): BelongsTo
     {
-        return $this->belongsTo(ChartOfAccount::class, 'credit_account_id');
+        return $this->belongsTo(ChartOfAccount::class, 'expense_account_id');
     }
 
     public function creator(): BelongsTo
@@ -60,25 +65,16 @@ class PurchaseVoucher extends Model
         return $this->morphMany(Attachment::class, 'attachable');
     }
 
-    // A single APV can be settled by more than one CV (partial payments),
-    // so this is hasMany rather than hasOne despite the spec doc's shorthand.
+    // A single Service bill can be settled by more than one CV (partial payments),
+    // mirroring PurchaseVoucher::checkVouchers().
     public function checkVouchers(): HasMany
     {
         return $this->hasMany(CheckVoucher::class);
     }
 
-    public function getTotalAttribute(): float
-    {
-        return (float) $this->items->sum('total_purchases');
-    }
-
-    /**
-     * The gross amount owed to the vendor (VAT-inclusive), used to drive the
-     * unpaid/partially_paid/paid state machine.
-     */
     public function getPayableTotalAttribute(): float
     {
-        return (float) $this->items->sum(fn (PurchaseVoucherItem $item) => $item->payable_amount);
+        return (float) $this->total_purchases;
     }
 
     public function getAmountPaidAttribute(): float
@@ -101,26 +97,21 @@ class PurchaseVoucher extends Model
         $this->update(['status' => $status]);
     }
 
-    public function branch()
-    {
-        return $this->belongsTo(Branch::class);
-    }
-
     /**
-     * Next sequential auto-generated APV number (APV-000001, APV-000002, …).
+     * Next sequential auto-generated Service reference (SER-000001, …).
      */
-    public static function nextApvNo(): string
+    public static function nextSerNo(): string
     {
         $last = static::query()
-            ->where('apv_no', 'like', 'APV-%')
+            ->where('ref_no', 'like', 'SER-%')
             ->orderByDesc('id')
-            ->value('apv_no');
+            ->value('ref_no');
 
         $sequence = $last ? (int) preg_replace('/\D/', '', substr($last, 4)) : 0;
 
         do {
-            $candidate = 'APV-'.str_pad(++$sequence, 6, '0', STR_PAD_LEFT);
-        } while (static::query()->where('apv_no', $candidate)->exists());
+            $candidate = 'SER-'.str_pad(++$sequence, 6, '0', STR_PAD_LEFT);
+        } while (static::query()->where('ref_no', $candidate)->exists());
 
         return $candidate;
     }

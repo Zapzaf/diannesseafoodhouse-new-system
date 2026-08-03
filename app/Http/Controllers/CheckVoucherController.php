@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AdvanceLiquidation;
+use App\Models\BankAccount;
 use App\Models\ChartOfAccount;
 use App\Models\CheckRegister;
 use App\Models\CheckVoucher;
 use App\Models\CheckVoucherReceipt;
 use App\Models\PettyCashVoucher;
 use App\Models\PurchaseVoucher;
+use App\Models\Service;
 use App\Support\VatCalculator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -25,8 +28,10 @@ class CheckVoucherController extends Controller
             ->when($request->input('status'), fn ($q, $s) => $q->where('status', $s))
             ->when($request->input('search'), fn ($q, $s) => $q->where(function ($inner) use ($s): void {
                 $inner->where('cv_no', 'like', "%{$s}%")
+                    ->orWhere('reference_no', 'like', "%{$s}%")
                     ->orWhere('payee_name', 'like', "%{$s}%")
-                    ->orWhereHas('purchaseVoucher', fn ($apv) => $apv->where('apv_no', 'like', "%{$s}%"));
+                    ->orWhereHas('purchaseVoucher', fn ($apv) => $apv->where('apv_no', 'like', "%{$s}%"))
+                    ->orWhereHas('service', fn ($ser) => $ser->where('ref_no', 'like', "%{$s}%"));
             }));
 
         $totals = (clone $query)->selectRaw('
@@ -61,10 +66,16 @@ class CheckVoucherController extends Controller
             $payApv = PurchaseVoucher::with(['vendor', 'items'])->find($request->input('pay_apv'));
         }
 
+        $payService = null;
+        if ($request->filled('pay_service')) {
+            $payService = Service::with(['supplier'])->find($request->input('pay_service'));
+        }
+
         return view('check-vouchers.create', [
             'replenishPcvs' => $replenishPcvs,
             'payApv' => $payApv,
-            ...$this->formOptions(),
+            'payService' => $payService,
+            ...$this->formOptions($request),
         ]);
     }
 
@@ -91,13 +102,15 @@ class CheckVoucherController extends Controller
             // CV numbers only need to be unique within their own Disbursement Type —
             // the same number (e.g. 2595) can be reused across different types.
             'cv_no' => ['required', 'string', 'max:50', Rule::unique('check_vouchers', 'cv_no')->where(fn ($q) => $q->where('type', $type))],
-            'type' => ['required', Rule::in(['pcf_replenishment', 'apv_payment', 'cod_purchase', 'other_disbursement'])],
+            'type' => ['required', Rule::in(['pcf_replenishment', 'apv_payment', 'service_payment', 'cod_purchase', 'advance', 'other_disbursement'])],
             'particulars' => ['required', 'string', 'max:255'],
             'payee_name' => ['required', 'string', 'max:255'],
             'address' => ['nullable', 'string', 'max:255'],
             'si_no' => ['nullable', 'string', 'max:100'],
             'tin' => ['nullable', 'string', 'max:50'],
             'ewt_rate' => ['nullable', 'numeric', 'min:0', 'max:1'],
+            'bank_account_id' => ['nullable', 'exists:bank_accounts,id'],
+            'payment_method' => ['required', Rule::in(['cash', 'check', 'bank_transfer', 'online'])],
             'remarks' => ['nullable', 'string'],
         ];
 
@@ -108,11 +121,22 @@ class CheckVoucherController extends Controller
         } elseif ($type === 'apv_payment') {
             $rules['purchase_voucher_id'] = ['required', 'exists:purchase_vouchers,id'];
             $rules['amount_w_vat'] = ['required', 'numeric', 'min:0.01'];
+        } elseif ($type === 'service_payment') {
+            $rules['service_id'] = ['required', 'exists:services,id'];
+            $rules['amount_w_vat'] = ['required', 'numeric', 'min:0.01'];
+        } elseif ($type === 'advance') {
+            $rules['advance_account_id'] = ['required', Rule::exists('chart_of_accounts', 'id')->whereIn('type', ['credit_liability', 'debit_asset'])];
+            $rules['amount_w_vat'] = ['required', 'numeric', 'min:0.01'];
+            $rules['branch_id'] = [
+                Rule::requiredIf(fn () => $request->user()->isAdmin() && ! $request->session()->get('selected_branch_id')),
+                'nullable', 'exists:branches,id',
+            ];
         } else {
-            $rules['cost_account_id'] = ['required', Rule::exists('chart_of_accounts', 'id')->where('type', 'debit_expense')];
+            $rules['cost_account_id'] = ['required', Rule::exists('chart_of_accounts', 'id')->whereIn('type', ['debit_expense', 'debit_asset'])];
             // A single CV commonly settles several supplier receipts in one check.
             $rules['receipts'] = ['required', 'array', 'min:1'];
             $rules['receipts.*.si_no'] = ['nullable', 'string', 'max:100'];
+            $rules['receipts.*.supplier_id'] = ['nullable', 'exists:suppliers,id'];
             $rules['receipts.*.amount_w_vat'] = ['nullable', 'numeric', 'min:0'];
             $rules['receipts.*.vat_exempt'] = ['nullable', 'numeric', 'min:0'];
             $rules['receipts.*.non_vat_purchase'] = ['nullable', 'numeric', 'min:0'];
@@ -144,10 +168,30 @@ class CheckVoucherController extends Controller
             }
         }
 
+        $service = null;
+        if ($type === 'service_payment') {
+            $service = Service::findOrFail($validated['service_id']);
+            $this->authorizeBranchRecord($request, $service->branch_id);
+
+            if (! in_array($service->status, ['unpaid', 'partially_paid'], true)) {
+                throw ValidationException::withMessages([
+                    'service_id' => 'The selected Service is already fully paid.',
+                ]);
+            }
+
+            $remainingBalance = round((float) $service->payable_total - (float) $service->amount_paid, 2);
+            if ((float) $validated['amount_w_vat'] - $remainingBalance > 0.01) {
+                throw ValidationException::withMessages([
+                    'amount_w_vat' => 'Payment amount cannot exceed the Service remaining balance (₱'.number_format($remainingBalance, 2).').',
+                ]);
+            }
+        }
+
         $receipts = collect();
         if (in_array($type, ['cod_purchase', 'other_disbursement'], true)) {
             $receipts = collect($validated['receipts'])->map(fn (array $r): array => [
                 'si_no' => $r['si_no'] ?? null,
+                'supplier_id' => $r['supplier_id'] ?? null,
                 'amount_w_vat' => (float) ($r['amount_w_vat'] ?? 0),
                 'vat_exempt' => (float) ($r['vat_exempt'] ?? 0),
                 'non_vat_purchase' => (float) ($r['non_vat_purchase'] ?? 0),
@@ -189,11 +233,12 @@ class CheckVoucherController extends Controller
         // The CV lives in the branch of what it pays; otherwise the active
         // branch, or the branch an all-branches admin picked on the form.
         $branchId = $apv?->branch_id
+            ?? $service?->branch_id
             ?? ($pcvs->isNotEmpty() ? $pcvs->first()->branch_id : null)
             ?? $this->activeBranchId($request)
             ?? ($request->user()->isAdmin() ? ($validated['branch_id'] ?? null) : null);
 
-        DB::transaction(function () use ($validated, $type, $request, $pcvs, $receipts, $branchId, $apv): void {
+        DB::transaction(function () use ($validated, $type, $request, $pcvs, $receipts, $branchId, $apv, $service): void {
             $isStandalone = in_array($type, ['cod_purchase', 'other_disbursement'], true);
 
             // Standalone CVs (COD / Other) derive their totals from the attached
@@ -212,14 +257,19 @@ class CheckVoucherController extends Controller
 
             $checkVoucher = new CheckVoucher([
                 'branch_id' => $branchId,
-                // APV payments inherit the APV's vendor; otherwise the picked supplier.
-                'supplier_id' => $apv?->vendor_id ?? ($validated['supplier_id'] ?? null),
+                // APV/Service payments inherit their parent's vendor; otherwise the picked supplier.
+                'supplier_id' => $apv?->vendor_id ?? $service?->supplier_id ?? ($validated['supplier_id'] ?? null),
                 'date' => $validated['date'],
                 'cv_no' => $validated['cv_no'],
+                'reference_no' => CheckVoucher::nextDisbursementNo(),
                 'purchase_voucher_id' => $validated['purchase_voucher_id'] ?? null,
+                'service_id' => $validated['service_id'] ?? null,
+                'advance_account_id' => $validated['advance_account_id'] ?? null,
                 'type' => $type,
                 'particulars' => $validated['particulars'],
                 'cost_account_id' => $validated['cost_account_id'] ?? null,
+                'bank_account_id' => $validated['bank_account_id'] ?? null,
+                'payment_method' => $validated['payment_method'],
                 'payee_name' => $validated['payee_name'],
                 'address' => $validated['address'] ?? null,
                 'si_no' => $siNo,
@@ -244,6 +294,7 @@ class CheckVoucherController extends Controller
                 $receiptSplit = VatCalculator::split($receipt['amount_w_vat']);
                 $checkVoucher->receipts()->create([
                     'si_no' => $receipt['si_no'],
+                    'supplier_id' => $receipt['supplier_id'],
                     'amount_w_vat' => $receipt['amount_w_vat'],
                     'vat' => $receiptSplit['vat'],
                     'net_purchases' => $receiptSplit['net_purchases'],
@@ -259,9 +310,10 @@ class CheckVoucherController extends Controller
     public function show(Request $request, CheckVoucher $checkVoucher)
     {
         $this->authorizeBranchRecord($request, $checkVoucher->branch_id);
-        $checkVoucher->load(['purchaseVoucher.vendor', 'pettyCashVouchers.items', 'costAccount', 'checkRegisterEntry', 'receipts']);
+        $checkVoucher->load(['purchaseVoucher.vendor', 'service.supplier', 'pettyCashVouchers.items', 'costAccount', 'bankAccount', 'advanceAccount', 'checkRegisterEntry', 'receipts.supplier', 'liquidations', 'attachments']);
+        $suppliers = \App\Models\Supplier::orderBy('name')->get();
 
-        return view('check-vouchers.show', compact('checkVoucher'));
+        return view('check-vouchers.show', compact('checkVoucher', 'suppliers'));
     }
 
     /**
@@ -276,6 +328,7 @@ class CheckVoucherController extends Controller
 
         $validated = $request->validate([
             'si_no' => ['nullable', 'string', 'max:100'],
+            'supplier_id' => ['nullable', 'exists:suppliers,id'],
             'amount_w_vat' => ['nullable', 'numeric', 'min:0'],
             'vat_exempt' => ['nullable', 'numeric', 'min:0'],
             'non_vat_purchase' => ['nullable', 'numeric', 'min:0'],
@@ -295,6 +348,7 @@ class CheckVoucherController extends Controller
             $split = VatCalculator::split($amountWVat);
             $checkVoucher->receipts()->create([
                 'si_no' => $validated['si_no'] ?? null,
+                'supplier_id' => $validated['supplier_id'] ?? null,
                 'amount_w_vat' => $amountWVat,
                 'vat' => $split['vat'],
                 'net_purchases' => $split['net_purchases'],
@@ -316,6 +370,7 @@ class CheckVoucherController extends Controller
 
         $validated = $request->validate([
             'si_no' => ['nullable', 'string', 'max:100'],
+            'supplier_id' => ['nullable', 'exists:suppliers,id'],
             'amount_w_vat' => ['nullable', 'numeric', 'min:0'],
             'vat_exempt' => ['nullable', 'numeric', 'min:0'],
             'non_vat_purchase' => ['nullable', 'numeric', 'min:0'],
@@ -335,6 +390,7 @@ class CheckVoucherController extends Controller
             $split = VatCalculator::split($amountWVat);
             $receipt->update([
                 'si_no' => $validated['si_no'] ?? null,
+                'supplier_id' => $validated['supplier_id'] ?? null,
                 'amount_w_vat' => $amountWVat,
                 'vat' => $split['vat'],
                 'net_purchases' => $split['net_purchases'],
@@ -427,6 +483,38 @@ class CheckVoucherController extends Controller
         return redirect()->route('check-vouchers.show', $checkVoucher)->with('success', 'Check issued and logged in the Check Register.');
     }
 
+    /**
+     * Non-check disbursements (cash, bank transfer, online) have no physical check
+     * to log in the Check Register, so this is their equivalent of issueCheck() —
+     * flips the CV from draft to issued and recomputes whatever it settles.
+     */
+    public function markPaid(Request $request, CheckVoucher $checkVoucher)
+    {
+        $this->authorizeBranchRecord($request, $checkVoucher->branch_id);
+
+        if ($checkVoucher->payment_method === 'check') {
+            throw ValidationException::withMessages([
+                'payment_method' => 'Check disbursements must be marked paid by issuing a check.',
+            ]);
+        }
+
+        if ($checkVoucher->status !== 'draft') {
+            return back()->with('error', 'This disbursement has already been marked as paid.');
+        }
+
+        $checkVoucher->update(['status' => 'issued']);
+
+        if ($checkVoucher->purchase_voucher_id) {
+            $checkVoucher->purchaseVoucher->recomputeStatus();
+        }
+
+        if ($checkVoucher->service_id) {
+            $checkVoucher->service->recomputeStatus();
+        }
+
+        return redirect()->route('check-vouchers.show', $checkVoucher)->with('success', 'Disbursement marked as paid.');
+    }
+
     public function unreplenishedPcvs(Request $request): JsonResponse
     {
         $pcvs = PettyCashVoucher::whereNull('check_voucher_id')
@@ -479,11 +567,85 @@ class CheckVoucherController extends Controller
         return response()->json($apvs);
     }
 
-    private function formOptions(): array
+    public function unpaidServices(Request $request): JsonResponse
+    {
+        $search = trim((string) $request->input('search', ''));
+
+        $services = Service::with(['supplier'])
+            // Scope to the active branch, but keep legacy records with no branch selectable.
+            ->when($this->activeBranchId($request), fn ($q, $id) => $q->where(
+                fn ($inner) => $inner->where('branch_id', $id)->orWhereNull('branch_id')
+            ))
+            ->whereIn('status', ['unpaid', 'partially_paid'])
+            ->when($search, fn ($q, $s) => $q->where(function ($query) use ($s): void {
+                $query->where('ref_no', 'like', "%{$s}%")
+                    ->orWhereHas('supplier', fn ($inner) => $inner->where('name', 'like', "%{$s}%"));
+            }))
+            ->orderByDesc('date')
+            ->limit(20)
+            ->get()
+            ->map(fn (Service $service): array => [
+                'id' => $service->id,
+                'ref_no' => $service->ref_no,
+                'supplier_name' => $service->supplier?->name,
+                'payor' => $service->payor,
+                'payable_total' => $service->payable_total,
+                'amount_paid' => $service->amount_paid,
+                'remaining_balance' => round($service->payable_total - $service->amount_paid, 2),
+                'status' => $service->status,
+            ]);
+
+        return response()->json($services);
+    }
+
+    public function liquidateAdvance(Request $request, CheckVoucher $checkVoucher)
+    {
+        $this->authorizeBranchRecord($request, $checkVoucher->branch_id);
+
+        if ($checkVoucher->type !== 'advance') {
+            throw ValidationException::withMessages([
+                'type' => 'Only Advance disbursements can be liquidated.',
+            ]);
+        }
+
+        if ($checkVoucher->status === 'draft') {
+            throw ValidationException::withMessages([
+                'type' => 'This advance has not been paid out yet — mark it as paid before recording a liquidation.',
+            ]);
+        }
+
+        $validated = $request->validate([
+            'date' => ['required', 'date'],
+            'amount' => ['required', 'numeric', 'min:0.01'],
+            'expense_account_id' => ['required', Rule::exists('chart_of_accounts', 'id')->where('type', 'debit_expense')],
+            'remarks' => ['nullable', 'string'],
+        ]);
+
+        $outstanding = $checkVoucher->outstanding_advance;
+        if ((float) $validated['amount'] - $outstanding > 0.01) {
+            throw ValidationException::withMessages([
+                'amount' => 'Liquidation amount cannot exceed the outstanding advance (₱'.number_format($outstanding, 2).').',
+            ]);
+        }
+
+        AdvanceLiquidation::create([
+            ...$validated,
+            'check_voucher_id' => $checkVoucher->id,
+            'created_by' => $request->user()->id,
+        ]);
+
+        return back()->with('success', 'Advance liquidation recorded.');
+    }
+
+    private function formOptions(Request $request): array
     {
         return [
-            'costAccounts' => ChartOfAccount::where('type', 'debit_expense')->where('is_active', true)->orderBy('name')->get(),
+            'costAccounts' => ChartOfAccount::whereIn('type', ['debit_expense', 'debit_asset'])->where('is_active', true)->orderBy('type')->orderBy('name')->get(),
+            'advanceAccounts' => ChartOfAccount::whereIn('type', ['credit_liability', 'debit_asset'])->where('is_active', true)->orderBy('type')->orderBy('name')->get(),
             'suppliers' => \App\Models\Supplier::orderBy('name')->get(),
+            'bankAccounts' => BankAccount::where('is_active', true)
+                ->when($this->activeBranchId($request), fn ($q, $id) => $q->where(fn ($inner) => $inner->whereNull('branch_id')->orWhere('branch_id', $id)))
+                ->orderBy('bank_name')->get(),
         ];
     }
 }

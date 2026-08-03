@@ -111,6 +111,14 @@
     <div class="col-md-3">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body">
+                <div class="text-muted small">Menu Items Sold</div>
+                <div class="fs-5 fw-bold">{{ number_format($summary['total_items_sold'] ?? 0) }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
                 <div class="text-muted small">Senior Citizen Discounts</div>
                 <div class="fs-5 fw-bold">{{ number_format($summary['senior_count']) }} <span class="fs-6 text-muted">tx</span></div>
                 <div class="text-muted small">₱{{ number_format($summary['senior_discount_amount'], 2) }}</div>
@@ -216,6 +224,31 @@
                             </tr>
                             @empty
                             <tr><td colspan="3" class="text-center text-muted py-3">No sales in this period.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-12">
+        <div class="card shadow-sm h-100">
+            <div class="card-header fw-semibold"><i data-lucide="utensils" class="me-1"></i> Menu Items Sold</div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead class="table-light">
+                            <tr><th>Item</th><th class="text-end">Qty Sold</th><th class="text-end">Total Sales</th></tr>
+                        </thead>
+                        <tbody>
+                            @forelse(($summary['items_sold'] ?? []) as $row)
+                            <tr>
+                                <td>{{ is_array($row) ? $row['menu_name'] : $row->menu_name }}</td>
+                                <td class="text-end">{{ number_format(is_array($row) ? $row['quantity_sold'] : $row->quantity_sold) }}</td>
+                                <td class="text-end">₱{{ number_format(is_array($row) ? $row['total_sales'] : $row->total_sales, 2) }}</td>
+                            </tr>
+                            @empty
+                            <tr><td colspan="3" class="text-center text-muted py-3">No items sold in this period.</td></tr>
                             @endforelse
                         </tbody>
                     </table>

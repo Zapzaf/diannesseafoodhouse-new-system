@@ -72,6 +72,18 @@
             @endforeach
         </table>
 
+        <div class="section-title">Menu Items Sold ({{ number_format($summary['total_items_sold'] ?? 0) }} total)</div>
+        <table>
+            @forelse(($summary['items_sold'] ?? []) as $row)
+            <tr>
+                <td>{{ is_array($row) ? $row['menu_name'] : $row->menu_name }} ({{ number_format(is_array($row) ? $row['quantity_sold'] : $row->quantity_sold) }})</td>
+                <td class="text-end">₱{{ number_format(is_array($row) ? $row['total_sales'] : $row->total_sales, 2) }}</td>
+            </tr>
+            @empty
+            <tr><td colspan="2">No items sold in this period.</td></tr>
+            @endforelse
+        </table>
+
         <hr>
         <div class="locked">
             {{ $reading->status === 'voided' ? '*** VOIDED ***' : '*** LOCKED — OFFICIAL Z READING ***' }}

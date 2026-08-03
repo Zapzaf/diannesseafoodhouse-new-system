@@ -47,6 +47,26 @@
         </div>
 
         <div class="card mb-4">
+            <div class="card-header"><i class="me-1" data-lucide="file-text"></i> Services</div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        <thead><tr><th>Net Purchases</th><th>VAT</th><th>VAT-Exempt</th><th>Non-VAT</th><th>Total</th></tr></thead>
+                        <tbody>
+                            <tr>
+                                <td>₱{{ number_format($serviceTotals->net_purchases, 2) }}</td>
+                                <td>₱{{ number_format($serviceTotals->vat, 2) }}</td>
+                                <td>₱{{ number_format($serviceTotals->vat_exempt, 2) }}</td>
+                                <td>₱{{ number_format($serviceTotals->non_vat_purchase, 2) }}</td>
+                                <td class="fw-bold">₱{{ number_format($serviceTotals->total_purchases, 2) }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
             <div class="card-header"><i class="me-1" data-lucide="wallet"></i> Petty Cash Vouchers (PCV)</div>
             <div class="card-body">
                 <div class="table-responsive">

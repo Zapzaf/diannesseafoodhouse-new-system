@@ -498,9 +498,11 @@
                     <!-- Purchase & Disbursement Book -->
                     @php
                         $purchaseBookActive = request()->routeIs('purchase-vouchers.*')
+                            || request()->routeIs('services.*')
                             || request()->routeIs('petty-cash-vouchers.*')
                             || request()->routeIs('check-vouchers.*')
                             || request()->routeIs('check-register.*')
+                            || request()->routeIs('bank-accounts.*')
                             || request()->routeIs('chart-of-accounts.*');
                     @endphp
                     <li class="nav-item">
@@ -516,6 +518,9 @@
                                    <a class="nav-link py-1.5 px-3 {{ request()->routeIs('purchase-vouchers.*') ? 'active' : '' }}" href="{{ route('purchase-vouchers.index') }}">Purchase Vouchers (APV)</a>
                                </li>
                                <li class="nav-item">
+                                   <a class="nav-link py-1.5 px-3 {{ request()->routeIs('services.*') ? 'active' : '' }}" href="{{ route('services.index') }}">Services</a>
+                               </li>
+                               <li class="nav-item">
                                    <a class="nav-link py-1.5 px-3 {{ request()->routeIs('petty-cash-vouchers.*') ? 'active' : '' }}" href="{{ route('petty-cash-vouchers.index') }}">Petty Cash Vouchers (PCV)</a>
                                </li>
                                <li class="nav-item">
@@ -523,6 +528,9 @@
                                </li>
                                <li class="nav-item">
                                    <a class="nav-link py-1.5 px-3 {{ request()->routeIs('check-register.*') ? 'active' : '' }}" href="{{ route('check-register.index') }}">Check Register</a>
+                               </li>
+                               <li class="nav-item">
+                                   <a class="nav-link py-1.5 px-3 {{ request()->routeIs('bank-accounts.*') ? 'active' : '' }}" href="{{ route('bank-accounts.index') }}">Bank Accounts</a>
                                </li>
                                <li class="nav-item">
                                    <a class="nav-link py-1.5 px-3 {{ request()->routeIs('chart-of-accounts.*') ? 'active' : '' }}" href="{{ route('chart-of-accounts.index') }}">Chart of Accounts</a>
@@ -573,6 +581,9 @@
                                </li>
                                <li class="nav-item">
                                    <a class="nav-link py-1.5 px-3 {{ request()->routeIs('reports.purchase-disbursement.aging') ? 'active' : '' }}" href="{{ route('reports.purchase-disbursement.aging') }}">Unpaid APV Aging</a>
+                               </li>
+                               <li class="nav-item">
+                                   <a class="nav-link py-1.5 px-3 {{ request()->routeIs('reports.payables.*') ? 'active' : '' }}" href="{{ route('reports.payables.index') }}">Outstanding Payables</a>
                                </li>
                                <li class="nav-item">
                                    <a class="nav-link py-1.5 px-3 {{ request()->routeIs('reports.purchase-disbursement.petty-cash-fund') ? 'active' : '' }}" href="{{ route('reports.purchase-disbursement.petty-cash-fund') }}">Petty Cash Fund Status</a>

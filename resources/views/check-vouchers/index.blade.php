@@ -29,14 +29,17 @@
             <div class="card-body">
                 <form method="GET" class="row g-2 mb-3">
                     <div class="col-md-3">
-                        <input type="text" name="search" class="form-control" placeholder="Search CV # or payee" value="{{ request('search') }}">
+                        <input type="text" name="search" class="form-control" placeholder="Search CV #, reference #, or payee" value="{{ request('search') }}">
                     </div>
                     <div class="col-md-3">
                         <select name="type" class="form-select">
                             <option value="">All Types</option>
                             <option value="pcf_replenishment" {{ request('type') === 'pcf_replenishment' ? 'selected' : '' }}>PCF Replenishment</option>
                             <option value="apv_payment" {{ request('type') === 'apv_payment' ? 'selected' : '' }}>APV Payment</option>
+                            <option value="service_payment" {{ request('type') === 'service_payment' ? 'selected' : '' }}>Service Payment</option>
                             <option value="cod_purchase" {{ request('type') === 'cod_purchase' ? 'selected' : '' }}>COD Purchase</option>
+                            <option value="service_cod" {{ request('type') === 'service_cod' ? 'selected' : '' }}>Service (Immediate)</option>
+                            <option value="advance" {{ request('type') === 'advance' ? 'selected' : '' }}>Advance</option>
                             <option value="other_disbursement" {{ request('type') === 'other_disbursement' ? 'selected' : '' }}>Other Disbursement</option>
                         </select>
                     </div>
@@ -63,7 +66,7 @@
                             <tr>
                                 <th>Date</th>
                                 <th>CV #</th>
-                                <th>APV #</th>
+                                <th>APV / Service #</th>
                                 <th>Payee</th>
                                 <th class="text-end">Amount w/ VAT</th>
                                 <th class="text-end">VAT</th>
@@ -80,6 +83,9 @@
                         <tbody>
                             @forelse($vouchers as $voucher)
                             @php $hasApv = $voucher->purchase_voucher_id !== null; @endphp
+                            @php $hasService = $voucher->service_id !== null; @endphp
+                            {{-- APV and Service payments carry their VAT breakdown on the parent record, not the CV itself. --}}
+                            @php $breakdownOnParent = $hasApv || $hasService; @endphp
                             <tr>
                                 <td class="text-nowrap">{{ $voucher->date->format('M d, Y') }}</td>
                                 <td class="fw-semibold text-nowrap">
@@ -89,17 +95,19 @@
                                 <td class="text-nowrap">
                                     @if($hasApv)
                                         <a href="{{ route('purchase-vouchers.show', $voucher->purchase_voucher_id) }}">{{ $voucher->purchaseVoucher?->apv_no ?? '#'.$voucher->purchase_voucher_id }}</a>
+                                    @elseif($hasService)
+                                        <a href="{{ route('services.show', $voucher->service_id) }}">{{ $voucher->service?->ref_no ?? '#'.$voucher->service_id }}</a>
                                     @else
                                         —
                                     @endif
                                 </td>
                                 <td>{{ $voucher->payee_name }}</td>
                                 <td class="text-end text-nowrap">{{ $money($voucher->amount_w_vat) }}</td>
-                                {{-- APV-paid rows keep their VAT breakdown on the APV, per the disbursement book --}}
-                                <td class="text-end text-nowrap">{{ $hasApv ? '—' : $money($voucher->vat) }}</td>
-                                <td class="text-end text-nowrap">{{ $hasApv ? '—' : $money($voucher->net_purchases) }}</td>
-                                <td class="text-end text-nowrap">{{ $hasApv ? '—' : $money($voucher->vat_exempt) }}</td>
-                                <td class="text-end text-nowrap">{{ $hasApv ? '—' : $money($voucher->non_vat_purchase) }}</td>
+                                {{-- APV/Service-paid rows keep their VAT breakdown on the parent record, per the disbursement book --}}
+                                <td class="text-end text-nowrap">{{ $breakdownOnParent ? '—' : $money($voucher->vat) }}</td>
+                                <td class="text-end text-nowrap">{{ $breakdownOnParent ? '—' : $money($voucher->net_purchases) }}</td>
+                                <td class="text-end text-nowrap">{{ $breakdownOnParent ? '—' : $money($voucher->vat_exempt) }}</td>
+                                <td class="text-end text-nowrap">{{ $breakdownOnParent ? '—' : $money($voucher->non_vat_purchase) }}</td>
                                 <td class="text-end text-nowrap">
                                     {{ $money($voucher->ewt_amount) }}
                                     @if((float) $voucher->ewt_rate > 0)

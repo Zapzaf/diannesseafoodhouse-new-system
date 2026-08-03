@@ -11,9 +11,7 @@ class CheckRegisterObserver
         $checkVoucher = $checkRegister->checkVoucher;
         $checkVoucher->update(['status' => 'issued']);
 
-        if ($checkVoucher->purchase_voucher_id) {
-            $checkVoucher->purchaseVoucher->recomputeStatus();
-        }
+        $this->recomputeParent($checkVoucher);
     }
 
     public function updated(CheckRegister $checkRegister): void
@@ -28,8 +26,17 @@ class CheckRegisterObserver
             $checkVoucher->update(['status' => $checkRegister->status]);
         }
 
+        $this->recomputeParent($checkVoucher);
+    }
+
+    private function recomputeParent(\App\Models\CheckVoucher $checkVoucher): void
+    {
         if ($checkVoucher->purchase_voucher_id) {
             $checkVoucher->purchaseVoucher->recomputeStatus();
+        }
+
+        if ($checkVoucher->service_id) {
+            $checkVoucher->service->recomputeStatus();
         }
     }
 }

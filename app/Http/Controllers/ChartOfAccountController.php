@@ -31,7 +31,7 @@ class ChartOfAccountController extends Controller
         $validated = $request->validate([
             'code' => ['nullable', 'string', 'max:50', 'unique:chart_of_accounts,code'],
             'name' => ['required', 'string', 'max:255', 'unique:chart_of_accounts,name'],
-            'type' => ['required', Rule::in(['debit_expense', 'credit_liability'])],
+            'type' => ['required', Rule::in(['debit_expense', 'debit_asset', 'credit_liability'])],
         ]);
 
         ChartOfAccount::create([

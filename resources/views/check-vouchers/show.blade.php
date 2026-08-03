@@ -46,14 +46,30 @@
             <div class="card-body">
                 <div class="row g-3">
                     <div class="col-md-3"><div class="small text-muted">Date</div><div class="fw-semibold">{{ $checkVoucher->date->format('M d, Y') }}</div></div>
+                    <div class="col-md-3"><div class="small text-muted">Reference #</div><div class="fw-semibold">{{ $checkVoucher->reference_no ?? '—' }}</div></div>
                     <div class="col-md-3"><div class="small text-muted">Payee</div><div class="fw-semibold">{{ $checkVoucher->payee_name }}</div></div>
                     <div class="col-md-3"><div class="small text-muted">Particulars</div><div class="fw-semibold">{{ $checkVoucher->particulars }}</div></div>
+                    <div class="col-md-3"><div class="small text-muted">Payment Method</div><div class="fw-semibold">{{ ucwords(str_replace('_', ' ', $checkVoucher->payment_method)) }}</div></div>
+                    <div class="col-md-3"><div class="small text-muted">Bank Account</div><div class="fw-semibold">{{ $checkVoucher->bankAccount ? $checkVoucher->bankAccount->bank_name . ' — ' . $checkVoucher->bankAccount->account_name : '—' }}</div></div>
                     <div class="col-md-3"><div class="small text-muted">EWT Rate</div><div class="fw-semibold">{{ number_format($checkVoucher->ewt_rate * 100, 2) }}%</div></div>
+                    <div class="col-md-3"><div class="small text-muted">Created By</div><div class="fw-semibold">{{ $checkVoucher->creator?->name ?? '—' }}</div></div>
                 </div>
                 @if($checkVoucher->purchaseVoucher)
                 <div class="mt-3">
                     <div class="small text-muted">Settles Purchase Voucher</div>
                     <a href="{{ route('purchase-vouchers.show', $checkVoucher->purchaseVoucher) }}">{{ $checkVoucher->purchaseVoucher->apv_no }}</a>
+                </div>
+                @endif
+                @if($checkVoucher->service)
+                <div class="mt-3">
+                    <div class="small text-muted">Settles Service</div>
+                    <a href="{{ route('services.show', $checkVoucher->service) }}">{{ $checkVoucher->service->ref_no }}</a>
+                </div>
+                @endif
+                @if($checkVoucher->type === 'advance')
+                <div class="mt-3">
+                    <div class="small text-muted">Advance Account</div>
+                    <div class="fw-semibold">{{ $checkVoucher->advanceAccount?->name }}</div>
                 </div>
                 @endif
                 @if($checkVoucher->pettyCashVouchers->isNotEmpty())
@@ -81,6 +97,7 @@
                         <thead>
                             <tr>
                                 <th>SI / Receipt #</th>
+                                <th>Supplier</th>
                                 <th class="text-end">Amount w/ VAT</th>
                                 <th class="text-end">VAT-Exempt</th>
                                 <th class="text-end">Non-VAT</th>
@@ -92,6 +109,7 @@
                             @foreach($checkVoucher->receipts as $receipt)
                             <tr id="receipt-view-{{ $receipt->id }}">
                                 <td>{{ $receipt->si_no ?: '—' }}</td>
+                                <td>{{ $receipt->supplier?->name ?: '—' }}</td>
                                 <td class="text-end">₱{{ number_format($receipt->amount_w_vat, 2) }}</td>
                                 <td class="text-end">₱{{ number_format($receipt->vat_exempt, 2) }}</td>
                                 <td class="text-end">₱{{ number_format($receipt->non_vat_purchase, 2) }}</td>
@@ -108,16 +126,39 @@
                                 @endif
                             </tr>
                             @if($receiptsEditable)
-                            <tr id="receipt-edit-{{ $receipt->id }}" class="d-none table-light">
-                                <td colspan="6">
-                                    <form action="{{ route('check-vouchers.receipts.update', [$checkVoucher, $receipt]) }}" method="POST" class="row g-2 align-items-end">
+                            <tr id="receipt-edit-{{ $receipt->id }}" class="d-none">
+                                <td colspan="7" class="bg-light">
+                                    <form action="{{ route('check-vouchers.receipts.update', [$checkVoucher, $receipt]) }}" method="POST" class="row g-3 align-items-end py-2">
                                         @csrf
                                         @method('PUT')
-                                        <div class="col-md-3"><input type="text" name="si_no" class="form-control form-control-sm" placeholder="SI #" value="{{ $receipt->si_no }}"></div>
-                                        <div class="col-md-2"><input type="number" step="0.01" min="0" name="amount_w_vat" class="form-control form-control-sm" placeholder="Amount w/ VAT" value="{{ $receipt->amount_w_vat }}"></div>
-                                        <div class="col-md-2"><input type="number" step="0.01" min="0" name="vat_exempt" class="form-control form-control-sm" placeholder="VAT-Exempt" value="{{ $receipt->vat_exempt }}"></div>
-                                        <div class="col-md-2"><input type="number" step="0.01" min="0" name="non_vat_purchase" class="form-control form-control-sm" placeholder="Non-VAT" value="{{ $receipt->non_vat_purchase }}"></div>
-                                        <div class="col-md-3 d-flex gap-2">
+                                        <div class="col-md-3">
+                                            <label class="form-label small fw-semibold mb-1">SI / Receipt #</label>
+                                            <input type="text" name="si_no" class="form-control form-control-sm" placeholder="SI #" value="{{ $receipt->si_no }}">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label small fw-semibold mb-1">Supplier</label>
+                                            @include('partials.supplier-picker', [
+                                                'name' => 'supplier_id',
+                                                'suppliers' => $suppliers,
+                                                'selected' => $receipt->supplier_id,
+                                                'placeholder' => 'Search supplier...',
+                                                'searchClass' => 'form-control-sm',
+                                                'selectClass' => 'form-select-sm',
+                                            ])
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label small fw-semibold mb-1">Amount w/ VAT</label>
+                                            <input type="number" step="0.01" min="0" name="amount_w_vat" class="form-control form-control-sm" value="{{ $receipt->amount_w_vat }}">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label small fw-semibold mb-1">VAT-Exempt</label>
+                                            <input type="number" step="0.01" min="0" name="vat_exempt" class="form-control form-control-sm" value="{{ $receipt->vat_exempt }}">
+                                        </div>
+                                        <div class="col-md-2">
+                                            <label class="form-label small fw-semibold mb-1">Non-VAT</label>
+                                            <input type="number" step="0.01" min="0" name="non_vat_purchase" class="form-control form-control-sm" value="{{ $receipt->non_vat_purchase }}">
+                                        </div>
+                                        <div class="col-12 d-flex gap-2 pt-1">
                                             <button type="submit" class="btn btn-sm btn-primary">Save</button>
                                             <button type="button" class="btn btn-sm btn-outline-secondary toggleReceiptEdit" data-target="receipt-edit-{{ $receipt->id }}">Cancel</button>
                                         </div>
@@ -129,7 +170,7 @@
                         </tbody>
                         <tfoot>
                             <tr class="table-light fw-bold">
-                                <td class="text-end">Sub-Total</td>
+                                <td colspan="2" class="text-end">Sub-Total</td>
                                 <td class="text-end">₱{{ number_format($checkVoucher->receipts->sum('amount_w_vat'), 2) }}</td>
                                 <td class="text-end">₱{{ number_format($checkVoucher->receipts->sum('vat_exempt'), 2) }}</td>
                                 <td class="text-end">₱{{ number_format($checkVoucher->receipts->sum('non_vat_purchase'), 2) }}</td>
@@ -141,38 +182,78 @@
                 </div>
 
                 @if($receiptsEditable)
-                <hr>
-                <h6 class="fw-bold text-primary small text-uppercase mb-2">Add Another Receipt to CV {{ $checkVoucher->cv_no }}</h6>
-                <form action="{{ route('check-vouchers.receipts.store', $checkVoucher) }}" method="POST" class="row g-2 align-items-end">
-                    @csrf
-                    <div class="col-md-3">
-                        <label class="form-label small fw-semibold">SI / Receipt #</label>
-                        <input type="text" name="si_no" class="form-control form-control-sm @error('si_no') is-invalid @enderror" value="{{ old('si_no') }}">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label small fw-semibold">Amount w/ VAT</label>
-                        <input type="number" step="0.01" min="0" name="amount_w_vat" class="form-control form-control-sm @error('amount_w_vat') is-invalid @enderror" value="{{ old('amount_w_vat') }}">
-                        @error('amount_w_vat')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label small fw-semibold">VAT-Exempt</label>
-                        <input type="number" step="0.01" min="0" name="vat_exempt" class="form-control form-control-sm" value="{{ old('vat_exempt') }}">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label small fw-semibold">Non-VAT</label>
-                        <input type="number" step="0.01" min="0" name="non_vat_purchase" class="form-control form-control-sm" value="{{ old('non_vat_purchase') }}">
-                    </div>
-                    <div class="col-md-3">
-                        <button type="submit" class="btn btn-sm btn-primary d-flex align-items-center gap-1">
-                            <i data-lucide="plus" style="width:14px;height:14px;"></i> Add Receipt
-                        </button>
-                    </div>
-                </form>
+                <div class="border rounded p-3 bg-light mt-3">
+                    <h6 class="fw-bold text-primary small text-uppercase mb-3">
+                        <i data-lucide="plus-circle" style="width:14px;height:14px;" class="me-1"></i>
+                        Add Another Receipt to CV {{ $checkVoucher->cv_no }}
+                    </h6>
+                    <form action="{{ route('check-vouchers.receipts.store', $checkVoucher) }}" method="POST" class="row g-3">
+                        @csrf
+                        <div class="col-md-3">
+                            <label class="form-label small fw-semibold">SI / Receipt #</label>
+                            <input type="text" name="si_no" class="form-control @error('si_no') is-invalid @enderror" value="{{ old('si_no') }}">
+                            @error('si_no')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-semibold">Supplier</label>
+                            @include('partials.supplier-picker', [
+                                'name' => 'supplier_id',
+                                'suppliers' => $suppliers,
+                                'selected' => old('supplier_id'),
+                                'placeholder' => 'Search supplier...',
+                                'selectClass' => (($errors ?? null)?->has('supplier_id')) ? 'is-invalid' : '',
+                            ])
+                            @error('supplier_id')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-semibold">Amount w/ VAT</label>
+                            <input type="number" step="0.01" min="0" name="amount_w_vat" class="form-control @error('amount_w_vat') is-invalid @enderror" value="{{ old('amount_w_vat') }}">
+                            @error('amount_w_vat')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-semibold">VAT-Exempt</label>
+                            <input type="number" step="0.01" min="0" name="vat_exempt" class="form-control" value="{{ old('vat_exempt') }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small fw-semibold">Non-VAT</label>
+                            <input type="number" step="0.01" min="0" name="non_vat_purchase" class="form-control" value="{{ old('non_vat_purchase') }}">
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary d-inline-flex align-items-center gap-1">
+                                <i data-lucide="plus" style="width:14px;height:14px;"></i> Add Receipt
+                            </button>
+                        </div>
+                    </form>
+                </div>
                 @endif
             </div>
         </div>
         @endif
 
+        @if($checkVoucher->payment_method !== 'check')
+        <div class="card mb-4">
+            <div class="card-header"><i class="me-1" data-lucide="banknote"></i> Payment Status</div>
+            <div class="card-body">
+                @if($checkVoucher->status === 'draft')
+                    <p class="text-muted small mb-3">This {{ str_replace('_', ' ', $checkVoucher->payment_method) }} disbursement has not been marked as paid yet.</p>
+                    <form action="{{ route('check-vouchers.mark-paid', $checkVoucher) }}" method="POST">
+                        @csrf
+                        <button type="submit" class="btn btn-success text-white">
+                            <i data-lucide="check-square" class="me-1"></i> Mark as Paid
+                        </button>
+                    </form>
+                @else
+                    <div class="row g-3">
+                        <div class="col-md-4"><div class="small text-muted">Status</div><div class="fw-semibold">{{ ucfirst($checkVoucher->status) }}</div></div>
+                        <div class="col-md-4"><div class="small text-muted">Amount Paid</div><div class="fw-semibold">₱{{ number_format($checkVoucher->amount_paid, 2) }}</div></div>
+                        <div class="col-md-4"><div class="small text-muted">Method</div><div class="fw-semibold">{{ ucwords(str_replace('_', ' ', $checkVoucher->payment_method)) }}</div></div>
+                    </div>
+                @endif
+            </div>
+        </div>
+        @endif
+
+        @if($checkVoucher->payment_method === 'check')
         <div class="card mb-4">
             <div class="card-header"><i class="me-1" data-lucide="check-square"></i> Check Register</div>
             <div class="card-body">
@@ -206,10 +287,71 @@
                 @endif
             </div>
         </div>
+        @endif
+
+        @if($checkVoucher->type === 'advance')
+        <div class="card mb-4">
+            <div class="card-header"><i class="me-1" data-lucide="wallet"></i> Advance Liquidation</div>
+            <div class="card-body">
+                <div class="row g-3 mb-3">
+                    <div class="col-md-4"><div class="small text-muted">Advance Amount</div><div class="fw-semibold">₱{{ number_format($checkVoucher->amount_w_vat, 2) }}</div></div>
+                    <div class="col-md-4"><div class="small text-muted">Liquidated</div><div class="fw-semibold">₱{{ number_format($checkVoucher->liquidated_amount, 2) }}</div></div>
+                    <div class="col-md-4"><div class="small text-muted">Outstanding</div><div class="fw-semibold">₱{{ number_format($checkVoucher->outstanding_advance, 2) }}</div></div>
+                </div>
+                <div class="table-responsive mb-3">
+                    <table class="table table-bordered table-sm">
+                        <thead><tr><th>Date</th><th>Expense Account</th><th class="text-end">Amount</th><th>Remarks</th></tr></thead>
+                        <tbody>
+                            @forelse($checkVoucher->liquidations as $liquidation)
+                            <tr>
+                                <td>{{ $liquidation->date->format('M d, Y') }}</td>
+                                <td>{{ $liquidation->expenseAccount?->name }}</td>
+                                <td class="text-end">₱{{ number_format($liquidation->amount, 2) }}</td>
+                                <td class="text-muted small">{{ $liquidation->remarks ?? '—' }}</td>
+                            </tr>
+                            @empty
+                            <tr><td colspan="4" class="text-center text-muted py-3">No liquidations recorded yet.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+                @if($checkVoucher->status === 'draft')
+                <p class="text-muted small mb-0">This advance has not been paid out yet — mark it as paid above before recording a liquidation.</p>
+                @elseif($checkVoucher->outstanding_advance > 0)
+                <form action="{{ route('check-vouchers.liquidate-advance', $checkVoucher) }}" method="POST" class="row g-2 align-items-end">
+                    @csrf
+                    <div class="col-md-3">
+                        <label class="form-label small fw-semibold">Date</label>
+                        <input type="date" name="date" class="form-control form-control-sm" value="{{ old('date', now()->toDateString()) }}" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-semibold">Amount</label>
+                        <input type="number" step="0.01" min="0" name="amount" class="form-control form-control-sm" value="{{ old('amount') }}" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small fw-semibold">Expense Account</label>
+                        <select name="expense_account_id" class="form-select form-select-sm" required>
+                            <option value="">Select</option>
+                            @foreach(\App\Models\ChartOfAccount::where('type', 'debit_expense')->where('is_active', true)->orderBy('name')->get() as $account)
+                            <option value="{{ $account->id }}">{{ $account->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-sm btn-primary">Record Liquidation</button>
+                    </div>
+                </form>
+                @endif
+            </div>
+        </div>
+        @endif
+
+        @include('partials.attachments', ['attachmentType' => 'check-voucher', 'attachmentId' => $checkVoucher->id, 'attachments' => $checkVoucher->attachments])
     </div>
 @endsection
 
 @push('scripts')
+<script src="{{ asset('js/supplier-picker.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.toggleReceiptEdit').forEach(function (button) {

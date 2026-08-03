@@ -38,24 +38,46 @@
                         <label class="form-label fw-semibold">SI #</label>
                         <input type="text" name="si_no" class="form-control @error('si_no') is-invalid @enderror" value="{{ old('si_no', $voucher?->si_no) }}">
                         @error('si_no')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        <div class="form-check mt-1">
+                            <input type="checkbox" name="allow_duplicate_invoice" value="1" class="form-check-input" id="allowDuplicateInvoice" {{ old('allow_duplicate_invoice') ? 'checked' : '' }}>
+                            <label class="form-check-label small text-muted" for="allowDuplicateInvoice">Allow duplicate invoice # for this supplier</label>
+                        </div>
                     </div>
                     @include('finance._branch-picker', ['voucher' => $voucher, 'colWidth' => 4])
                 </div>
 
                 <div class="row g-3 mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Purchase Type <span class="text-danger">*</span></label>
+                        <select name="purchase_type" id="purchaseType" class="form-select @error('purchase_type') is-invalid @enderror" required>
+                            <option value="credit" {{ old('purchase_type', $voucher?->purchase_type ?? 'credit') === 'credit' ? 'selected' : '' }}>Credit</option>
+                            <option value="cod" {{ old('purchase_type', $voucher?->purchase_type) === 'cod' ? 'selected' : '' }}>Cash on Delivery (COD)</option>
+                        </select>
+                        @error('purchase_type')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label fw-semibold">Buyer <span class="text-danger">*</span></label>
+                        <input type="text" name="buyer" class="form-control @error('buyer') is-invalid @enderror" value="{{ old('buyer', $voucher?->buyer) }}" placeholder="e.g. Ate Dinah" required>
+                        <div class="form-text text-muted">The person who purchased the goods — distinct from the Vendor/Supplier below.</div>
+                        @error('buyer')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-3">
                     <div class="col-md-6">
                         <label class="form-label fw-semibold">Vendor</label>
-                        <select name="vendor_id" id="apvVendor" class="form-select @error('vendor_id') is-invalid @enderror">
-                            <option value="">Select Vendor</option>
-                            @foreach($vendors as $vendor)
-                            <option value="{{ $vendor->id }}"
-                                data-address="{{ $vendor->address }}"
-                                data-tin="{{ $vendor->tin }}"
-                                {{ (string) old('vendor_id', $voucher?->vendor_id) === (string) $vendor->id ? 'selected' : '' }}>{{ $vendor->name }}</option>
-                            @endforeach
-                        </select>
+                        @include('partials.supplier-picker', [
+                            'name' => 'vendor_id',
+                            'id' => 'apvVendor',
+                            'suppliers' => $vendors,
+                            'selected' => old('vendor_id', $voucher?->vendor_id),
+                            'placeholder' => 'Search vendor...',
+                            'emptyLabel' => 'Select Vendor',
+                            'selectClass' => (($errors ?? null)?->has('vendor_id')) ? 'is-invalid' : '',
+                            'optionAttrs' => fn ($vendor) => 'data-address="'.e($vendor->address).'" data-tin="'.e($vendor->tin).'"',
+                        ])
                         <div class="form-text" id="apvVendorInfo">Address and TIN come from the supplier record.</div>
-                        @error('vendor_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        @error('vendor_id')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
                         <script>
                         document.addEventListener('DOMContentLoaded', function () {
                             const select = document.getElementById('apvVendor');
@@ -76,9 +98,9 @@
                         });
                         </script>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-md-6" id="creditAccountWrapper">
                         <label class="form-label fw-semibold">Credit Account <span class="text-danger">*</span></label>
-                        <select name="credit_account_id" class="form-select @error('credit_account_id') is-invalid @enderror" required>
+                        <select name="credit_account_id" class="form-select @error('credit_account_id') is-invalid @enderror">
                             <option value="">Select Account</option>
                             @foreach($creditAccounts as $account)
                             <option value="{{ $account->id }}" {{ (string) old('credit_account_id', $voucher?->credit_account_id) === (string) $account->id ? 'selected' : '' }}>{{ $account->name }}</option>
@@ -88,6 +110,49 @@
                         @error('credit_account_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
                 </div>
+
+                <div class="row g-3 mb-3" id="codPaymentWrapper">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Bank Account <span class="text-danger">*</span></label>
+                        <select name="bank_account_id" class="form-select @error('bank_account_id') is-invalid @enderror">
+                            <option value="">Select Bank Account</option>
+                            @foreach($bankAccounts as $bankAccount)
+                            <option value="{{ $bankAccount->id }}" {{ (string) old('bank_account_id') === (string) $bankAccount->id ? 'selected' : '' }}>{{ $bankAccount->bank_name }} — {{ $bankAccount->account_name }}</option>
+                            @endforeach
+                        </select>
+                        @error('bank_account_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Payment Method <span class="text-danger">*</span></label>
+                        <select name="payment_method" class="form-select @error('payment_method') is-invalid @enderror">
+                            @foreach(['cash' => 'Cash', 'bank_transfer' => 'Bank Transfer', 'online' => 'Online'] as $value => $label)
+                            <option value="{{ $value }}" {{ (string) old('payment_method', 'cash') === $value ? 'selected' : '' }}>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        @error('payment_method')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                    </div>
+                </div>
+
+                <script>
+                document.addEventListener('DOMContentLoaded', function () {
+                    const purchaseType = document.getElementById('purchaseType');
+                    const creditWrapper = document.getElementById('creditAccountWrapper');
+                    const codWrapper = document.getElementById('codPaymentWrapper');
+                    const creditAccountSelect = creditWrapper.querySelector('select[name="credit_account_id"]');
+                    const codSelects = codWrapper.querySelectorAll('select');
+
+                    function refresh() {
+                        const isCod = purchaseType.value === 'cod';
+                        creditWrapper.style.display = isCod ? 'none' : '';
+                        codWrapper.style.display = isCod ? '' : 'none';
+                        creditAccountSelect.required = !isCod;
+                        codSelects.forEach(function (select) { select.required = isCod; });
+                    }
+
+                    purchaseType.addEventListener('change', refresh);
+                    refresh();
+                });
+                </script>
 
                 <h5 class="fw-bold mb-3 mt-4 d-flex align-items-center gap-2 text-primary">
                     <i data-lucide="list" style="width: 20px; height: 20px;"></i>

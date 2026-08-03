@@ -51,9 +51,13 @@
             <div class="card-body">
                 <div class="row g-3">
                     <div class="col-md-3"><div class="small text-muted">Date</div><div class="fw-semibold">{{ $purchaseVoucher->date->format('M d, Y') }}</div></div>
+                    <div class="col-md-3"><div class="small text-muted">Purchase Type</div><div class="fw-semibold">{{ strtoupper($purchaseVoucher->purchase_type) }}</div></div>
                     <div class="col-md-3"><div class="small text-muted">Vendor</div><div class="fw-semibold">{{ $purchaseVoucher->vendor?->name ?? '—' }}</div></div>
+                    <div class="col-md-3"><div class="small text-muted">Buyer</div><div class="fw-semibold">{{ $purchaseVoucher->buyer ?? '—' }}</div></div>
                     <div class="col-md-3"><div class="small text-muted">SI #</div><div class="fw-semibold">{{ $purchaseVoucher->si_no ?? '—' }}</div></div>
-                    <div class="col-md-3"><div class="small text-muted">Credit Account</div><div class="fw-semibold">{{ $purchaseVoucher->creditAccount?->name }}</div></div>
+                    <div class="col-md-3"><div class="small text-muted">Credit Account</div><div class="fw-semibold">{{ $purchaseVoucher->creditAccount?->name ?? '—' }}</div></div>
+                    <div class="col-md-3"><div class="small text-muted">Created By</div><div class="fw-semibold">{{ $purchaseVoucher->creator?->name ?? '—' }}</div></div>
+                    <div class="col-md-3"><div class="small text-muted">Last Modified By</div><div class="fw-semibold">{{ $purchaseVoucher->updater?->name ?? '—' }}</div></div>
                 </div>
                 @if($purchaseVoucher->remarks)
                 <div class="mt-3"><div class="small text-muted">Remarks</div><div>{{ $purchaseVoucher->remarks }}</div></div>
@@ -138,5 +142,7 @@
                 </div>
             </div>
         </div>
+
+        @include('partials.attachments', ['attachmentType' => 'purchase-voucher', 'attachmentId' => $purchaseVoucher->id, 'attachments' => $purchaseVoucher->attachments])
     </div>
 @endsection

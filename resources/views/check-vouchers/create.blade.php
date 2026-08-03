@@ -34,7 +34,9 @@
                                     <option value="">Select Type</option>
                                     <option value="pcf_replenishment" {{ old('type', $replenishPcvs->isNotEmpty() ? 'pcf_replenishment' : '') === 'pcf_replenishment' ? 'selected' : '' }}>Petty Cash Fund Replenishment</option>
                                     <option value="apv_payment" {{ old('type', $payApv ? 'apv_payment' : '') === 'apv_payment' ? 'selected' : '' }}>Pay an Unpaid APV</option>
+                                    <option value="service_payment" {{ old('type', $payService ? 'service_payment' : '') === 'service_payment' ? 'selected' : '' }}>Pay an Unpaid Service</option>
                                     <option value="cod_purchase" {{ old('type') === 'cod_purchase' ? 'selected' : '' }}>COD Purchase</option>
+                                    <option value="advance" {{ old('type') === 'advance' ? 'selected' : '' }}>Advance</option>
                                     <option value="other_disbursement" {{ old('type') === 'other_disbursement' ? 'selected' : '' }}>Other Disbursement</option>
                                 </select>
                                 @error('type')<div class="invalid-feedback">{{ $message }}</div>@enderror
@@ -75,19 +77,41 @@
                                 @error('particulars')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             </div>
 
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Bank Account</label>
+                                    <select name="bank_account_id" class="form-select @error('bank_account_id') is-invalid @enderror">
+                                        <option value="">Select Bank Account</option>
+                                        @foreach($bankAccounts as $bankAccount)
+                                        <option value="{{ $bankAccount->id }}" {{ (string) old('bank_account_id') === (string) $bankAccount->id ? 'selected' : '' }}>{{ $bankAccount->bank_name }} — {{ $bankAccount->account_name }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error('bank_account_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Payment Method <span class="text-danger">*</span></label>
+                                    <select name="payment_method" class="form-select @error('payment_method') is-invalid @enderror" required>
+                                        @foreach(['cash' => 'Cash', 'check' => 'Check', 'bank_transfer' => 'Bank Transfer', 'online' => 'Online'] as $value => $label)
+                                        <option value="{{ $value }}" {{ (string) old('payment_method', 'check') === $value ? 'selected' : '' }}>{{ $label }}</option>
+                                        @endforeach
+                                    </select>
+                                    @error('payment_method')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                </div>
+                            </div>
+
                             <div class="mb-3">
                                 <label class="form-label fw-semibold">Vendor / Supplier</label>
-                                <select name="supplier_id" id="cvSupplier" class="form-select @error('supplier_id') is-invalid @enderror">
-                                    <option value="">Select Supplier (optional — fills payee details below)</option>
-                                    @foreach($suppliers as $supplier)
-                                    <option value="{{ $supplier->id }}"
-                                        data-name="{{ $supplier->name }}"
-                                        data-address="{{ $supplier->address }}"
-                                        data-tin="{{ $supplier->tin }}"
-                                        @selected((string) old('supplier_id', $payApv?->vendor_id) === (string) $supplier->id)>{{ $supplier->name }}</option>
-                                    @endforeach
-                                </select>
-                                @error('supplier_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                @include('partials.supplier-picker', [
+                                    'name' => 'supplier_id',
+                                    'id' => 'cvSupplier',
+                                    'suppliers' => $suppliers,
+                                    'selected' => old('supplier_id', $payApv?->vendor_id),
+                                    'placeholder' => 'Search vendor / supplier...',
+                                    'emptyLabel' => 'Select Supplier (optional — fills payee details below)',
+                                    'selectClass' => (($errors ?? null)?->has('supplier_id')) ? 'is-invalid' : '',
+                                    'optionAttrs' => fn ($supplier) => 'data-name="'.e($supplier->name).'" data-address="'.e($supplier->address).'" data-tin="'.e($supplier->tin).'"',
+                                ])
+                                @error('supplier_id')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
                             </div>
 
                             <div class="row g-3 mb-3">
@@ -131,6 +155,36 @@
                                 <input type="hidden" name="purchase_voucher_id" id="purchaseVoucherId" value="{{ old('purchase_voucher_id', $payApv?->id) }}">
                             </div>
 
+                            {{-- Service Payment section --}}
+                            <div class="cv-type-section" data-type="service_payment" style="display:none;">
+                                <h6 class="fw-bold text-primary">Service to Pay</h6>
+                                <div class="mb-2">
+                                    <input type="text" id="serviceSearch" class="form-control" placeholder="Search unpaid Service Ref # or supplier name..." value="{{ $payService?->ref_no }}">
+                                </div>
+                                <div id="serviceResults" class="border rounded p-2 mb-3" style="max-height: 220px; overflow-y: auto;"></div>
+                                <div id="selectedServiceInfo" class="alert alert-info small {{ $payService ? '' : 'd-none' }}">
+                                    @if($payService)
+                                        Paying Service <strong>{{ $payService->ref_no }}</strong> — Remaining balance: <strong>₱{{ number_format($payService->payable_total - $payService->amount_paid, 2) }}</strong>
+                                    @endif
+                                </div>
+                                <input type="hidden" name="service_id" id="serviceId" value="{{ old('service_id', $payService?->id) }}">
+                            </div>
+
+                            {{-- Advance section --}}
+                            <div class="cv-type-section" data-type="advance" style="display:none;">
+                                <h6 class="fw-bold text-primary">Advance Details</h6>
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold">Advance Account <span class="text-danger">*</span></label>
+                                    <select name="advance_account_id" class="form-select">
+                                        <option value="">Select Account</option>
+                                        @foreach($advanceAccounts as $account)
+                                        <option value="{{ $account->id }}" {{ (string) old('advance_account_id') === (string) $account->id ? 'selected' : '' }}>{{ $account->name }} ({{ $account->type === 'debit_asset' ? 'Advances Asset' : 'Accounts Payable' }})</option>
+                                        @endforeach
+                                    </select>
+                                    <div class="form-text text-muted">Pick an Accounts Payable account when advancing a person (e.g. Ate Dinah) against future purchases, or an Advances (asset) account for a general cash advance (e.g. Advances – KDs).</div>
+                                </div>
+                            </div>
+
                             {{-- Standalone (COD / Other) section --}}
                             <div class="cv-type-section" data-type="cod_purchase,other_disbursement" style="display:none;">
                                 <h6 class="fw-bold text-primary">Purchase / VAT Detail</h6>
@@ -155,7 +209,8 @@
                                     <table class="table table-sm table-bordered align-middle mb-1" id="receiptsTable">
                                         <thead>
                                             <tr>
-                                                <th style="min-width:160px;">SI / Receipt #</th>
+                                                <th style="min-width:150px;">SI / Receipt #</th>
+                                                <th style="min-width:180px;">Supplier</th>
                                                 <th style="min-width:130px;">Amount w/ VAT</th>
                                                 <th style="min-width:130px;">VAT-Exempt</th>
                                                 <th style="min-width:130px;">Non-VAT</th>
@@ -166,7 +221,7 @@
                                         <tbody id="receiptsTableBody"></tbody>
                                         <tfoot>
                                             <tr class="table-light fw-bold">
-                                                <td class="text-end">Sub-Total</td>
+                                                <td colspan="2" class="text-end">Sub-Total</td>
                                                 <td id="receiptTotalAmountWVat" class="text-end">₱0.00</td>
                                                 <td id="receiptTotalExempt" class="text-end">₱0.00</td>
                                                 <td id="receiptTotalNonVat" class="text-end">₱0.00</td>
@@ -180,6 +235,15 @@
                                 <template id="receiptRowTemplate">
                                     <tr class="receipt-row">
                                         <td><input type="text" name="receipts[__INDEX__][si_no]" class="form-control form-control-sm receipt-si-no"></td>
+                                        <td>
+                                            @include('partials.supplier-picker', [
+                                                'name' => 'receipts[__INDEX__][supplier_id]',
+                                                'suppliers' => $suppliers,
+                                                'placeholder' => 'Search supplier...',
+                                                'searchClass' => 'form-control-sm',
+                                                'selectClass' => 'form-select-sm receipt-supplier',
+                                            ])
+                                        </td>
                                         <td><input type="number" step="0.01" min="0" name="receipts[__INDEX__][amount_w_vat]" class="form-control form-control-sm receipt-amount"></td>
                                         <td><input type="number" step="0.01" min="0" name="receipts[__INDEX__][vat_exempt]" class="form-control form-control-sm receipt-exempt"></td>
                                         <td><input type="number" step="0.01" min="0" name="receipts[__INDEX__][non_vat_purchase]" class="form-control form-control-sm receipt-nonvat"></td>
@@ -191,11 +255,11 @@
                                 </template>
                             </div>
 
-                            {{-- Amount field shared by PCF replenishment / APV payment (standalone types use their own amount above) --}}
-                            <div class="cv-type-section" data-type="pcf_replenishment,apv_payment" style="display:none;">
+                            {{-- Amount field shared by PCF replenishment / APV payment / Service payment / Advance (standalone types use their own amount above) --}}
+                            <div class="cv-type-section" data-type="pcf_replenishment,apv_payment,service_payment,advance" style="display:none;">
                                 <div class="mb-3" style="max-width: 280px;">
                                     <label class="form-label fw-semibold">Amount w/ VAT <span class="text-danger">*</span></label>
-                                    <input type="number" step="0.01" min="0" name="amount_w_vat" id="linkedAmount" class="form-control @error('amount_w_vat') is-invalid @enderror" value="{{ old('amount_w_vat', $payApv ? round($payApv->payable_total - $payApv->amount_paid, 2) : '') }}">
+                                    <input type="number" step="0.01" min="0" name="amount_w_vat" id="linkedAmount" class="form-control @error('amount_w_vat') is-invalid @enderror" value="{{ old('amount_w_vat', $payApv ? round($payApv->payable_total - $payApv->amount_paid, 2) : ($payService ? round($payService->payable_total - $payService->amount_paid, 2) : '')) }}">
                                     @error('amount_w_vat')<div class="invalid-feedback">{{ $message }}</div>@enderror
                                 </div>
                             </div>
@@ -242,6 +306,7 @@
 @endsection
 
 @push('scripts')
+<script src="{{ asset('js/supplier-picker.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const typeSelect = document.getElementById('cvType');
@@ -249,6 +314,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const prefilledPcvs = @json($prefilledPcvsData);
     const unreplenishedUrl = @json(route('check-vouchers.unreplenished-pcvs'));
     const unpaidApvsUrl = @json(route('check-vouchers.unpaid-apvs'));
+    const unpaidServicesUrl = @json(route('check-vouchers.unpaid-services'));
 
     function toggleSections() {
         const type = typeSelect.value;
@@ -351,6 +417,55 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // --- Service search ---
+    const serviceSearch = document.getElementById('serviceSearch');
+    const serviceResults = document.getElementById('serviceResults');
+    const serviceId = document.getElementById('serviceId');
+    const selectedServiceInfo = document.getElementById('selectedServiceInfo');
+    let serviceSearchTimer = null;
+
+    function renderServiceResults(services) {
+        if (!services.length) {
+            serviceResults.innerHTML = '<div class="text-muted small">No unpaid Services found for the selected branch.</div>';
+            return;
+        }
+        serviceResults.innerHTML = services.map(function (service) {
+            return '<button type="button" class="btn btn-sm btn-outline-secondary w-100 text-start mb-1 service-result" ' +
+                'data-id="' + service.id + '" data-supplier="' + (service.supplier_name || service.payor || '') + '" data-balance="' + service.remaining_balance + '" data-ref-no="' + service.ref_no + '">' +
+                service.ref_no + ' — ' + (service.supplier_name || service.payor || 'No supplier') + ' — Balance ₱' + Number(service.remaining_balance).toFixed(2) +
+                '</button>';
+        }).join('');
+        serviceResults.querySelectorAll('.service-result').forEach(function (button) {
+            button.addEventListener('click', function () {
+                serviceId.value = this.dataset.id;
+                payeeName.value = this.dataset.supplier;
+                if (linkedAmount) linkedAmount.value = parseFloat(this.dataset.balance).toFixed(2);
+                selectedServiceInfo.textContent = 'Paying Service ' + this.dataset.refNo + ' — Remaining balance: ₱' + Number(this.dataset.balance).toFixed(2);
+                selectedServiceInfo.classList.remove('d-none');
+                serviceResults.innerHTML = '';
+            });
+        });
+    }
+
+    function searchServices(term) {
+        fetch(unpaidServicesUrl + '?search=' + encodeURIComponent(term), { headers: { Accept: 'application/json' } })
+            .then(res => res.json())
+            .then(renderServiceResults)
+            .catch(() => { serviceResults.innerHTML = '<div class="text-danger small">Search failed.</div>'; });
+    }
+
+    if (serviceSearch) {
+        serviceSearch.addEventListener('input', function () {
+            clearTimeout(serviceSearchTimer);
+            const term = this.value;
+            serviceSearchTimer = setTimeout(function () { searchServices(term); }, 300);
+        });
+        if (typeSelect.value === 'service_payment') searchServices(serviceSearch.value);
+        typeSelect.addEventListener('change', function () {
+            if (this.value === 'service_payment' && serviceResults.innerHTML === '') searchServices(serviceSearch.value);
+        });
+    }
+
     // --- Supplier autofill: payee details come from the Suppliers table ---
     const cvSupplier = document.getElementById('cvSupplier');
     if (cvSupplier) {
@@ -383,6 +498,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const row = wrapper.firstElementChild;
 
         row.querySelector('.receipt-si-no').value = data.si_no || '';
+        row.querySelector('.receipt-supplier').value = data.supplier_id || '';
         row.querySelector('.receipt-amount').value = data.amount_w_vat || '';
         row.querySelector('.receipt-exempt').value = data.vat_exempt || '';
         row.querySelector('.receipt-nonvat').value = data.non_vat_purchase || '';
@@ -398,6 +514,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         receiptsTableBody.appendChild(row);
+        if (window.SupplierPicker) window.SupplierPicker.enhance(row.querySelector('.supplier-combo'));
         if (window.lucide) window.lucide.createIcons();
         updateReceiptTotals();
     }

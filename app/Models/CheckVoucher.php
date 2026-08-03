@@ -15,11 +15,16 @@ class CheckVoucher extends Model
         'supplier_id',
         'date',
         'cv_no',
+        'reference_no',
         'purchase_voucher_id',
+        'service_id',
+        'advance_account_id',
         'type',
         'status',
         'particulars',
         'cost_account_id',
+        'bank_account_id',
+        'payment_method',
         'payee_name',
         'address',
         'si_no',
@@ -34,6 +39,7 @@ class CheckVoucher extends Model
         'amount_paid',
         'remarks',
         'created_by',
+        'updated_by',
     ];
 
     protected function casts(): array
@@ -54,6 +60,36 @@ class CheckVoucher extends Model
     public function purchaseVoucher(): BelongsTo
     {
         return $this->belongsTo(PurchaseVoucher::class);
+    }
+
+    public function service(): BelongsTo
+    {
+        return $this->belongsTo(Service::class);
+    }
+
+    public function bankAccount(): BelongsTo
+    {
+        return $this->belongsTo(BankAccount::class);
+    }
+
+    public function advanceAccount(): BelongsTo
+    {
+        return $this->belongsTo(ChartOfAccount::class, 'advance_account_id');
+    }
+
+    public function liquidations(): HasMany
+    {
+        return $this->hasMany(AdvanceLiquidation::class);
+    }
+
+    public function getLiquidatedAmountAttribute(): float
+    {
+        return (float) $this->liquidations()->sum('amount');
+    }
+
+    public function getOutstandingAdvanceAttribute(): float
+    {
+        return round((float) $this->amount_w_vat - $this->liquidated_amount, 2);
     }
 
     public function pettyCashVouchers(): HasMany
@@ -79,6 +115,36 @@ class CheckVoucher extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function updater(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'updated_by');
+    }
+
+    public function attachments()
+    {
+        return $this->morphMany(Attachment::class, 'attachable');
+    }
+
+    /**
+     * Next sequential auto-generated disbursement reference (DIS-000001, …),
+     * distinct from cv_no which is the user-entered physical check/reference number.
+     */
+    public static function nextDisbursementNo(): string
+    {
+        $last = static::query()
+            ->where('reference_no', 'like', 'DIS-%')
+            ->orderByDesc('id')
+            ->value('reference_no');
+
+        $sequence = $last ? (int) preg_replace('/\D/', '', substr($last, 4)) : 0;
+
+        do {
+            $candidate = 'DIS-'.str_pad(++$sequence, 6, '0', STR_PAD_LEFT);
+        } while (static::query()->where('reference_no', $candidate)->exists());
+
+        return $candidate;
     }
 
     /**

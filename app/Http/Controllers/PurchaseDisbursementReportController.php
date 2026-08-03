@@ -7,7 +7,11 @@ use App\Models\CheckVoucher;
 use App\Models\PettyCashVoucher;
 use App\Models\PurchaseVoucher;
 use App\Models\PurchaseVoucherItem;
+use App\Models\Service;
+use Dompdf\Dompdf;
+use Dompdf\Options;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\View\View;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -16,8 +20,9 @@ class PurchaseDisbursementReportController extends Controller
     public function summary(Request $request): View
     {
         [$apvTotals, $pcvTotals, $cvTotals, $dateFrom, $dateTo] = $this->buildTotals($request);
+        $serviceTotals = $this->buildServiceTotals($request, $dateFrom, $dateTo);
 
-        return view('reports.purchase-disbursement.summary', compact('apvTotals', 'pcvTotals', 'cvTotals', 'dateFrom', 'dateTo'));
+        return view('reports.purchase-disbursement.summary', compact('apvTotals', 'pcvTotals', 'cvTotals', 'serviceTotals', 'dateFrom', 'dateTo'));
     }
 
     public function exportSummary(Request $request)
@@ -70,6 +75,17 @@ class PurchaseDisbursementReportController extends Controller
         return [$apvTotals, $pcvTotals, $cvTotals, $dateFrom, $dateTo];
     }
 
+    private function buildServiceTotals(Request $request, string $dateFrom, string $dateTo): object
+    {
+        $branchId = $this->activeBranchId($request);
+
+        return Service::query()
+            ->whereBetween('date', [$dateFrom, $dateTo])
+            ->when($branchId, fn ($q, $id) => $q->where('branch_id', $id))
+            ->selectRaw('COALESCE(SUM(net_purchases),0) as net_purchases, COALESCE(SUM(vat),0) as vat, COALESCE(SUM(vat_exempt),0) as vat_exempt, COALESCE(SUM(non_vat_purchase),0) as non_vat_purchase, COALESCE(SUM(total_purchases),0) as total_purchases')
+            ->first();
+    }
+
     public function unpaidApvAging(Request $request): View
     {
         $vouchers = PurchaseVoucher::with(['vendor', 'items'])
@@ -110,5 +126,109 @@ class PurchaseDisbursementReportController extends Controller
         $pendingReplenishment = $totalSpent - $totalReplenished;
 
         return view('reports.purchase-disbursement.petty-cash-fund', compact('vouchers', 'totalSpent', 'totalReplenished', 'pendingReplenishment'));
+    }
+
+    /**
+     * Unified Outstanding Payables view: unpaid/partially-paid Purchases (APV) and
+     * Services in one list, filterable by supplier/buyer-payor/date/status.
+     */
+    public function payables(Request $request): View
+    {
+        $branchId = $this->activeBranchId($request);
+        $supplierId = $request->input('supplier_id');
+        $party = trim((string) $request->input('party', ''));
+        $status = $request->input('status');
+        $dateFrom = $request->input('date_from');
+        $dateTo = $request->input('date_to');
+
+        $purchases = PurchaseVoucher::with(['vendor', 'items'])
+            ->when($branchId, fn ($q, $id) => $q->where('branch_id', $id))
+            ->when($supplierId, fn ($q, $id) => $q->where('vendor_id', $id))
+            ->when($party, fn ($q, $p) => $q->where('buyer', 'like', "%{$p}%"))
+            ->when($status, fn ($q, $s) => $q->where('status', $s), fn ($q) => $q->whereIn('status', ['unpaid', 'partially_paid']))
+            ->when($dateFrom, fn ($q, $d) => $q->whereDate('date', '>=', $d))
+            ->when($dateTo, fn ($q, $d) => $q->whereDate('date', '<=', $d))
+            ->get()
+            ->map(fn (PurchaseVoucher $voucher) => (object) [
+                'module' => 'Purchase',
+                'ref_no' => $voucher->apv_no,
+                'si_no' => $voucher->si_no,
+                'supplier' => $voucher->vendor?->name,
+                'party' => $voucher->buyer,
+                'date' => $voucher->date,
+                'original_amount' => $voucher->payable_total,
+                'amount_paid' => $voucher->amount_paid,
+                'remaining_balance' => round($voucher->payable_total - $voucher->amount_paid, 2),
+                'status' => $voucher->status,
+                'record' => $voucher,
+            ]);
+
+        $services = Service::with(['supplier'])
+            ->when($branchId, fn ($q, $id) => $q->where('branch_id', $id))
+            ->when($supplierId, fn ($q, $id) => $q->where('supplier_id', $id))
+            ->when($party, fn ($q, $p) => $q->where('payor', 'like', "%{$p}%"))
+            ->when($status, fn ($q, $s) => $q->where('status', $s), fn ($q) => $q->whereIn('status', ['unpaid', 'partially_paid']))
+            ->when($dateFrom, fn ($q, $d) => $q->whereDate('date', '>=', $d))
+            ->when($dateTo, fn ($q, $d) => $q->whereDate('date', '<=', $d))
+            ->get()
+            ->map(fn (Service $service) => (object) [
+                'module' => 'Service',
+                'ref_no' => $service->ref_no,
+                'si_no' => $service->si_no,
+                'supplier' => $service->supplier?->name,
+                'party' => $service->payor,
+                'date' => $service->date,
+                'original_amount' => $service->payable_total,
+                'amount_paid' => $service->amount_paid,
+                'remaining_balance' => round($service->payable_total - $service->amount_paid, 2),
+                'status' => $service->status,
+                'record' => $service,
+            ]);
+
+        $payables = $purchases->concat($services)->sortBy('date')->values();
+        $totalOutstanding = $payables->sum('remaining_balance');
+
+        return view('reports.payables.index', compact('payables', 'totalOutstanding'));
+    }
+
+    public function payablesPdf(Request $request): Response
+    {
+        $view = $this->payables($request);
+        $html = view('reports.payables.pdf', $view->getData())->render();
+
+        return $this->streamPdf($html, 'outstanding-payables-'.now()->format('Y-m-d').'.pdf');
+    }
+
+    /**
+     * Advance disbursements (type = advance) with outstanding vs. liquidated amounts.
+     */
+    public function advances(Request $request): View
+    {
+        $advances = CheckVoucher::with(['advanceAccount', 'supplier', 'liquidations'])
+            ->where('type', 'advance')
+            ->when($this->activeBranchId($request), fn ($q, $id) => $q->where('branch_id', $id))
+            ->orderByDesc('date')
+            ->get();
+
+        $totalOutstanding = $advances->sum('outstanding_advance');
+
+        return view('reports.payables.advances', compact('advances', 'totalOutstanding'));
+    }
+
+    private function streamPdf(string $html, string $filename): Response
+    {
+        $options = new Options();
+        $options->set('isRemoteEnabled', false);
+        $options->set('defaultFont', 'Helvetica');
+
+        $dompdf = new Dompdf($options);
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('a4', 'landscape');
+        $dompdf->render();
+
+        return new Response($dompdf->output(), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+        ]);
     }
 }

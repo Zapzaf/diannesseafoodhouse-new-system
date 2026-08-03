@@ -107,5 +107,17 @@
             @endforelse
         </tbody>
     </table>
+
+    <div class="section-title">Menu Items Sold ({{ number_format($summary['total_items_sold'] ?? 0) }} total)</div>
+    <table>
+        <thead><tr><th>Item</th><th class="text-end">Qty Sold</th><th class="text-end">Total Sales</th></tr></thead>
+        <tbody>
+            @forelse(($summary['items_sold'] ?? []) as $row)
+            <tr><td>{{ $row->menu_name }}</td><td class="text-end">{{ number_format($row->quantity_sold) }}</td><td class="text-end">₱{{ number_format($row->total_sales, 2) }}</td></tr>
+            @empty
+            <tr><td colspan="3">No items sold in this period.</td></tr>
+            @endforelse
+        </tbody>
+    </table>
 </body>
 </html>
