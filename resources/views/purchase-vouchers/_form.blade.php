@@ -176,7 +176,8 @@
                         </thead>
                         <tbody id="itemsContainer">
                             @foreach($items as $index => $item)
-                            <tr class="voucher-item-row">
+                            @php $rowAmountError = $errors->first("items.$index.amount_w_vat"); @endphp
+                            <tr class="voucher-item-row {{ $rowAmountError ? 'table-danger' : '' }}">
                                 <td><input type="number" step="0.01" min="0" name="items[{{ $index }}][quantity]" class="form-control form-control-sm" value="{{ $item['quantity'] }}"></td>
                                 <td><input type="text" name="items[{{ $index }}][unit]" class="form-control form-control-sm" value="{{ $item['unit'] }}"></td>
                                 <td>
@@ -191,12 +192,22 @@
                                         @endforeach
                                     </select>
                                 </td>
-                                <td><input type="number" step="0.01" min="0" name="items[{{ $index }}][amount_w_vat]" class="form-control form-control-sm voucher-item-amount-w-vat" value="{{ $item['amount_w_vat'] }}"></td>
-                                <td><input type="number" step="0.01" min="0" name="items[{{ $index }}][vat_exempt]" class="form-control form-control-sm voucher-item-vat-exempt" value="{{ $item['vat_exempt'] }}"></td>
-                                <td><input type="number" step="0.01" min="0" name="items[{{ $index }}][non_vat_purchase]" class="form-control form-control-sm voucher-item-non-vat" value="{{ $item['non_vat_purchase'] }}"></td>
+                                <td>
+                                    <input type="number" step="0.01" min="0" name="items[{{ $index }}][amount_w_vat]" class="form-control form-control-sm voucher-item-amount-w-vat {{ $rowAmountError ? 'is-invalid' : '' }}" value="{{ $item['amount_w_vat'] }}">
+                                </td>
+                                <td><input type="number" step="0.01" min="0" name="items[{{ $index }}][vat_exempt]" class="form-control form-control-sm voucher-item-vat-exempt {{ $rowAmountError ? 'is-invalid' : '' }}" value="{{ $item['vat_exempt'] }}"></td>
+                                <td><input type="number" step="0.01" min="0" name="items[{{ $index }}][non_vat_purchase]" class="form-control form-control-sm voucher-item-non-vat {{ $rowAmountError ? 'is-invalid' : '' }}" value="{{ $item['non_vat_purchase'] }}"></td>
                                 <td class="small text-muted voucher-item-preview">—</td>
                                 <td><button type="button" class="btn btn-sm btn-outline-danger voucher-item-remove"><i data-lucide="x"></i></button></td>
                             </tr>
+                            @if($rowAmountError)
+                            <tr class="voucher-item-row-error">
+                                <td colspan="9" class="small text-danger pt-0">
+                                    <i data-lucide="alert-circle" style="width: 14px; height: 14px;" class="me-1"></i>
+                                    Row {{ $index + 1 }} ({{ $item['particulars'] ?: 'no particulars yet' }}): {{ $rowAmountError }}
+                                </td>
+                            </tr>
+                            @endif
                             @endforeach
                         </tbody>
                     </table>
@@ -242,7 +253,7 @@
                 </h5>
                 <div class="mb-3">
                     <div class="h4 fw-bold" id="grandTotal">₱0.00</div>
-                    <div class="small text-muted">Sum of net purchases + VAT-exempt + non-VAT across all line items.</div>
+                    <div class="small text-muted">VAT-inclusive: sum of Amount w/ VAT + VAT-exempt + Non-VAT across all line items.</div>
                 </div>
                 <div class="flex-grow-1 mb-3">
                     <label class="form-label fw-semibold">Remarks</label>

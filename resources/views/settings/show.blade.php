@@ -133,6 +133,7 @@
                                     <span class="badge {{ $selectedBranch->vat_enabled ? 'bg-success' : 'bg-secondary' }}">VAT {{ $selectedBranch->vat_enabled ? 'On' : 'Off' }}</span>
                                     <span class="badge {{ $selectedBranch->pwd_discount_enabled ? 'bg-primary' : 'bg-secondary' }}">PWD {{ $selectedBranch->pwd_discount_enabled ? 'On' : 'Off' }}</span>
                                     <span class="badge {{ $selectedBranch->senior_discount_enabled ? 'bg-info text-white' : 'bg-secondary' }}">Senior {{ $selectedBranch->senior_discount_enabled ? 'On' : 'Off' }}</span>
+                                    <span class="badge {{ $selectedBranch->disable_ingredients ? 'bg-warning text-dark' : 'bg-secondary' }}">Ingredients {{ $selectedBranch->disable_ingredients ? 'Disabled' : 'Enabled' }}</span>
                                 </div>
 
                                 <div class="small text-muted">
@@ -222,11 +223,27 @@
                                 </div>
 
                                 <div class="col-12">
+                                    <div class="border rounded p-4">
+                                        <div class="fw-semibold mb-1">Menu Management</div>
+                                        <div class="text-muted small mb-4">Controls whether the Ingredients / Bill of Materials (BOM) recipe builder is used for this branch's menu items.</div>
+
+                                        <div class="border rounded p-3">
+                                            <div class="form-check form-switch mb-2">
+                                                <input class="form-check-input" type="checkbox" role="switch" id="disableIngredients" name="disable_ingredients" value="1" {{ old('disable_ingredients', $selectedBranch->disable_ingredients) ? 'checked' : '' }}>
+                                                <label class="form-check-label fw-semibold" for="disableIngredients">Disable Ingredients / BOM</label>
+                                            </div>
+                                            <div class="small text-muted">When enabled, new menu items for this branch default to "No Ingredients" so they don't require an inventory recipe. Existing menu items and their saved ingredients are not changed.</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-12">
                                     <div class="alert alert-light border mb-0">
-                                        <div class="fw-semibold mb-1">What will change in menu orders?</div>
+                                        <div class="fw-semibold mb-1">What will change?</div>
                                         <ul class="mb-0 ps-3 small text-muted">
                                             <li>VAT disabled: no VAT row in billing preview and saved summary for this branch.</li>
                                             <li>PWD or Senior disabled: their pax inputs and discount details are hidden, and their discounts are not applied.</li>
+                                            <li>Ingredients/BOM disabled: new menu items default to "No Ingredients" in Menu Management for this branch.</li>
                                             <li>Totals are still computed on the server to match the branch settings exactly at save time.</li>
                                         </ul>
                                     </div>

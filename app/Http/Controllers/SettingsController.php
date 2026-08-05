@@ -52,6 +52,7 @@ class SettingsController extends Controller
             'vat_percentage' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'pwd_discount_enabled' => ['nullable', 'boolean'],
             'senior_discount_enabled' => ['nullable', 'boolean'],
+            'disable_ingredients' => ['nullable', 'boolean'],
         ]);
 
         $branch = Branch::query()->findOrFail((int) $validated['branch_id']);
@@ -71,6 +72,7 @@ class SettingsController extends Controller
                 : 0,
             'pwd_discount_enabled' => (bool) ($validated['pwd_discount_enabled'] ?? false),
             'senior_discount_enabled' => (bool) ($validated['senior_discount_enabled'] ?? false),
+            'disable_ingredients' => (bool) ($validated['disable_ingredients'] ?? false),
         ]);
 
         return redirect()

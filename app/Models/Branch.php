@@ -16,6 +16,7 @@ class Branch extends Model
         'name', 'address', 'manager_id', 'is_active',
         'vat_enabled', 'vat_percentage',
         'pwd_discount_enabled', 'senior_discount_enabled',
+        'disable_ingredients',
         'contact_number', 'tin_number',
     ];
 
@@ -27,6 +28,7 @@ class Branch extends Model
             'vat_percentage' => 'decimal:2',
             'pwd_discount_enabled' => 'boolean',
             'senior_discount_enabled' => 'boolean',
+            'disable_ingredients' => 'boolean',
         ];
     }
 

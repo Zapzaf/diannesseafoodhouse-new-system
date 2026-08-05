@@ -108,7 +108,11 @@ class MenuController extends Controller
             ->orderBy('name')
             ->get();
 
-        return view('menu.create', compact('branches', 'items', 'menuCategories', 'branchId'));
+        // Branches with "Disable Ingredients" turned on (Settings > Branch Settings)
+        // should pre-check "No Ingredients" by default for new menu items.
+        $branchIngredientDefaults = $branches->pluck('disable_ingredients', 'id');
+
+        return view('menu.create', compact('branches', 'items', 'menuCategories', 'branchId', 'branchIngredientDefaults'));
     }
 
     public function store(Request $request): RedirectResponse
@@ -200,7 +204,7 @@ class MenuController extends Controller
         return view('menu.show', compact('menu'));
     }
 
-    public function edit(Menu $menu): View
+    public function edit(Request $request, Menu $menu): View
     {
         $this->authorizeBranch($menu->branch_id);
         $menu->load('items');
@@ -218,7 +222,11 @@ class MenuController extends Controller
             ->orderBy('name')
             ->get();
 
-        return view('menu.edit', compact('menu', 'branches', 'items', 'menuCategories', 'branchId'));
+        // Carry the list's current page/search/sort state through the edit form so
+        // saving or cancelling returns to where the admin was, not back to page 1.
+        $returnUrl = $this->safeMenusReturnUrl($request->header('referer'));
+
+        return view('menu.edit', compact('menu', 'branches', 'items', 'menuCategories', 'branchId', 'returnUrl'));
     }
 
     public function update(Request $request, Menu $menu): RedirectResponse
@@ -234,6 +242,7 @@ class MenuController extends Controller
             'selling_price'     => 'required|numeric|min:0',
             'menu_category_id'  => 'required|exists:menu_categories,id',
             'image'             => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+            'return_to'         => 'nullable|string',
             'ingredients'       => $noIngredients ? 'nullable|array' : 'required|array|min:1',
             'ingredients.*.item_id'            => $noIngredients ? 'nullable' : ['required', 'exists:items,id', 'distinct'],
             'ingredients.*.quantity_required'  => $noIngredients ? 'nullable' : 'required|numeric|min:0.01',
@@ -298,16 +307,46 @@ class MenuController extends Controller
             Storage::disk('public')->delete($oldImagePath);
         }
 
-        return redirect()->route('menus.index')->with('success', 'Menu item updated successfully.');
+        $returnUrl = $this->safeMenusReturnUrl($data['return_to'] ?? null) ?? route('menus.index');
+
+        return redirect()->to($returnUrl)->with('success', 'Menu item updated successfully.');
     }
 
-    public function destroy(Menu $menu): RedirectResponse
+    public function destroy(Request $request, Menu $menu): RedirectResponse
     {
         $this->authorizeBranch($menu->branch_id);
         $menu->items()->detach();
         $menu->delete();
 
-        return redirect()->route('menus.index')->with('success', 'Menu item deleted.');
+        // The delete button lives on the index list itself, so the browser's
+        // Referer header already carries the page/search/sort the admin was on.
+        $returnUrl = $this->safeMenusReturnUrl($request->header('referer')) ?? route('menus.index');
+
+        return redirect()->to($returnUrl)->with('success', 'Menu item deleted.');
+    }
+
+    /**
+     * Only accept same-origin URLs that point back into the Menu Management
+     * list, so a tampered return_to/referer value can't be used to redirect
+     * an admin off-site (open redirect).
+     */
+    private function safeMenusReturnUrl(?string $url): ?string
+    {
+        if (! $url) {
+            return null;
+        }
+
+        $host = parse_url($url, PHP_URL_HOST);
+        if ($host && $host !== request()->getHost()) {
+            return null;
+        }
+
+        $path = parse_url($url, PHP_URL_PATH) ?? '';
+        if (! str_starts_with($path, parse_url(route('menus.index'), PHP_URL_PATH))) {
+            return null;
+        }
+
+        return $url;
     }
 
     private function syncIngredients(Menu $menu, array $ingredients, $ingredientItems = null): void

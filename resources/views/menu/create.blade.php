@@ -125,7 +125,10 @@
                 </div>
                 <div class="card-body">
                     <div class="form-check form-switch mb-3">
-                        <input class="form-check-input" type="checkbox" role="switch" name="no_ingredients" value="1" id="noIngredientsToggle" {{ old('no_ingredients') ? 'checked' : '' }}>
+                        @php
+                            $defaultNoIngredients = $branchId && ($branchIngredientDefaults[$branchId] ?? false);
+                        @endphp
+                        <input class="form-check-input" type="checkbox" role="switch" name="no_ingredients" value="1" id="noIngredientsToggle" {{ old('no_ingredients', $defaultNoIngredients) ? 'checked' : '' }}>
                         <label class="form-check-label fw-bold" for="noIngredientsToggle">No Ingredients</label>
                         <div class="form-text">Enable this if this menu item does not consume inventory ingredients (e.g. a beverage add-on or a flat fee).</div>
                     </div>
@@ -228,6 +231,10 @@
 <script src="{{ asset('js/ingredient-picker.js') }}"></script>
 <script>
 const itemOptions = @json($menuItemOptions);
+const branchDisablesIngredients = @json($branchIngredientDefaults);
+// If the form is being redisplayed after a validation error, the admin already
+// made a deliberate choice on the switch — don't let the branch default clobber it.
+let noIngredientsUserTouched = @json(old('no_ingredients') !== null);
 
 let rowIndex = document.querySelectorAll('.ingredient-row').length;
 
@@ -252,9 +259,23 @@ function applyNoIngredientsToggle() {
 }
 
 noIngredientsToggle?.addEventListener('change', function () {
+    noIngredientsUserTouched = true;
     applyNoIngredientsToggle();
     showMenuFormAlert([]);
 });
+
+// Branches with "Disable Ingredients" turned on (Settings > Branch Settings)
+// default new menu items to "No Ingredients", unless the admin already
+// interacted with the switch themselves.
+function applyBranchIngredientDefault(branchId) {
+    if (noIngredientsUserTouched || !noIngredientsToggle) return;
+
+    const shouldDisable = !!branchDisablesIngredients[branchId];
+    if (shouldDisable !== noIngredientsToggle.checked) {
+        noIngredientsToggle.checked = shouldDisable;
+        applyNoIngredientsToggle();
+    }
+}
 
 function getBranchId() {
     const branchSelect = document.getElementById('branchSelect');
@@ -439,6 +460,8 @@ ingredientsContainer?.addEventListener('change', function (event) {
         if (branchSelect && branchWarning) {
             branchWarning.classList.toggle('d-none', !!branchId);
         }
+
+        applyBranchIngredientDefault(branchId);
 
         if (categorySelect) {
             Array.from(categorySelect.options).forEach((option, index) => {

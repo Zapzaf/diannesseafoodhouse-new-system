@@ -7,7 +7,7 @@
         <a class="btn btn-outline-primary" href="{{ route('menus.show', $menu) }}">
             <i data-lucide="eye" class="me-1"></i> View
         </a>
-        <a class="btn btn-primary" href="{{ route('menus.index') }}">
+        <a class="btn btn-primary" href="{{ $returnUrl ?? route('menus.index') }}">
             <i data-lucide="arrow-left" class="me-1"></i> Back
         </a>
     </x-page-header>
@@ -19,6 +19,7 @@
 
         <form action="{{ route('menus.update', $menu) }}" method="POST" enctype="multipart/form-data" id="menuEditForm" novalidate>
             @csrf @method('PUT')
+            <input type="hidden" name="return_to" value="{{ old('return_to', $returnUrl) }}">
 
             <div class="card mb-4">
                 <div class="card-header fw-semibold"><i data-lucide="info" class="me-1"></i> Menu Details</div>
@@ -212,7 +213,7 @@
             </div>
 
             <div class="d-flex justify-content-end gap-2 mb-4">
-                <a href="{{ route('menus.index') }}" class="btn btn-secondary text-light">Cancel</a>
+                <a href="{{ $returnUrl ?? route('menus.index') }}" class="btn btn-secondary text-light">Cancel</a>
                 <button type="submit" class="btn btn-primary">
                     <i data-lucide="save" class="me-1"></i> Update Menu Item
                 </button>
