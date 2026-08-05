@@ -64,7 +64,7 @@ class PurchaseDisbursementReportController extends Controller
 
                 return $carry;
             }, ['net_purchases' => 0, 'vat' => 0, 'vat_exempt' => 0, 'non_vat_purchase' => 0]);
-        $pcvTotals['total_purchases'] = $pcvTotals['net_purchases'] + $pcvTotals['vat_exempt'] + $pcvTotals['non_vat_purchase'];
+        $pcvTotals['total_purchases'] = $pcvTotals['net_purchases'] + $pcvTotals['vat'] + $pcvTotals['vat_exempt'] + $pcvTotals['non_vat_purchase'];
 
         $cvTotals = CheckVoucher::query()
             ->whereBetween('date', [$dateFrom, $dateTo])
