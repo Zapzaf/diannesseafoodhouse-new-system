@@ -45,6 +45,10 @@ class PettyCashVoucherItem extends Model
 
     public function getTotalPurchasesAttribute(): float
     {
-        return (float) $this->net_purchases + (float) $this->vat_exempt + (float) $this->non_vat_purchase;
+        // VAT-inclusive: net_purchases + vat reconstitutes amount_w_vat, plus the
+        // VAT-exempt and non-VAT portions. Omitting vat here previously understated
+        // every PCV's total (and therefore the auto-filled CV replenishment amount)
+        // by exactly its VAT component.
+        return (float) $this->net_purchases + (float) $this->vat + (float) $this->vat_exempt + (float) $this->non_vat_purchase;
     }
 }
