@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\DiscountCampaign;
+use App\Models\DiscountCampaignCode;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
@@ -14,31 +15,40 @@ use Illuminate\Database\Eloquent\Builder;
 class DiscountCampaignService
 {
     /**
-     * @return array{ok: bool, campaign: ?DiscountCampaign, amount: float, message: ?string}
+     * @return array{ok: bool, campaign: ?DiscountCampaign, campaign_code: ?DiscountCampaignCode, amount: float, message: ?string}
      */
     public function validateCoupon(string $code, ?int $branchId, float $purchaseAmount): array
     {
         $code = trim($code);
 
         if ($code === '') {
-            return ['ok' => false, 'campaign' => null, 'amount' => 0.0, 'message' => 'Enter a coupon code.'];
+            return ['ok' => false, 'campaign' => null, 'campaign_code' => null, 'amount' => 0.0, 'message' => 'Enter a coupon code.'];
         }
 
-        $campaign = DiscountCampaign::where('code', $code)->first();
+        // Any code belonging to the campaign's coupon codes resolves to that
+        // campaign — several codes can share the same discount rules, but
+        // each code tracks (and caps) its own usage independently.
+        $campaignCode = DiscountCampaignCode::where('code', $code)->with('campaign')->first();
+        $campaign = $campaignCode?->campaign;
 
-        if (!$campaign) {
-            return ['ok' => false, 'campaign' => null, 'amount' => 0.0, 'message' => 'This coupon code was not found.'];
+        if (!$campaignCode || !$campaign) {
+            return ['ok' => false, 'campaign' => null, 'campaign_code' => null, 'amount' => 0.0, 'message' => 'This coupon code was not found.'];
         }
 
         [$eligible, $reason] = $campaign->eligibilityFor($branchId, $purchaseAmount);
 
         if (!$eligible) {
-            return ['ok' => false, 'campaign' => $campaign, 'amount' => 0.0, 'message' => $reason];
+            return ['ok' => false, 'campaign' => $campaign, 'campaign_code' => $campaignCode, 'amount' => 0.0, 'message' => $reason];
+        }
+
+        if ($campaignCode->isExhausted()) {
+            return ['ok' => false, 'campaign' => $campaign, 'campaign_code' => $campaignCode, 'amount' => 0.0, 'message' => 'This coupon code has reached its usage limit.'];
         }
 
         return [
             'ok' => true,
             'campaign' => $campaign,
+            'campaign_code' => $campaignCode,
             'amount' => $campaign->computeDiscountAmount($purchaseAmount),
             'message' => null,
         ];
@@ -52,7 +62,7 @@ class DiscountCampaignService
     public function findBestAutomaticCampaign(?int $branchId, float $purchaseAmount): ?DiscountCampaign
     {
         $candidates = DiscountCampaign::query()
-            ->whereNull('code')
+            ->whereDoesntHave('codes')
             ->where('is_active', true)
             ->where(fn (Builder $q) => $q->whereNull('branch_id')->orWhere('branch_id', $branchId))
             ->get();

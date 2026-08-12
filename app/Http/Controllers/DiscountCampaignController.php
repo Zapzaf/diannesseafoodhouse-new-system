@@ -4,12 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\Branch;
 use App\Models\DiscountCampaign;
+use App\Models\DiscountCampaignCode;
 use App\Models\DiscountRedemption;
 use App\Services\DiscountCampaignService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class DiscountCampaignController extends Controller
@@ -24,7 +26,7 @@ class DiscountCampaignController extends Controller
         $status = $request->validate(['status' => ['nullable', 'in:active,inactive']])['status'] ?? '';
 
         $campaigns = DiscountCampaign::query()
-            ->with(['branch', 'creator'])
+            ->with(['branch', 'creator', 'codes'])
             ->withCount(['redemptions' => fn ($q) => $q->where('status', 'applied')])
             ->when($branchId, fn ($q, $id) => $q->where(fn ($inner) => $inner->whereNull('branch_id')->orWhere('branch_id', $id)))
             ->when($status === 'active', fn ($q) => $q->where('is_active', true))
@@ -51,8 +53,13 @@ class DiscountCampaignController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $this->validateCampaign($request);
+        $codes = $data['codes'];
+        unset($data['codes']);
 
-        DiscountCampaign::create($data + ['created_by' => $request->user()->id]);
+        DB::transaction(function () use ($data, $codes, $request): void {
+            $campaign = DiscountCampaign::create($data + ['created_by' => $request->user()->id]);
+            $this->syncCodes($campaign, $codes);
+        });
 
         return redirect()->route('discount-campaigns.index')->with('success', 'Discount campaign created successfully.');
     }
@@ -60,7 +67,7 @@ class DiscountCampaignController extends Controller
     public function edit(DiscountCampaign $discountCampaign): View
     {
         return view('discount-campaigns.edit', [
-            'campaign' => $discountCampaign,
+            'campaign' => $discountCampaign->load('codes'),
             'branches' => Branch::query()->where('is_active', true)->orderBy('name')->get(),
         ]);
     }
@@ -68,10 +75,45 @@ class DiscountCampaignController extends Controller
     public function update(Request $request, DiscountCampaign $discountCampaign): RedirectResponse
     {
         $data = $this->validateCampaign($request, $discountCampaign->id);
+        $codes = $data['codes'];
+        unset($data['codes']);
 
-        $discountCampaign->update($data);
+        DB::transaction(function () use ($data, $codes, $discountCampaign): void {
+            $discountCampaign->update($data);
+            $this->syncCodes($discountCampaign, $codes);
+        });
 
         return redirect()->route('discount-campaigns.index')->with('success', 'Discount campaign updated successfully.');
+    }
+
+    /**
+     * Updates a campaign's coupon codes to match the given rows: existing
+     * codes (matched by id) are updated in place so their usage_count isn't
+     * lost, rows with no id become new codes, and any existing code missing
+     * from the submission is removed.
+     *
+     * @param  array<int, array{id: ?int, code: string, usage_limit: ?int}>  $rows
+     */
+    private function syncCodes(DiscountCampaign $campaign, array $rows): void
+    {
+        $keepIds = [];
+
+        foreach ($rows as $row) {
+            if ($row['id'] !== null) {
+                $campaign->codes()->whereKey($row['id'])->update([
+                    'code' => $row['code'],
+                    'usage_limit' => $row['usage_limit'],
+                ]);
+                $keepIds[] = $row['id'];
+            } else {
+                $keepIds[] = $campaign->codes()->create([
+                    'code' => $row['code'],
+                    'usage_limit' => $row['usage_limit'],
+                ])->id;
+            }
+        }
+
+        $campaign->codes()->whereNotIn('id', $keepIds)->delete();
     }
 
     public function toggleActive(DiscountCampaign $discountCampaign): RedirectResponse
@@ -129,7 +171,8 @@ class DiscountCampaignController extends Controller
             'message' => $result['message'],
             'amount' => $result['amount'],
             'label' => $result['campaign']?->name,
-            'code' => $result['campaign']?->code,
+            // Echo back the code as typed — a campaign may have several.
+            'code' => $data['code'],
         ]);
     }
 
@@ -142,7 +185,10 @@ class DiscountCampaignController extends Controller
             'branch_id' => 'nullable|exists:branches,id',
             'name' => 'required|string|max:255',
             'description' => 'nullable|string|max:1000',
-            'code' => ['nullable', 'string', 'max:50', Rule::unique('discount_campaigns', 'code')->ignore($ignoreId)],
+            'codes' => 'nullable|array',
+            'codes.*.id' => 'nullable|integer',
+            'codes.*.code' => 'nullable|string|max:50',
+            'codes.*.usage_limit' => 'nullable|integer|min:1',
             'type' => 'required|in:percentage,fixed',
             'value' => 'required|numeric|min:0.01',
             'max_discount_amount' => 'nullable|numeric|min:0',
@@ -152,17 +198,51 @@ class DiscountCampaignController extends Controller
             'usage_limit' => 'nullable|integer|min:1',
             'is_active' => 'nullable|boolean',
         ], [
-            'code.unique' => 'This coupon code is already in use by another campaign.',
             'ends_at.after_or_equal' => 'The end date must be on or after the start date.',
         ]);
 
         if ($data['type'] === 'percentage' && (float) $data['value'] > 100) {
-            throw \Illuminate\Validation\ValidationException::withMessages([
+            throw ValidationException::withMessages([
                 'value' => 'A percentage discount cannot exceed 100%.',
             ]);
         }
 
-        $data['code'] = (($data['code'] ?? '') !== '') ? $data['code'] : null;
+        // Leave every code blank for an automatic discount; multiple rows
+        // become several codes that all redeem this same campaign, each with
+        // its own usage limit (default 1). Blank codes are dropped, and an
+        // id only survives if it actually belongs to this campaign — a
+        // stale/tampered id is treated as a brand-new code instead.
+        $ownedCodeIds = $ignoreId
+            ? DiscountCampaignCode::where('discount_campaign_id', $ignoreId)->pluck('id')->all()
+            : [];
+
+        $codes = collect($data['codes'] ?? [])
+            ->map(function (array $row) use ($ownedCodeIds) {
+                $id = (int) ($row['id'] ?? 0);
+
+                return [
+                    'id' => in_array($id, $ownedCodeIds, true) ? $id : null,
+                    'code' => trim((string) ($row['code'] ?? '')),
+                    'usage_limit' => ($row['usage_limit'] ?? '') !== '' ? (int) $row['usage_limit'] : 1,
+                ];
+            })
+            ->filter(fn (array $row) => $row['code'] !== '')
+            ->unique('code')
+            ->values();
+
+        if ($codes->isNotEmpty()) {
+            $conflict = DiscountCampaignCode::whereIn('code', $codes->pluck('code'))
+                ->when($ignoreId, fn ($q, $id) => $q->where('discount_campaign_id', '!=', $id))
+                ->value('code');
+
+            if ($conflict) {
+                throw ValidationException::withMessages([
+                    'codes' => 'The code "'.$conflict.'" is already in use by another campaign.',
+                ]);
+            }
+        }
+
+        $data['codes'] = $codes->all();
         $data['min_purchase_amount'] = $data['min_purchase_amount'] ?? 0;
         $data['is_active'] = (bool) ($data['is_active'] ?? true);
 

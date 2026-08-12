@@ -52,8 +52,14 @@
                         <tr>
                             <td class="fw-semibold">{{ $campaign->name }}</td>
                             <td>
-                                @if($campaign->code)
-                                <span class="badge bg-secondary">{{ $campaign->code }}</span>
+                                @if($campaign->codes->isNotEmpty())
+                                <div class="d-flex flex-wrap gap-1">
+                                    @foreach($campaign->codes as $code)
+                                    <span class="badge {{ $code->isExhausted() ? 'bg-secondary text-decoration-line-through' : 'bg-secondary' }}" title="{{ $code->usage_count }}{{ $code->usage_limit ? ' / '.$code->usage_limit : '' }} used">
+                                        {{ $code->code }} ({{ $code->usage_count }}{{ $code->usage_limit ? '/'.$code->usage_limit : '' }})
+                                    </span>
+                                    @endforeach
+                                </div>
                                 @else
                                 <span class="text-muted small fst-italic">Automatic</span>
                                 @endif

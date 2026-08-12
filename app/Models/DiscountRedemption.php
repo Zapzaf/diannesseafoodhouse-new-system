@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class DiscountRedemption extends Model
 {
     protected $fillable = [
-        'menu_order_id', 'branch_id', 'discount_campaign_id',
+        'menu_order_id', 'branch_id', 'discount_campaign_id', 'discount_campaign_code_id',
         'source', 'code_used', 'label', 'discount_type', 'discount_value',
         'discount_amount', 'applied_by', 'status', 'released_at',
     ];
@@ -32,6 +32,11 @@ class DiscountRedemption extends Model
     public function campaign(): BelongsTo
     {
         return $this->belongsTo(DiscountCampaign::class, 'discount_campaign_id');
+    }
+
+    public function campaignCode(): BelongsTo
+    {
+        return $this->belongsTo(DiscountCampaignCode::class, 'discount_campaign_code_id');
     }
 
     public function appliedBy(): BelongsTo

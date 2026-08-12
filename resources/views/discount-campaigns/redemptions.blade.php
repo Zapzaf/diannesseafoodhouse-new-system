@@ -19,6 +19,7 @@
                         <tr>
                             <th>Order #</th>
                             <th>Source</th>
+                            <th>Code Used</th>
                             <th class="text-end">Discount Amount</th>
                             <th>Applied By</th>
                             <th>Status</th>
@@ -30,13 +31,14 @@
                         <tr>
                             <td class="fw-semibold small">{{ $redemption->order?->order_number ?? ('#' . $redemption->menu_order_id) }}</td>
                             <td><span class="badge bg-secondary">{{ ucfirst($redemption->source) }}</span></td>
+                            <td class="text-muted small">{{ $redemption->code_used ?? '—' }}</td>
                             <td class="text-end">₱{{ number_format($redemption->discount_amount, 2) }}</td>
                             <td class="text-muted small">{{ $redemption->appliedBy->name ?? '—' }}</td>
                             <td><span class="badge {{ $redemption->status === 'applied' ? 'bg-success' : 'bg-secondary' }}">{{ ucfirst($redemption->status) }}</span></td>
                             <td class="text-muted small text-nowrap">{{ $redemption->created_at->format('M d, Y h:i A') }}</td>
                         </tr>
                         @empty
-                        <tr><td colspan="6" class="text-center text-muted py-4">No redemptions yet.</td></tr>
+                        <tr><td colspan="7" class="text-center text-muted py-4">No redemptions yet.</td></tr>
                         @endforelse
                     </tbody>
                 </table>

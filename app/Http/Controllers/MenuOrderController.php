@@ -6,6 +6,7 @@ use App\Models\Branch;
 use App\Models\CashShift;
 use App\Models\DiningTable;
 use App\Models\DiscountCampaign;
+use App\Models\DiscountCampaignCode;
 use App\Models\DiscountRedemption;
 use App\Models\InventoryTransaction;
 use App\Models\Item;
@@ -1444,7 +1445,7 @@ class MenuOrderController extends Controller
      * typed coupon code, then the best-matching automatic campaign. This is
      * entirely independent of PWD/Senior, which never passes through here.
      *
-     * @return array{campaign_id: ?int, source: ?string, code: ?string, label: ?string, type: ?string, value: ?float, amount: float}
+     * @return array{campaign_id: ?int, campaign_code_id: ?int, source: ?string, code: ?string, label: ?string, type: ?string, value: ?float, amount: float}
      */
     private function resolvePromoDiscount(array $data, Branch $branch, float $gross): array
     {
@@ -1467,6 +1468,7 @@ class MenuOrderController extends Controller
 
             return [
                 'campaign_id' => null,
+                'campaign_code_id' => null,
                 'source' => 'manual',
                 'code' => null,
                 'label' => trim((string) ($data['promo_manual_label'] ?? '')) ?: 'Manual Discount',
@@ -1491,8 +1493,11 @@ class MenuOrderController extends Controller
 
             return [
                 'campaign_id' => $campaign->id,
+                // Usage is tracked per code, not per campaign, for coupons.
+                'campaign_code_id' => $result['campaign_code']->id,
                 'source' => 'coupon',
-                'code' => $campaign->code,
+                // Record the code as actually typed — a campaign can have several.
+                'code' => $code,
                 'label' => $campaign->name,
                 'type' => $campaign->type,
                 'value' => (float) $campaign->value,
@@ -1505,6 +1510,7 @@ class MenuOrderController extends Controller
         if ($auto) {
             return [
                 'campaign_id' => $auto->id,
+                'campaign_code_id' => null,
                 'source' => 'automatic',
                 'code' => null,
                 'label' => $auto->name,
@@ -1514,7 +1520,7 @@ class MenuOrderController extends Controller
             ];
         }
 
-        return ['campaign_id' => null, 'source' => null, 'code' => null, 'label' => null, 'type' => null, 'value' => null, 'amount' => 0.0];
+        return ['campaign_id' => null, 'campaign_code_id' => null, 'source' => null, 'code' => null, 'label' => null, 'type' => null, 'value' => null, 'amount' => 0.0];
     }
 
     /**
@@ -1561,19 +1567,39 @@ class MenuOrderController extends Controller
                 ]);
             }
 
-            if ($campaign->usage_limit !== null && $campaign->usage_count >= $campaign->usage_limit) {
+            if (!empty($promo['campaign_code_id'])) {
+                // Coupon-type campaigns cap usage per code, not on the campaign
+                // as a whole — several codes can share the same discount rules
+                // while each is redeemable independently.
+                $campaignCode = DiscountCampaignCode::whereKey($promo['campaign_code_id'])->lockForUpdate()->first();
+
+                if (!$campaignCode) {
+                    throw ValidationException::withMessages([
+                        'promo_coupon_code' => 'This coupon code is no longer available.',
+                    ]);
+                }
+
+                if ($campaignCode->isExhausted()) {
+                    throw ValidationException::withMessages([
+                        'promo_coupon_code' => 'This coupon code just reached its usage limit.',
+                    ]);
+                }
+
+                $campaignCode->increment('usage_count');
+            } elseif ($campaign->usage_limit !== null && $campaign->usage_count >= $campaign->usage_limit) {
                 throw ValidationException::withMessages([
                     'promo_coupon_code' => 'This discount just reached its usage limit.',
                 ]);
+            } else {
+                $campaign->increment('usage_count');
             }
-
-            $campaign->increment('usage_count');
         }
 
         DiscountRedemption::create([
             'menu_order_id' => $order->id,
             'branch_id' => $order->branch_id,
             'discount_campaign_id' => $promo['campaign_id'],
+            'discount_campaign_code_id' => $promo['campaign_code_id'] ?? null,
             'source' => $promo['source'],
             'code_used' => $promo['code'],
             'label' => $promo['label'],
@@ -1587,9 +1613,9 @@ class MenuOrderController extends Controller
 
     /**
      * Reverses a previously-applied promo redemption: returns the usage
-     * slot to its campaign (if any) and marks the audit log entry
-     * released, rather than deleting it. Safe to call even if there's
-     * nothing to release.
+     * slot to its code (coupon) or campaign (automatic) and marks the audit
+     * log entry released, rather than deleting it. Safe to call even if
+     * there's nothing to release.
      */
     private function releasePromoRedemption(MenuOrder $order): void
     {
@@ -1602,7 +1628,9 @@ class MenuOrderController extends Controller
             return;
         }
 
-        if ($redemption->discount_campaign_id) {
+        if ($redemption->discount_campaign_code_id) {
+            DiscountCampaignCode::whereKey($redemption->discount_campaign_code_id)->lockForUpdate()->decrement('usage_count');
+        } elseif ($redemption->discount_campaign_id) {
             DiscountCampaign::whereKey($redemption->discount_campaign_id)->lockForUpdate()->decrement('usage_count');
         }
 

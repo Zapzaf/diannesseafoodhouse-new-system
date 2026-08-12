@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class DiscountCampaign extends Model
 {
     protected $fillable = [
-        'branch_id', 'name', 'description', 'code', 'type', 'value',
+        'branch_id', 'name', 'description', 'type', 'value',
         'max_discount_amount', 'min_purchase_amount',
         'starts_at', 'ends_at', 'usage_limit', 'usage_count',
         'is_active', 'created_by',
@@ -39,9 +39,18 @@ class DiscountCampaign extends Model
         return $this->hasMany(DiscountRedemption::class);
     }
 
+    /**
+     * All coupon codes that redeem this campaign's discount. A campaign with
+     * no codes is an "automatic" discount applied without one.
+     */
+    public function codes(): HasMany
+    {
+        return $this->hasMany(DiscountCampaignCode::class);
+    }
+
     public function isCoupon(): bool
     {
-        return !empty($this->code);
+        return $this->relationLoaded('codes') ? $this->codes->isNotEmpty() : $this->codes()->exists();
     }
 
     /**
