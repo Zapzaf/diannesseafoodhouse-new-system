@@ -137,7 +137,7 @@ class DiscountCampaignController extends Controller
     public function redemptions(Request $request, DiscountCampaign $discountCampaign): View
     {
         $redemptions = $discountCampaign->redemptions()
-            ->with(['order:id,order_number,branch_id,total_amount', 'appliedBy'])
+            ->with(['order:id,order_number,branch_id,customer_name,total_amount', 'appliedBy'])
             ->latest()
             ->paginate($this->perPage($request, 20))
             ->withQueryString();
@@ -145,6 +145,57 @@ class DiscountCampaignController extends Controller
         return view('discount-campaigns.redemptions', [
             'campaign' => $discountCampaign,
             'redemptions' => $redemptions,
+        ]);
+    }
+
+    /**
+     * Cross-campaign redemption history: every coupon/automatic/manual
+     * promo discount ever applied, with which code, campaign, guest, and
+     * order it belongs to — the audit trail an admin reaches for without
+     * having to know (or click into) the specific campaign first.
+     */
+    public function redemptionHistory(Request $request): View
+    {
+        $branchId = $this->activeBranchId($request);
+        $campaignId = $request->input('campaign_id');
+        $source = $request->input('source');
+        $search = trim((string) $request->input('search', ''));
+        $dateFrom = $request->input('date_from');
+        $dateTo = $request->input('date_to');
+
+        $redemptions = DiscountRedemption::query()
+            ->with([
+                'order:id,order_number,branch_id,customer_name,total_amount',
+                'campaign:id,name,branch_id',
+                'campaignCode:id,code',
+                'appliedBy:id,name',
+                'branch:id,name',
+            ])
+            ->when($branchId, fn ($q, $id) => $q->where('branch_id', $id))
+            ->when($campaignId, fn ($q, $id) => $q->where('discount_campaign_id', $id))
+            ->when($source, fn ($q, $s) => $q->where('source', $s))
+            ->when($dateFrom, fn ($q, $d) => $q->whereDate('created_at', '>=', $d))
+            ->when($dateTo, fn ($q, $d) => $q->whereDate('created_at', '<=', $d))
+            ->when($search !== '', fn ($q) => $q->where(function ($inner) use ($search): void {
+                $inner->where('code_used', 'like', "%{$search}%")
+                    ->orWhere('label', 'like', "%{$search}%")
+                    ->orWhereHas('order', fn ($o) => $o->where('customer_name', 'like', "%{$search}%")
+                        ->orWhere('order_number', 'like', "%{$search}%"));
+            }))
+            ->latest()
+            ->paginate($this->perPage($request, 25))
+            ->withQueryString();
+
+        return view('discount-campaigns.redemption-history', [
+            'redemptions' => $redemptions,
+            'campaigns' => DiscountCampaign::query()->orderBy('name')->get(['id', 'name']),
+            'filters' => [
+                'campaign_id' => $campaignId,
+                'source' => $source,
+                'search' => $search,
+                'date_from' => $dateFrom,
+                'date_to' => $dateTo,
+            ],
         ]);
     }
 
@@ -195,6 +246,7 @@ class DiscountCampaignController extends Controller
             'min_purchase_amount' => 'nullable|numeric|min:0',
             'starts_at' => 'nullable|date',
             'ends_at' => 'nullable|date|after_or_equal:starts_at',
+            'unified_usage_limit' => 'nullable|boolean',
             'usage_limit' => 'nullable|integer|min:1',
             'is_active' => 'nullable|boolean',
         ], [
@@ -207,23 +259,35 @@ class DiscountCampaignController extends Controller
             ]);
         }
 
+        // Unified: one Usage Limit shared by the whole campaign (every code
+        // draws from the same pool) — the simple default. Off: each code
+        // tracks and caps its own usage independently, and the campaign-level
+        // Usage Limit goes unused. The two are mutually exclusive, so
+        // whichever mode isn't active has its number cleared rather than
+        // silently kept around and ignored.
+        $unified = (bool) ($data['unified_usage_limit'] ?? true);
+        $data['unified_usage_limit'] = $unified;
+        $data['usage_limit'] = $unified ? ($data['usage_limit'] ?? null) : null;
+
         // Leave every code blank for an automatic discount; multiple rows
-        // become several codes that all redeem this same campaign, each with
-        // its own usage limit (default 1). Blank codes are dropped, and an
-        // id only survives if it actually belongs to this campaign — a
-        // stale/tampered id is treated as a brand-new code instead.
+        // become several codes that all redeem this same campaign. Blank
+        // codes are dropped, and an id only survives if it actually belongs
+        // to this campaign — a stale/tampered id is treated as a brand-new
+        // code instead.
         $ownedCodeIds = $ignoreId
             ? DiscountCampaignCode::where('discount_campaign_id', $ignoreId)->pluck('id')->all()
             : [];
 
         $codes = collect($data['codes'] ?? [])
-            ->map(function (array $row) use ($ownedCodeIds) {
+            ->map(function (array $row) use ($ownedCodeIds, $unified) {
                 $id = (int) ($row['id'] ?? 0);
 
                 return [
                     'id' => in_array($id, $ownedCodeIds, true) ? $id : null,
                     'code' => trim((string) ($row['code'] ?? '')),
-                    'usage_limit' => ($row['usage_limit'] ?? '') !== '' ? (int) $row['usage_limit'] : 1,
+                    // Each code's own limit only matters when the campaign
+                    // isn't unified; default 1 use per code otherwise.
+                    'usage_limit' => $unified ? null : (($row['usage_limit'] ?? '') !== '' ? (int) $row['usage_limit'] : 1),
                 ];
             })
             ->filter(fn (array $row) => $row['code'] !== '')

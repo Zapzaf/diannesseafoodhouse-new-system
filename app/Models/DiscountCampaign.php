@@ -11,7 +11,7 @@ class DiscountCampaign extends Model
     protected $fillable = [
         'branch_id', 'name', 'description', 'type', 'value',
         'max_discount_amount', 'min_purchase_amount',
-        'starts_at', 'ends_at', 'usage_limit', 'usage_count',
+        'starts_at', 'ends_at', 'usage_limit', 'usage_count', 'unified_usage_limit',
         'is_active', 'created_by',
     ];
 
@@ -22,6 +22,7 @@ class DiscountCampaign extends Model
         'starts_at' => 'date',
         'ends_at' => 'date',
         'is_active' => 'boolean',
+        'unified_usage_limit' => 'boolean',
     ];
 
     public function branch(): BelongsTo
@@ -51,6 +52,17 @@ class DiscountCampaign extends Model
     public function isCoupon(): bool
     {
         return $this->relationLoaded('codes') ? $this->codes->isNotEmpty() : $this->codes()->exists();
+    }
+
+    /**
+     * Whether usage is capped by one pooled campaign-level limit rather than
+     * each coupon code tracking its own. Always true for "automatic"
+     * (no-code) campaigns — there's no code to track individually, so the
+     * campaign-level counter is the only one that ever applies to them.
+     */
+    public function usesUnifiedUsageLimit(): bool
+    {
+        return ! $this->isCoupon() || (bool) $this->unified_usage_limit;
     }
 
     /**

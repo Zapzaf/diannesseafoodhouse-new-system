@@ -678,6 +678,32 @@ body {
     transform: scale(1.1) rotate(5deg);
 }
 
+/* Generic KPI stat card primitives: label above value, icon-circle at the end */
+.kpi-card .card-body {
+    padding: 1.1rem 1.25rem;
+}
+
+.stat-label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    margin-bottom: 0.4rem;
+}
+
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: 800;
+    line-height: 1.25;
+    color: var(--text-main);
+}
+
+.stat-value-sm {
+    font-size: 1.05rem;
+}
+
 .icon-primary {
     background-color: rgba(var(--primary-color-rgb), 0.1);
     color: var(--primary-color);
@@ -1935,6 +1961,11 @@ body {
 }
 
 .order-tab-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
     padding: 1rem 1.1rem;
     border-bottom: 1px solid var(--border-color);
     background-color: var(--bg-card);
@@ -1945,10 +1976,18 @@ body {
 }
 
 .tab-pane-summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.4rem 1.25rem;
     margin: -1.1rem -1.1rem 1rem;
+    padding: 0.65rem 1.1rem;
     border-bottom: 1px solid var(--border-color);
     background-color: var(--bg-table-header) !important;
     color: var(--text-muted) !important;
+    font-size: 0.82rem;
+    font-weight: 700;
 }
 
 .menu-order-show .kpi-card {
@@ -1980,29 +2019,70 @@ body {
 .billing-row,
 .billing-total,
 .billing-balance {
-    border-color: var(--border-color) !important;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid var(--border-color) !important;
+}
+
+.billing-row:last-of-type {
+    border-bottom: 0;
 }
 
 .billing-row span,
-.billing-breakdown,
 .profile-list span {
     color: var(--text-muted) !important;
 }
 
+.billing-breakdown {
+    display: grid;
+    gap: 0.35rem;
+    padding: 0 0 0.65rem 0.85rem;
+    margin-top: -0.3rem;
+    font-size: 0.85rem;
+    color: var(--text-muted) !important;
+    border-bottom: 1px solid var(--border-color);
+}
+
 .billing-total {
+    margin-top: 0.35rem;
+    padding-top: 0.85rem;
+    border-top: 1px dashed var(--border-color) !important;
+    border-bottom: 0 !important;
     color: var(--text-main) !important;
+    font-weight: 700;
 }
 
 .billing-balance {
+    margin-top: 0.75rem;
+    padding: 0.85rem 1rem;
+    border: 0 !important;
     border-radius: 12px !important;
+    background-color: rgba(148, 163, 184, 0.1);
+}
+
+.billing-balance.is-due {
+    background-color: rgba(244, 63, 94, 0.08);
+    color: #be123c;
+}
+
+.billing-balance.is-paid {
+    background-color: rgba(16, 185, 129, 0.08);
+    color: #047857;
 }
 
 .profile-list div {
     display: flex;
     justify-content: space-between;
     gap: 1rem;
+    padding: 0.55rem 0;
     border-bottom: 1px solid var(--border-color);
-    padding-bottom: 0.55rem;
+}
+
+.profile-list div:first-child {
+    padding-top: 0;
 }
 
 .profile-list div:last-child {
@@ -2122,6 +2202,20 @@ body {
 .modal-item-qty::-webkit-outer-spin-button {
     -webkit-appearance: none;
     margin: 0;
+}
+
+#inventoryIssueList .inventory-issue,
+#inventoryIssueList .inventory-ok,
+.change-preview {
+    padding: 0.85rem 1rem;
+    margin-bottom: 0.5rem;
+    border: 1px solid;
+    border-radius: 12px;
+}
+
+#inventoryIssueList .inventory-issue:last-child,
+#inventoryIssueList .inventory-ok:last-child {
+    margin-bottom: 0;
 }
 
 #inventoryIssueList .inventory-issue {

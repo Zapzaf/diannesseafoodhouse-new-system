@@ -41,7 +41,9 @@ class DiscountCampaignService
             return ['ok' => false, 'campaign' => $campaign, 'campaign_code' => $campaignCode, 'amount' => 0.0, 'message' => $reason];
         }
 
-        if ($campaignCode->isExhausted()) {
+        // Under a unified limit, the pooled check above (campaign usage_limit
+        // vs usage_count) already covers it — the code's own limit is disabled.
+        if (!$campaign->unified_usage_limit && $campaignCode->isExhausted()) {
             return ['ok' => false, 'campaign' => $campaign, 'campaign_code' => $campaignCode, 'amount' => 0.0, 'message' => 'This coupon code has reached its usage limit.'];
         }
 

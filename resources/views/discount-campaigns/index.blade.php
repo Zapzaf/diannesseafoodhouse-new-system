@@ -2,6 +2,9 @@
 @section('page_title', 'Discounts & Coupons - Dianne\'s Seafood House')
 @section('content')
 <x-page-header title="Discounts & Coupons" subtitle="Promotional discounts and coupon codes — separate from PWD/Senior discounts" icon="tag">
+    <a class="btn btn-outline-primary" href="{{ route('discount-campaigns.redemption-history') }}">
+        <i data-lucide="history" class="me-1"></i> Redemption History
+    </a>
     <a class="btn btn-light text-primary" href="{{ route('discount-campaigns.create') }}">
         <i data-lucide="plus-circle" class="me-1"></i> New Campaign
     </a>
@@ -53,10 +56,13 @@
                             <td class="fw-semibold">{{ $campaign->name }}</td>
                             <td>
                                 @if($campaign->codes->isNotEmpty())
+                                @if($campaign->unified_usage_limit)
+                                <div class="small text-muted mb-1"><i data-lucide="link" style="width:11px;height:11px;"></i> Unified limit — shared by all codes</div>
+                                @endif
                                 <div class="d-flex flex-wrap gap-1">
                                     @foreach($campaign->codes as $code)
                                     <span class="badge {{ $code->isExhausted() ? 'bg-secondary text-decoration-line-through' : 'bg-secondary' }}" title="{{ $code->usage_count }}{{ $code->usage_limit ? ' / '.$code->usage_limit : '' }} used">
-                                        {{ $code->code }} ({{ $code->usage_count }}{{ $code->usage_limit ? '/'.$code->usage_limit : '' }})
+                                        {{ $code->code }}{{ $campaign->unified_usage_limit ? '' : ' ('.$code->usage_count.($code->usage_limit ? '/'.$code->usage_limit : '').')' }}
                                     </span>
                                     @endforeach
                                 </div>

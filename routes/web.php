@@ -366,6 +366,7 @@ Route::middleware('auth')->group(function (): void {
 	Route::prefix('discount-campaigns')->name('discount-campaigns.')->group(function (): void {
 		Route::get('/', [DiscountCampaignController::class, 'index'])->name('index');
 		Route::get('/validate-coupon', [DiscountCampaignController::class, 'validateCoupon'])->name('validate-coupon');
+		Route::get('/redemptions', [DiscountCampaignController::class, 'redemptionHistory'])->name('redemption-history');
 
 		Route::middleware('role:admin,branch_manager')->group(function (): void {
 			Route::get('/create', [DiscountCampaignController::class, 'create'])->name('create');

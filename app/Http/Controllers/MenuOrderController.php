@@ -1558,6 +1558,8 @@ class MenuOrderController extends Controller
             return;
         }
 
+        $campaignPoolConsumed = false;
+
         if ($promo['campaign_id']) {
             $campaign = DiscountCampaign::whereKey($promo['campaign_id'])->lockForUpdate()->first();
 
@@ -1567,10 +1569,10 @@ class MenuOrderController extends Controller
                 ]);
             }
 
-            if (!empty($promo['campaign_code_id'])) {
-                // Coupon-type campaigns cap usage per code, not on the campaign
-                // as a whole — several codes can share the same discount rules
-                // while each is redeemable independently.
+            $usesCode = !empty($promo['campaign_code_id']);
+            $campaignCode = null;
+
+            if ($usesCode) {
                 $campaignCode = DiscountCampaignCode::whereKey($promo['campaign_code_id'])->lockForUpdate()->first();
 
                 if (!$campaignCode) {
@@ -1578,21 +1580,33 @@ class MenuOrderController extends Controller
                         'promo_coupon_code' => 'This coupon code is no longer available.',
                     ]);
                 }
+            }
 
-                if ($campaignCode->isExhausted()) {
+            // Automatic campaigns (no code) always draw from the campaign's
+            // own pool. Coupon campaigns draw from the pool only when their
+            // "Unified Usage Limit" switch is on; otherwise each code caps
+            // (and tracks) its own usage independently.
+            $pooled = !$usesCode || $campaign->unified_usage_limit;
+
+            if ($pooled) {
+                if ($campaign->usage_limit !== null && $campaign->usage_count >= $campaign->usage_limit) {
                     throw ValidationException::withMessages([
-                        'promo_coupon_code' => 'This coupon code just reached its usage limit.',
+                        'promo_coupon_code' => 'This discount just reached its usage limit.',
                     ]);
                 }
 
-                $campaignCode->increment('usage_count');
-            } elseif ($campaign->usage_limit !== null && $campaign->usage_count >= $campaign->usage_limit) {
-                throw ValidationException::withMessages([
-                    'promo_coupon_code' => 'This discount just reached its usage limit.',
-                ]);
-            } else {
                 $campaign->increment('usage_count');
+                $campaignPoolConsumed = true;
+            } elseif ($campaignCode->isExhausted()) {
+                throw ValidationException::withMessages([
+                    'promo_coupon_code' => 'This coupon code just reached its usage limit.',
+                ]);
             }
+
+            // Keep each code's own tally up to date for visibility in the
+            // codes list/redemption history even when the cap itself is
+            // enforced at the campaign level instead.
+            $campaignCode?->increment('usage_count');
         }
 
         DiscountRedemption::create([
@@ -1600,6 +1614,7 @@ class MenuOrderController extends Controller
             'branch_id' => $order->branch_id,
             'discount_campaign_id' => $promo['campaign_id'],
             'discount_campaign_code_id' => $promo['campaign_code_id'] ?? null,
+            'campaign_pool_consumed' => $campaignPoolConsumed,
             'source' => $promo['source'],
             'code_used' => $promo['code'],
             'label' => $promo['label'],
@@ -1628,9 +1643,14 @@ class MenuOrderController extends Controller
             return;
         }
 
+        // Driven by what was actually recorded at redemption time — not the
+        // campaign's *current* settings, which may have changed since —
+        // so this always credits back the exact counter(s) that were consumed.
         if ($redemption->discount_campaign_code_id) {
             DiscountCampaignCode::whereKey($redemption->discount_campaign_code_id)->lockForUpdate()->decrement('usage_count');
-        } elseif ($redemption->discount_campaign_id) {
+        }
+
+        if ($redemption->campaign_pool_consumed && $redemption->discount_campaign_id) {
             DiscountCampaign::whereKey($redemption->discount_campaign_id)->lockForUpdate()->decrement('usage_count');
         }
 
