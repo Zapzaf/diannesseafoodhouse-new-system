@@ -24,15 +24,11 @@ document.addEventListener('DOMContentLoaded', function () {
             const amount = parseFloat(row.querySelector('.voucher-item-amount-w-vat')?.value || 0) || 0;
             const exempt = parseFloat(row.querySelector('.voucher-item-vat-exempt')?.value || 0) || 0;
             const nonVat = parseFloat(row.querySelector('.voucher-item-non-vat')?.value || 0) || 0;
-            const split = VoucherItemRepeater.computeVat(amount);
-            // Total is VAT-inclusive: amount (net + VAT) + VAT-exempt + Non-VAT.
-            // Matches payable_total / total_purchases used everywhere else in the app.
-            const total = split.net + split.vat + exempt + nonVat;
             const preview = row.querySelector('.voucher-item-preview');
             if (preview) {
-                preview.textContent = 'Net ₱' + split.net.toFixed(2) + ' · VAT ₱' + split.vat.toFixed(2) + ' · Total ₱' + total.toFixed(2);
+                preview.innerHTML = VoucherItemRepeater.renderPreviewHtml(amount, exempt, nonVat);
             }
-            grandTotal += total;
+            grandTotal += VoucherItemRepeater.computeTotal(amount, exempt, nonVat);
 
             // Clear a previously-flagged "needs an amount" row as soon as the
             // admin fixes it — don't wait for another full-page submit/reload.

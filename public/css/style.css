@@ -4834,3 +4834,44 @@ th.table-sortable {
 .voucher-items-table td:nth-child(2) input {
     min-width: 70px;
 }
+
+.voucher-items-table thead th {
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+/* "Computed" column preview: the total reads first and boldest, with the
+   net/VAT breakdown underneath in muted small text — replaces the old
+   single cramped line of "Net · VAT · Total" that ran together. */
+.voucher-item-preview {
+    min-width: 150px;
+    line-height: 1.4;
+}
+
+.voucher-item-preview-total {
+    display: block;
+    font-weight: 800;
+    color: var(--text-main);
+}
+
+.voucher-item-preview-breakdown {
+    display: block;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+/* Highlighted callout for the APV/PCV Grand Total / Sub-Total figure, so it
+   reads as the summary card's key number instead of plain unstyled text. */
+.voucher-summary-total {
+    padding: 0.9rem 1.1rem;
+    border: 1px solid rgba(var(--primary-color-rgb), 0.18);
+    border-radius: 14px;
+    background-color: rgba(var(--primary-color-rgb), 0.06);
+}
+
+.voucher-summary-total .h4 {
+    color: var(--primary-color);
+}
