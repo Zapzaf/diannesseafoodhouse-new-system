@@ -326,6 +326,7 @@ Route::middleware('auth')->group(function (): void {
 		Route::get('/feedback/data', [ReportController::class, 'feedbackData'])->name('feedback.data');
 		Route::get('/transactions', [ReportController::class, 'transaction'])->name('transaction.index');
 		Route::get('/transactions/data', [ReportController::class, 'transactionData'])->name('transaction.data');
+		Route::get('/transactions/export', [ReportController::class, 'exportTransaction'])->name('transaction.export');
 		Route::get('/deliveries', [ReportController::class, 'delivery'])->name('delivery.index');
 		Route::get('/deliveries/data', [ReportController::class, 'deliveryData'])->name('delivery.data');
 		Route::get('/deliveries/export', [ReportController::class, 'exportDelivery'])->name('delivery.export');

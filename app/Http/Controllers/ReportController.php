@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Exports\DeliveryReportExport;
+use App\Exports\TransactionReportExport;
 use App\Models\Branch;
 use App\Models\Delivery;
 use App\Models\DeliveryItem;
@@ -100,18 +101,15 @@ class ReportController extends Controller
         $branchId = $this->resolveBranchId($request);
         [$dateFrom, $dateTo] = $this->validatedDateRange($request);
         $type = $request->validate(['type' => ['nullable', 'in:in,out']])['type'] ?? '';
+        $itemIds = $this->parseItemIds($request);
 
-        $transactions = InventoryTransaction::query()
-            ->with(['inventory.branch', 'creator'])
-            ->when($branchId, fn ($q, $id) => $q->whereHas('inventory', fn ($inner) => $inner->where('branch_id', $id)))
-            ->when($type, fn ($q, $t) => $q->where('type', $t))
-            ->whereDate('created_at', '>=', $dateFrom)
-            ->whereDate('created_at', '<=', $dateTo)
+        $transactions = $this->transactionQuery($request, $branchId, $dateFrom, $dateTo, $type, $itemIds)
             ->latest()
             ->paginate($this->perPage(request(), 20))->withQueryString();
 
         $stockIn = InventoryTransaction::query()
             ->when($branchId, fn ($q, $id) => $q->whereHas('inventory', fn ($inner) => $inner->where('branch_id', $id)))
+            ->when($itemIds, fn ($q, $ids) => $q->whereIn('item_id', $ids))
             ->where('type', 'in')
             ->whereDate('created_at', '>=', $dateFrom)
             ->whereDate('created_at', '<=', $dateTo)
@@ -119,12 +117,18 @@ class ReportController extends Controller
 
         $stockOut = InventoryTransaction::query()
             ->when($branchId, fn ($q, $id) => $q->whereHas('inventory', fn ($inner) => $inner->where('branch_id', $id)))
+            ->when($itemIds, fn ($q, $ids) => $q->whereIn('item_id', $ids))
             ->where('type', 'out')
             ->whereDate('created_at', '>=', $dateFrom)
             ->whereDate('created_at', '<=', $dateTo)
             ->sum('quantity');
 
-        return view('reports.transaction', compact('transactions', 'stockIn', 'stockOut', 'dateFrom', 'dateTo', 'type') + [
+        $items = Item::query()
+            ->when($branchId, fn ($q, $id) => $q->where('branch_id', $id))
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        return view('reports.transaction', compact('transactions', 'stockIn', 'stockOut', 'dateFrom', 'dateTo', 'type', 'items', 'itemIds') + [
             'branches' => Branch::query()->where('is_active', true)->orderBy('name')->get(),
             'selectedBranchId' => $branchId,
         ]);
@@ -132,19 +136,19 @@ class ReportController extends Controller
 
     /**
      * JSON feed for the Transaction Report table (see deliveryData() docblock).
+     * Also carries fresh Stock In/Out totals for the summary cards, since
+     * search/item filters are live here — unlike date/type, which still
+     * require the "Apply" reload — the cards would otherwise silently go
+     * stale the moment someone searches or picks an item.
      */
     public function transactionData(Request $request): JsonResponse
     {
         $branchId = $this->resolveBranchId($request);
         [$dateFrom, $dateTo] = $this->validatedDateRange($request);
         $type = $request->validate(['type' => ['nullable', 'in:in,out']])['type'] ?? '';
+        $itemIds = $this->parseItemIds($request);
 
-        $transactions = InventoryTransaction::query()
-            ->with(['inventory.branch', 'creator'])
-            ->when($branchId, fn ($q, $id) => $q->whereHas('inventory', fn ($inner) => $inner->where('branch_id', $id)))
-            ->when($type, fn ($q, $t) => $q->where('type', $t))
-            ->whereDate('created_at', '>=', $dateFrom)
-            ->whereDate('created_at', '<=', $dateTo)
+        $transactions = $this->transactionQuery($request, $branchId, $dateFrom, $dateTo, $type, $itemIds)
             ->latest()
             ->paginate($this->perPage($request, 20))
             ->through(fn (InventoryTransaction $tx) => [
@@ -161,7 +165,77 @@ class ReportController extends Controller
                 'created_by' => $tx->creator?->name,
             ]);
 
-        return response()->json($transactions);
+        // Stock In/Out always reflect both directions regardless of the
+        // "type" dropdown — that filter narrows the table rows, not the cards.
+        $stockIn = (clone $this->transactionQuery($request, $branchId, $dateFrom, $dateTo, '', $itemIds))
+            ->where('type', 'in')->sum('quantity');
+        $stockOut = (clone $this->transactionQuery($request, $branchId, $dateFrom, $dateTo, '', $itemIds))
+            ->where('type', 'out')->sum('quantity');
+
+        return response()->json([
+            ...$transactions->toArray(),
+            'stock_in' => (float) $stockIn,
+            'stock_out' => (float) $stockOut,
+        ]);
+    }
+
+    public function exportTransaction(Request $request)
+    {
+        $branchId = $this->resolveBranchId($request);
+        [$dateFrom, $dateTo] = $this->validatedDateRange($request);
+        $type = $request->validate(['type' => ['nullable', 'in:in,out']])['type'] ?? '';
+        $itemIds = $this->parseItemIds($request);
+
+        $transactions = $this->transactionQuery($request, $branchId, $dateFrom, $dateTo, $type, $itemIds)
+            ->latest()
+            ->get();
+
+        $filename = 'transaction-report-'.$dateFrom.'-to-'.$dateTo.'.xlsx';
+
+        return Excel::download(new TransactionReportExport($transactions), $filename);
+    }
+
+    /**
+     * Shared query behind the Transaction Report's page load, AJAX
+     * pagination, and Excel export, so the three can never drift apart on
+     * what "matching this filter set" means.
+     *
+     * @param  array<int, int>  $itemIds
+     */
+    private function transactionQuery(Request $request, ?int $branchId, string $dateFrom, string $dateTo, string $type, array $itemIds): Builder
+    {
+        $search = trim((string) $request->input('search', ''));
+
+        return InventoryTransaction::query()
+            ->with(['inventory.branch', 'creator'])
+            ->when($branchId, fn ($q, $id) => $q->whereHas('inventory', fn ($inner) => $inner->where('branch_id', $id)))
+            ->when($type, fn ($q, $t) => $q->where('type', $t))
+            ->when($itemIds, fn ($q, $ids) => $q->whereIn('item_id', $ids))
+            ->when($search !== '', fn ($q) => $q->where(fn ($inner) => $inner
+                ->where('log_id', 'like', "%{$search}%")
+                ->orWhere('reason', 'like', "%{$search}%")
+                ->orWhereHas('inventory', fn ($item) => $item->where('name', 'like', "%{$search}%"))))
+            ->whereDate('created_at', '>=', $dateFrom)
+            ->whereDate('created_at', '<=', $dateTo);
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function parseItemIds(Request $request): array
+    {
+        $raw = (string) $request->input('item_ids', '');
+
+        if ($raw === '') {
+            return [];
+        }
+
+        return collect(explode(',', $raw))
+            ->map(fn ($id) => (int) trim($id))
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
     }
 
     public function delivery(Request $request): View

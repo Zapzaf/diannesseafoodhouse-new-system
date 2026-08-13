@@ -281,6 +281,7 @@ window.IndexTableBridge = (function () {
                             window.WelheimUI.enhanceTables();
                         }
                         restoreScrollOnce();
+                        if (typeof config.onData === 'function') config.onData(data);
                         return;
                     }
 
@@ -304,6 +305,11 @@ window.IndexTableBridge = (function () {
                     }
 
                     restoreScrollOnce();
+
+                    // Optional hook so a page can keep other UI (summary
+                    // cards, totals) in sync with whatever this table's
+                    // response carries beyond just its own rows/pagination.
+                    if (typeof config.onData === 'function') config.onData(data);
                 });
         }
 
