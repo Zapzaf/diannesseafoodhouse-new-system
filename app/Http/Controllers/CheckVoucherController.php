@@ -307,6 +307,35 @@ class CheckVoucherController extends Controller
         return redirect()->route('check-vouchers.index')->with('success', 'Check Voucher created successfully.');
     }
 
+    /**
+     * Admin-only cleanup for a cash advance entered by mistake. Restricted to
+     * advances that haven't actually been paid out yet (still "draft") and
+     * have no liquidations recorded — once money has moved or been
+     * liquidated against it, the record must be voided (Check Register)
+     * rather than deleted, so the audit trail stays intact.
+     */
+    public function destroy(Request $request, CheckVoucher $checkVoucher)
+    {
+        abort_unless($request->user()?->isAdmin(), 403);
+        $this->authorizeBranchRecord($request, $checkVoucher->branch_id);
+
+        if ($checkVoucher->type !== 'advance') {
+            return back()->with('error', 'Only Advance disbursements can be deleted here.');
+        }
+
+        if ($checkVoucher->liquidations()->exists()) {
+            return back()->with('error', 'This advance already has liquidation(s) recorded and cannot be deleted. Void it instead if it was recorded in error.');
+        }
+
+        if ($checkVoucher->status !== 'draft') {
+            return back()->with('error', 'This advance has already been paid out and cannot be deleted — void the check/payment instead.');
+        }
+
+        $checkVoucher->delete();
+
+        return redirect()->route('reports.payables.advances')->with('success', 'Advance deleted.');
+    }
+
     public function show(Request $request, CheckVoucher $checkVoucher)
     {
         $this->authorizeBranchRecord($request, $checkVoucher->branch_id);

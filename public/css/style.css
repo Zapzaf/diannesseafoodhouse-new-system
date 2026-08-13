@@ -4875,3 +4875,63 @@ th.table-sortable {
 .voucher-summary-total .h4 {
     color: var(--primary-color);
 }
+
+/* Developer Updates / Changelog cards: the thumbnail is the focal point,
+   so it fills the full card width at a fixed ratio before any text. */
+.changelog-card {
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    overflow: hidden;
+    background-color: var(--bg-card);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.changelog-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 30px -18px rgba(15, 23, 42, 0.35);
+}
+
+.changelog-card-image {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    background-color: var(--bg-table-header);
+    overflow: hidden;
+}
+
+.changelog-card-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.changelog-card-image-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    background: linear-gradient(135deg, rgba(var(--primary-color-rgb), 0.14), rgba(var(--primary-color-rgb), 0.03));
+}
+
+.changelog-card-image-placeholder svg,
+.changelog-card-image-placeholder i {
+    width: 40px;
+    height: 40px;
+    opacity: 0.55;
+}
+
+.changelog-card-draft-badge {
+    position: absolute;
+    top: 0.6rem;
+    right: 0.6rem;
+}
+
+.changelog-card-description {
+    display: -webkit-box;
+    -webkit-line-clamp: 5;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    white-space: pre-line;
+}

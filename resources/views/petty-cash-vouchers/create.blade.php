@@ -18,6 +18,6 @@
 @endsection
 
 @push('scripts')
-<script src="{{ asset('js/voucher-item-repeater.js') }}"></script>
+<script src="{{ asset('js/voucher-item-repeater.js') }}?v={{ filemtime(public_path('js/voucher-item-repeater.js')) }}"></script>
 @include('petty-cash-vouchers._form-script')
 @endpush

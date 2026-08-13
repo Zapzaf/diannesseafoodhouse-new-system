@@ -1,7 +1,21 @@
 @extends('layouts.app')
 @section('page_title', 'Check Voucher ' . $checkVoucher->cv_no)
+@php
+    $canDeleteAdvance = auth()->user()->isAdmin()
+        && $checkVoucher->type === 'advance'
+        && $checkVoucher->status === 'draft'
+        && $checkVoucher->liquidations->isEmpty();
+@endphp
 @section('content')
     <x-page-header title="Check Voucher {{ $checkVoucher->cv_no }}" subtitle="{{ ucwords(str_replace('_', ' ', $checkVoucher->type)) }}" icon="banknote">
+        @if($canDeleteAdvance)
+        <form action="{{ route('check-vouchers.destroy', $checkVoucher) }}" method="POST" onsubmit="return confirm('Delete this advance? This cannot be undone.')">
+            @csrf @method('DELETE')
+            <button type="submit" class="btn btn-outline-danger">
+                <i data-lucide="trash-2" class="me-1"></i> Delete
+            </button>
+        </form>
+        @endif
         <a href="{{ route('check-vouchers.index') }}" class="btn btn-light text-primary">
             <i data-lucide="arrow-left" class="me-1"></i> Back
         </a>

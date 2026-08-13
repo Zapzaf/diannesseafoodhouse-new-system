@@ -23,6 +23,7 @@ class DatabaseSeeder extends Seeder
             MandaueBranchSeeder::class,
             ChartOfAccountSeeder::class,
             FeedbackSeeder::class,
+            ChangelogUpdateSeeder::class,
         ]);
     }
 }

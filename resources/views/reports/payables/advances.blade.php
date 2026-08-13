@@ -29,6 +29,9 @@
                                 <th class="text-end">Advance Amount</th>
                                 <th class="text-end">Liquidated</th>
                                 <th class="text-end">Outstanding</th>
+                                @if(auth()->user()->isAdmin())
+                                <th class="table-actions-head">Actions</th>
+                                @endif
                             </tr>
                         </thead>
                         <tbody>
@@ -41,9 +44,21 @@
                                 <td class="text-end">₱{{ number_format($advance->amount_w_vat, 2) }}</td>
                                 <td class="text-end">₱{{ number_format($advance->liquidated_amount, 2) }}</td>
                                 <td class="text-end fw-semibold">₱{{ number_format($advance->outstanding_advance, 2) }}</td>
+                                @if(auth()->user()->isAdmin())
+                                <td class="table-actions-cell text-nowrap">
+                                    @if($advance->status === 'draft' && $advance->liquidations->isEmpty())
+                                    <form action="{{ route('check-vouchers.destroy', $advance) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this advance? This cannot be undone.')">
+                                        @csrf @method('DELETE')
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i data-lucide="trash-2"></i></button>
+                                    </form>
+                                    @else
+                                    <span class="text-muted">—</span>
+                                    @endif
+                                </td>
+                                @endif
                             </tr>
                             @empty
-                            <tr><td colspan="7" class="text-center text-muted py-4">No advances recorded.</td></tr>
+                            <tr><td colspan="8" class="text-center text-muted py-4">No advances recorded.</td></tr>
                             @endforelse
                         </tbody>
                     </table>

@@ -174,6 +174,12 @@
                             <span>Dashboard</span>
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a href="{{ route('changelog.index') }}" class="nav-link {{ request()->routeIs('changelog.*') ? 'active' : '' }}">
+                            <i data-lucide="megaphone"></i>
+                            <span>What's New</span>
+                        </a>
+                    </li>
 
                     <!-- Inventory Management Section -->
                     <div class="sidenav-menu-heading text-uppercase px-3 py-2 mt-2 small fw-bold text-white-50" style="font-size: 0.7rem; letter-spacing: 0.08em; opacity: 0.7;">Inventory Management</div>

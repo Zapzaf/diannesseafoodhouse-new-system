@@ -7,6 +7,7 @@ use App\Http\Controllers\BranchMailSettingController;
 use App\Http\Controllers\BranchManagementController;
 use App\Http\Controllers\CashShiftController;
 use App\Http\Controllers\CategoryManagementController;
+use App\Http\Controllers\ChangelogController;
 use App\Http\Controllers\ChartOfAccountController;
 use App\Http\Controllers\CheckRegisterController;
 use App\Http\Controllers\CheckVoucherController;
@@ -82,6 +83,20 @@ Route::post('/logout', function (Request $request) {
 Route::middleware('auth')->group(function (): void {
 	Route::get('/', fn () => redirect()->route('dashboard'));
 	Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+	// Developer Updates / Changelog — browsable by every authenticated user
+	// regardless of role; only managing entries is admin-only.
+	Route::prefix('changelog')->name('changelog.')->group(function (): void {
+		Route::get('/', [ChangelogController::class, 'index'])->name('index');
+
+		Route::middleware('role:admin')->group(function (): void {
+			Route::get('/create', [ChangelogController::class, 'create'])->name('create');
+			Route::post('/', [ChangelogController::class, 'store'])->name('store');
+			Route::get('/{changelog}/edit', [ChangelogController::class, 'edit'])->name('edit');
+			Route::put('/{changelog}', [ChangelogController::class, 'update'])->name('update');
+			Route::delete('/{changelog}', [ChangelogController::class, 'destroy'])->name('destroy');
+		});
+	});
 
 	Route::prefix('inventory')->name('inventory.')->group(function (): void {
 		Route::get('/', [InventoryController::class, 'index'])->name('index');
@@ -389,6 +404,8 @@ Route::middleware('auth')->group(function (): void {
 		Route::get('/', [ChartOfAccountController::class, 'index'])->name('index');
 		Route::get('/create', [ChartOfAccountController::class, 'create'])->name('create');
 		Route::post('/', [ChartOfAccountController::class, 'store'])->name('store');
+		Route::get('/{chartOfAccount}/edit', [ChartOfAccountController::class, 'edit'])->name('edit');
+		Route::put('/{chartOfAccount}', [ChartOfAccountController::class, 'update'])->name('update');
 		Route::post('/{chartOfAccount}/toggle-active', [ChartOfAccountController::class, 'toggleActive'])->name('toggle-active');
 	});
 
@@ -448,6 +465,7 @@ Route::middleware('auth')->group(function (): void {
 		Route::put('/{checkVoucher}/receipts/{receipt}', [CheckVoucherController::class, 'updateReceipt'])->name('receipts.update');
 		Route::delete('/{checkVoucher}/receipts/{receipt}', [CheckVoucherController::class, 'deleteReceipt'])->name('receipts.destroy');
 		Route::post('/{checkVoucher}/liquidate-advance', [CheckVoucherController::class, 'liquidateAdvance'])->name('liquidate-advance');
+		Route::delete('/{checkVoucher}', [CheckVoucherController::class, 'destroy'])->name('destroy');
 	});
 
 	Route::prefix('check-register')->name('check-register.')->middleware('role:admin,branch_manager')->group(function (): void {

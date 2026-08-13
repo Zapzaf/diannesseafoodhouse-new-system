@@ -59,6 +59,7 @@
                                     </span>
                                 </td>
                                 <td class="table-actions-cell text-nowrap">
+                                    <a href="{{ route('chart-of-accounts.edit', $account) }}" class="btn btn-sm btn-outline-primary" title="Edit"><i data-lucide="edit-2"></i></a>
                                     <form action="{{ route('chart-of-accounts.toggle-active', $account) }}" method="POST" class="d-inline">
                                         @csrf
                                         <button type="submit" class="btn btn-sm btn-outline-secondary">
