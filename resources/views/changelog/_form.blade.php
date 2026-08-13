@@ -1,6 +1,21 @@
 @php
     $update = $update ?? null;
-    $old = fn ($key, $default = null) => old($key, $update?->{$key} ?? $default);
+    // $update's attribute is used as the fallback default when there's no
+    // old() session input to redisplay. released_at is cast to a Carbon
+    // instance on the model, and echoing that raw object stringifies it as
+    // "Y-m-d H:i:s" — invalid for <input type="date">, which silently blanks
+    // itself when its value doesn't match "Y-m-d". Normalize any Carbon
+    // instance to a plain date string here so every date-cast field stays
+    // safe, not just released_at.
+    $old = function (string $key, $default = null) use ($update) {
+        $modelValue = $update?->{$key};
+
+        if ($modelValue instanceof \Carbon\Carbon) {
+            $modelValue = $modelValue->toDateString();
+        }
+
+        return old($key, $modelValue ?? $default);
+    };
 @endphp
 
 <div class="row g-4">
@@ -30,7 +45,7 @@
             </div>
             <div class="col-md-6">
                 <label class="form-label fw-bold">Date <span class="text-danger">*</span></label>
-                <input type="date" name="released_at" class="form-control @error('released_at') is-invalid @enderror" value="{{ $old('released_at', $update?->released_at?->toDateString() ?? now()->toDateString()) }}" required>
+                <input type="date" name="released_at" class="form-control @error('released_at') is-invalid @enderror" value="{{ $old('released_at', now()->toDateString()) }}" required>
                 @error('released_at')<div class="invalid-feedback">{{ $message }}</div>@enderror
             </div>
         </div>

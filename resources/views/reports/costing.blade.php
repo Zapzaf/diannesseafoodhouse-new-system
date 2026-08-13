@@ -99,7 +99,7 @@
         </div>
     </div>
 
-    <div class="card shadow-sm mb-4">
+    <div class="card shadow-sm mb-4" data-static-pagination="1">
         <div class="card-header fw-semibold">
             <i data-lucide="clipboard" class="me-1"></i> Report History
         </div>
@@ -176,7 +176,7 @@
         </div>
     </div>
 
-    <div class="card shadow-sm">
+    <div class="card shadow-sm" data-static-pagination="1">
         <div class="card-header fw-semibold">
             <i data-lucide="archive" class="me-1"></i> Current Item Cost Reference
         </div>

@@ -42,7 +42,7 @@
                             <th class="text-center">{{ $label }}</th>
                             @endforeach
                             <th class="text-center">Average</th>
-                            <th class="text-end">Actions</th>
+                            <th class="text-end table-actions-head">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -60,7 +60,7 @@
                             </td>
                             @endforeach
                             <td class="text-center fw-bold">{{ number_format($entry->average_rating, 2) }}</td>
-                            <td class="text-end text-nowrap">
+                            <td class="table-actions-cell text-end text-nowrap">
                                 <a href="{{ route('feedback.show', $entry) }}" class="btn btn-sm btn-outline-primary">
                                     <i data-lucide="eye" style="width:14px;height:14px;"></i>
                                 </a>

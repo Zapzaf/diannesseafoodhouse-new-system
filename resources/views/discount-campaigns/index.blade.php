@@ -47,7 +47,7 @@
                             <th>Validity</th>
                             <th class="text-end">Usage</th>
                             <th>Status</th>
-                            <th></th>
+                            <th class="table-actions-head">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -82,7 +82,7 @@
                                 {{ $campaign->redemptions_count }}{{ $campaign->usage_limit ? ' / ' . $campaign->usage_limit : '' }}
                             </td>
                             <td><span class="badge {{ $campaign->is_active ? 'bg-success' : 'bg-secondary' }}">{{ $campaign->is_active ? 'Active' : 'Inactive' }}</span></td>
-                            <td class="text-nowrap">
+                            <td class="table-actions-cell text-nowrap">
                                 <a href="{{ route('discount-campaigns.redemptions', $campaign) }}" class="btn btn-sm btn-outline-info" title="Redemption History"><i data-lucide="history"></i></a>
                                 <a href="{{ route('discount-campaigns.edit', $campaign) }}" class="btn btn-sm btn-outline-primary" title="Edit"><i data-lucide="edit"></i></a>
                                 <form action="{{ route('discount-campaigns.toggle-active', $campaign) }}" method="POST" class="d-inline">

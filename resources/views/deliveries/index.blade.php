@@ -44,7 +44,7 @@
                             <th data-sort-key="total_cost">Total Cost</th>
                             <th data-sort-key="created_at">Date</th>
                             <th data-sort-key="status">Status</th>
-                            <th>Actions</th>
+                            <th class="table-actions-head">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -76,7 +76,7 @@
                             <td>
                                 <span class="badge-status badge-{{ $delivery->status }}">{{ strtoupper($delivery->status) }}</span>
                             </td>
-                            <td class="text-nowrap">
+                            <td class="table-actions-cell text-nowrap">
                                 <a href="{{ route('deliveries.show', $delivery) }}" class="btn btn-sm btn-outline-primary">
                                     <i data-lucide="eye" style="width:14px;height:14px;" class="me-1"></i> View
                                 </a>

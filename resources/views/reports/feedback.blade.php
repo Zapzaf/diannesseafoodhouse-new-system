@@ -108,7 +108,7 @@
     </div>
 
     {{-- Table --}}
-    <div class="card shadow-sm">
+    <div class="card shadow-sm" data-static-pagination="1">
         <div class="card-header fw-semibold"><i data-lucide="list" class="me-1"></i> Feedback Responses</div>
         <div class="card-body">
             <div class="table-responsive">

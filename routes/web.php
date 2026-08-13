@@ -320,6 +320,7 @@ Route::middleware('auth')->group(function (): void {
 
 	Route::prefix('reports')->name('reports.')->group(function (): void {
 		Route::get('/inventory', [ReportController::class, 'inventory'])->name('inventory.index');
+		Route::get('/cogs', [ReportController::class, 'cogs'])->name('cogs.index');
 		Route::get('/feedback', [ReportController::class, 'feedback'])->name('feedback.index');
 		Route::get('/transactions', [ReportController::class, 'transaction'])->name('transaction.index');
 		Route::get('/deliveries', [ReportController::class, 'delivery'])->name('delivery.index');

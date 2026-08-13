@@ -3431,10 +3431,10 @@ th.table-sortable:hover {
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05) !important;
 }
 
-/* Align inline buttons and forms horizontally with proper margin */
+/* Align inline buttons and forms horizontally with a consistent gap */
 .table-actions-cell .btn,
 .table-actions-cell form {
-    margin-right: 0.35rem !important;
+    margin-right: 0.5rem !important;
     display: inline-flex !important;
     vertical-align: middle !important;
 }
@@ -4488,7 +4488,12 @@ th.table-sortable {
 .table-wrapper .table-actions-cell .btn {
     align-items: center !important;
     justify-content: center !important;
-    margin: 0 !important;
+    /* Vertical reset only — this used to be a blanket "margin: 0 !important",
+       which (being more specific than ".table-actions-cell .btn { margin-right:
+       0.35rem }" below) silently cancelled the gap between action buttons on
+       every table wrapped in .table-responsive/.table-wrapper, i.e. nearly
+       all of them. That's why Edit/Delete sat flush against each other. */
+    margin-block: 0 !important;
 }
 
 .app-table .table-actions-cell .btn svg,

@@ -658,6 +658,15 @@
     function getAjaxTableContainers(root) {
         return Array.from((root || document).querySelectorAll(ajaxTableSelector))
             .filter(container => container.querySelector('table'))
+            // Opt-out escape hatch: pages that mark their results card with
+            // data-static-pagination keep plain full-page navigation for
+            // their <table>'s Laravel pagination links. This positional
+            // (index-based) AJAX swap re-matches "the Nth card with a table"
+            // between the current DOM and a freshly fetched one — on pages
+            // where that count can differ per request (extra stat/filter
+            // cards, conditional sections), the wrong card gets swapped in,
+            // which is exactly what made report table pagination look broken.
+            .filter(container => !container.closest('[data-static-pagination]'))
             .filter((container, index, containers) => containers.indexOf(container) === index);
     }
 

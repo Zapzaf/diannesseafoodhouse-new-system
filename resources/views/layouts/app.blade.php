@@ -561,6 +561,9 @@
                                    <a class="nav-link py-1.5 px-3 {{ request()->routeIs('reports.inventory.*') ? 'active' : '' }}" href="{{ route('reports.inventory.index') }}">Inventory Report</a>
                                </li>
                                <li class="nav-item">
+                                   <a class="nav-link py-1.5 px-3 {{ request()->routeIs('reports.cogs.*') ? 'active' : '' }}" href="{{ route('reports.cogs.index') }}">COGS Report</a>
+                               </li>
+                               <li class="nav-item">
                                    <a class="nav-link py-1.5 px-3 {{ request()->routeIs('reports.transaction.*') ? 'active' : '' }}" href="{{ route('reports.transaction.index') }}">Transaction Report</a>
                                </li>
                                <li class="nav-item">

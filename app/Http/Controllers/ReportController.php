@@ -45,6 +45,55 @@ class ReportController extends Controller
         ]);
     }
 
+    /**
+     * Cost of Goods Sold: for each item, how much left inventory (approved
+     * "out" transactions — production input, waste, order deduction, etc.)
+     * within the period, valued at that item's most recent purchase cost —
+     * the same latest_unit_cost convention the Costing Report already uses,
+     * so "cost" means the same thing everywhere in the app.
+     */
+    public function cogs(Request $request): View
+    {
+        $branchId = $this->resolveBranchId($request);
+        [$dateFrom, $dateTo] = $this->validatedDateRange($request);
+
+        $latestUnitCostSub = InventoryTransaction::query()
+            ->select('transaction_price')
+            ->whereColumn('item_id', 'items.id')
+            ->where('type', 'in')
+            ->where('status', 'approved')
+            ->whereNotNull('transaction_price')
+            ->latest('created_at')
+            ->limit(1);
+
+        $itemsQuery = Item::query()
+            ->with(['category.location', 'branch'])
+            ->when($branchId, fn ($q, $id) => $q->where('branch_id', $id))
+            ->select('items.*')
+            ->selectSub($latestUnitCostSub, 'latest_unit_cost')
+            ->withSum(['transactions as quantity_sold' => function ($q) use ($dateFrom, $dateTo) {
+                $q->where('type', 'out')
+                    ->where('status', 'approved')
+                    ->whereDate('created_at', '>=', $dateFrom)
+                    ->whereDate('created_at', '<=', $dateTo);
+            }], 'quantity')
+            ->having('quantity_sold', '>', 0)
+            ->orderBy('name');
+
+        $items = (clone $itemsQuery)
+            ->paginate($this->perPage($request, 20))
+            ->withQueryString();
+
+        // Grand total across every matching item, not just the current page.
+        $totalCogs = (clone $itemsQuery)->get()
+            ->sum(fn (Item $item) => (float) $item->quantity_sold * (float) ($item->latest_unit_cost ?? $item->unit_price));
+
+        return view('reports.cogs', compact('items', 'dateFrom', 'dateTo', 'totalCogs') + [
+            'branches' => Branch::query()->where('is_active', true)->orderBy('name')->get(),
+            'selectedBranchId' => $branchId,
+        ]);
+    }
+
     public function transaction(Request $request): View
     {
         $branchId = $this->resolveBranchId($request);

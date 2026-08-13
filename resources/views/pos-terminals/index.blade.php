@@ -61,7 +61,7 @@
                                         <th>Name</th>
                                         <th>Branch</th>
                                         <th>Status</th>
-                                        <th class="text-end">Actions</th>
+                                        <th class="text-end table-actions-head">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -75,7 +75,7 @@
                                                 {{ $terminal->is_active ? 'Active' : 'Inactive' }}
                                             </span>
                                         </td>
-                                        <td class="text-end text-nowrap">
+                                        <td class="table-actions-cell text-end text-nowrap">
                                             <form action="{{ route('pos-terminals.toggle-active', $terminal) }}" method="POST" class="d-inline">
                                                 @csrf
                                                 <button type="submit" class="btn btn-sm btn-outline-secondary" title="{{ $terminal->is_active ? 'Deactivate' : 'Activate' }}">
