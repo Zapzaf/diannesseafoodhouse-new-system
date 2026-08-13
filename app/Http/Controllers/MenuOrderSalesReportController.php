@@ -9,6 +9,7 @@ use App\Services\SalesReadingService;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\View\View;
@@ -47,6 +48,43 @@ class MenuOrderSalesReportController extends Controller
             'payments' => $payments,
             'summary' => $summary,
         ]);
+    }
+
+    /**
+     * JSON feed for the Transactions table (see
+     * ReportController::deliveryData() docblock for why).
+     */
+    public function data(Request $request): JsonResponse
+    {
+        $branchId = $this->activeBranchId($request);
+        [$dateFrom, $dateTo] = $this->validatedDateRange($request);
+        $method = $request->validate(['payment_method' => ['nullable', 'in:' . implode(',', self::PAYMENT_METHODS)]])['payment_method'] ?? '';
+
+        $payments = $this->paymentsQuery($branchId, $dateFrom, $dateTo, $method)
+            ->with(['order:id,order_number,customer_name,total_pax,status', 'branch', 'receivedBy'])
+            ->orderByDesc('payment_date')
+            ->latest()
+            ->paginate($this->perPage($request, 20))
+            ->through(fn (MenuOrderPayment $payment) => [
+                'id' => $payment->id,
+                'or_number' => $payment->or_number,
+                'date' => (optional($payment->payment_date) ?: $payment->created_at)->format('M d, Y'),
+                'branch' => $payment->branch?->name,
+                'order_number' => $payment->order?->order_number,
+                'customer' => $payment->order?->customer_name ?: 'Walk-in',
+                'method' => $payment->method,
+                'discount_type' => $payment->discount_type,
+                'discount_amount' => (float) $payment->discount_amount,
+                'promo_discount_amount' => (float) $payment->promo_discount_amount,
+                'promo_discount_label' => $payment->promo_discount_label,
+                'promo_discount_source' => $payment->promo_discount_source,
+                'gross' => (float) ($payment->subtotal + $payment->additional_charge_amount),
+                'vat' => (float) $payment->vat_amount,
+                'net' => (float) $payment->amount,
+                'received_by' => $payment->receivedBy?->name,
+            ]);
+
+        return response()->json($payments);
     }
 
     public function exportExcel(Request $request)

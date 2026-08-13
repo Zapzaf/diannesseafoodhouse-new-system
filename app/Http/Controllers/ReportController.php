@@ -10,6 +10,7 @@ use App\Models\Feedback;
 use App\Models\InventoryTransaction;
 use App\Models\Item;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use Maatwebsite\Excel\Facades\Excel;
@@ -129,6 +130,40 @@ class ReportController extends Controller
         ]);
     }
 
+    /**
+     * JSON feed for the Transaction Report table (see deliveryData() docblock).
+     */
+    public function transactionData(Request $request): JsonResponse
+    {
+        $branchId = $this->resolveBranchId($request);
+        [$dateFrom, $dateTo] = $this->validatedDateRange($request);
+        $type = $request->validate(['type' => ['nullable', 'in:in,out']])['type'] ?? '';
+
+        $transactions = InventoryTransaction::query()
+            ->with(['inventory.branch', 'creator'])
+            ->when($branchId, fn ($q, $id) => $q->whereHas('inventory', fn ($inner) => $inner->where('branch_id', $id)))
+            ->when($type, fn ($q, $t) => $q->where('type', $t))
+            ->whereDate('created_at', '>=', $dateFrom)
+            ->whereDate('created_at', '<=', $dateTo)
+            ->latest()
+            ->paginate($this->perPage($request, 20))
+            ->through(fn (InventoryTransaction $tx) => [
+                'id' => $tx->id,
+                'log_id' => $tx->log_id ?? 'N/A',
+                'date' => $tx->created_at?->format('M d, Y H:i'),
+                'item_name' => $tx->inventory?->name,
+                'branch_name' => $tx->inventory?->branch?->name,
+                'type' => $tx->type,
+                'quantity' => (float) $tx->quantity,
+                'unit' => $tx->inventory?->unit,
+                'status' => $tx->status,
+                'reason' => $tx->reason,
+                'created_by' => $tx->creator?->name,
+            ]);
+
+        return response()->json($transactions);
+    }
+
     public function delivery(Request $request): View
     {
         $branchId = $this->resolveBranchId($request);
@@ -155,6 +190,39 @@ class ReportController extends Controller
             'branches' => Branch::query()->where('is_active', true)->orderBy('name')->get(),
             'selectedBranchId' => $branchId,
         ]);
+    }
+
+    /**
+     * JSON feed for the Delivery Report table, driven by the same
+     * IndexTableBridge client-side pagination used by Inventory Items —
+     * plain fetch() + client render, so there's no full-page reload for
+     * "page 2", and none of the fragility that comes with it.
+     */
+    public function deliveryData(Request $request): JsonResponse
+    {
+        $branchId = $this->resolveBranchId($request);
+        [$dateFrom, $dateTo] = $this->validatedDateRange($request);
+        $status = $request->validate(['status' => ['nullable', 'in:pending,received']])['status'] ?? '';
+        $perPage = $this->perPage($request, 20);
+
+        $deliveryItems = $this->deliveryReportItemQuery($request, $branchId, $dateFrom, $dateTo, $status)
+            ->paginate($perPage)
+            ->through(fn (DeliveryItem $deliveryItem) => [
+                'id' => $deliveryItem->id,
+                'reference_number' => $deliveryItem->delivery->reference_number,
+                'date' => optional($deliveryItem->delivery->created_at)->format('M d, Y H:i'),
+                'destination' => $deliveryItem->delivery->destinationBranch?->name,
+                'source' => $deliveryItem->delivery->sourceBranch?->name ?? $deliveryItem->delivery->supplier?->name,
+                'item_name' => $deliveryItem->description ?: ($deliveryItem->item?->name ?? $deliveryItem->sourceItem?->name ?? 'Unspecified item'),
+                'quantity' => (float) $deliveryItem->quantity,
+                'unit' => $deliveryItem->unit,
+                'cost' => (float) ($deliveryItem->price ?? 0),
+                'status' => $deliveryItem->delivery->status,
+                'approved_by' => $deliveryItem->delivery->approver?->name,
+                'created_by' => $deliveryItem->delivery->creator?->name,
+            ]);
+
+        return response()->json($deliveryItems);
     }
 
     public function exportDelivery(Request $request)
@@ -283,6 +351,37 @@ class ReportController extends Controller
             'dateFrom' => $dateFrom,
             'dateTo' => $dateTo,
         ]);
+    }
+
+    /**
+     * JSON feed for the Feedback Report table (see deliveryData() docblock).
+     */
+    public function feedbackData(Request $request): JsonResponse
+    {
+        $branchId = $this->resolveBranchId($request);
+        [$dateFrom, $dateTo] = $this->validatedDateRange($request);
+
+        $feedback = Feedback::query()
+            ->with('branch')
+            ->when($branchId, fn ($q, $id) => $q->where('branch_id', $id))
+            ->when(! $request->user()->isAdmin(), fn ($q) => $q->where('branch_id', $request->user()->branch_id))
+            ->whereDate('date', '>=', $dateFrom)
+            ->whereDate('date', '<=', $dateTo)
+            ->latest('date')
+            ->latest()
+            ->paginate($this->perPage($request, 20))
+            ->through(fn (Feedback $entry) => [
+                'id' => $entry->id,
+                'date' => $entry->date->format('M d, Y'),
+                'branch' => $entry->branch?->name,
+                'name' => $entry->name ?: 'Anonymous',
+                'ratings' => collect(Feedback::RATING_FIELDS)->keys()
+                    ->mapWithKeys(fn ($field) => [$field => (int) $entry->{$field}]),
+                'average_rating' => $entry->average_rating,
+                'improvements' => $entry->improvements,
+            ]);
+
+        return response()->json($feedback);
     }
 
     /**

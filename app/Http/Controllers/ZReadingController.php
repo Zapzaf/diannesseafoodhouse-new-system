@@ -13,6 +13,7 @@ use Dompdf\Dompdf;
 use Dompdf\Options;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\QueryException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -60,6 +61,36 @@ class ZReadingController extends Controller
         } catch (Throwable $e) {
             return $this->failGracefully($e, 'Z Reading list', route('dashboard'));
         }
+    }
+
+    /**
+     * JSON feed for the Generated Z Readings table (see
+     * ReportController::deliveryData() docblock for why).
+     */
+    public function data(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $branchId = $this->activeBranchId($request);
+
+        $readings = ZReading::query()
+            ->with(['branch', 'terminal', 'generatedBy'])
+            ->when(!$user->isAdmin(), fn (Builder $q) => $q->where('branch_id', $user->branch_id))
+            ->when($branchId, fn (Builder $q, int $id) => $q->where('branch_id', $id))
+            ->latest('generated_at')
+            ->paginate($this->perPage($request, 20))
+            ->through(fn (ZReading $reading) => [
+                'id' => $reading->id,
+                'reading_number' => $reading->reading_number,
+                'business_date' => $reading->business_date->format('M d, Y'),
+                'terminal_name' => $reading->terminal?->name,
+                'branch_name' => $reading->branch?->name,
+                'generated_by' => $reading->generatedBy?->name,
+                'generated_at' => $reading->generated_at->format('M d, Y h:i A'),
+                'status' => $reading->status,
+                'show_url' => route('reports.z-reading.show', $reading),
+            ]);
+
+        return response()->json($readings);
     }
 
     public function preview(Request $request): View|RedirectResponse

@@ -99,13 +99,13 @@
         </div>
     </div>
 
-    <div class="card shadow-sm mb-4" data-static-pagination="1">
+    <div class="card shadow-sm mb-4">
         <div class="card-header fw-semibold">
             <i data-lucide="clipboard" class="me-1"></i> Report History
         </div>
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-bordered table-striped align-middle">
+                <table class="table table-bordered table-striped align-middle" id="costingReportsTable">
                     <thead class="table-dark">
                         <tr>
                             <th>#</th>
@@ -120,69 +120,29 @@
                             <th class="text-end">Action</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        @forelse($reports as $report)
-                        @php $delta = (float) $report->proposed_price - (float) $report->current_price; @endphp
-                        <tr>
-                            <td class="text-muted small">{{ $report->id }}</td>
-                            <td class="fw-semibold">
-                                {{ $report->item?->name ?? 'Deleted item' }}
-                                <div class="small text-muted">{{ $report->item?->category?->name ?? 'N/A' }}</div>
-                            </td>
-                            <td class="text-muted small">{{ $report->branch?->name ?? 'N/A' }}</td>
-                            <td class="text-end text-nowrap">
-                                <span class="text-muted small">&#8369;{{ number_format((float) $report->current_price, 2) }}</span>
-                                <i data-lucide="arrow-right" class="mx-1 text-muted" style="width:12px;height:12px;"></i>
-                                <span class="fw-semibold">&#8369;{{ number_format((float) $report->proposed_price, 2) }}</span>
-                                <div class="small fw-semibold {{ $delta > 0 ? 'text-success' : ($delta < 0 ? 'text-danger' : 'text-muted') }}">
-                                    {{ $delta > 0 ? '+' : '' }}{{ number_format($delta, 2) }}
-                                </div>
-                            </td>
-                            <td>
-                                <span class="badge bg-primary bg-opacity-10 text-primary">{{ $report->reasonTypeLabel() }}{{ $report->reference_id ? ' #'.$report->reference_id : '' }}</span>
-                            </td>
-                            <td>
-                                @if($report->status === 'approved')
-                                    <span class="badge-status badge-approved">APPROVED</span>
-                                @elseif($report->status === 'rejected')
-                                    <span class="badge-status badge-expired">REJECTED</span>
-                                @else
-                                    <span class="badge-status badge-pending">PENDING</span>
-                                @endif
-                            </td>
-                            <td class="text-muted small">{{ $report->requester?->name ?? 'N/A' }}</td>
-                            <td class="text-muted small">{{ $report->approver?->name ?? '—' }}</td>
-                            <td class="text-muted small text-nowrap">{{ $report->created_at?->format('M d, Y H:i') }}</td>
-                            <td class="text-end">
-                                <a href="{{ route('reports.costing.show', $report) }}" class="btn btn-sm btn-outline-primary" title="View report">
-                                    <i data-lucide="eye" style="width:15px;height:15px;"></i>
-                                </a>
-                            </td>
-                        </tr>
-                        @empty
-                        <tr><td colspan="10" class="text-center text-muted py-4">No costing reports found.</td></tr>
-                        @endforelse
-                    </tbody>
+                    <tbody id="tableBody"><tr><td colspan="10" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></td></tr></tbody>
                 </table>
             </div>
         </div>
         <div class="card-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <div class="text-muted small">
-                Showing {{ $reports->firstItem() ?? 0 }} to {{ $reports->lastItem() ?? 0 }} of {{ $reports->total() }} entries
-            </div>
-            <div class="mb-0 custom-pagination-wrapper">
-                {{ $reports->onEachSide(1)->links('pagination::bootstrap-5') }}
-            </div>
+            <div id="tableInfo" class="text-muted small"></div>
+            <nav aria-label="Report history pagination">
+                <ul id="pagination" class="pagination pagination-sm mb-0"></ul>
+            </nav>
         </div>
     </div>
 
-    <div class="card shadow-sm" data-static-pagination="1">
+    <input type="hidden" id="costingDateFromFilter" value="{{ $dateFrom }}">
+    <input type="hidden" id="costingDateToFilter" value="{{ $dateTo }}">
+    <input type="hidden" id="costingStatusFilter" value="{{ $status }}">
+
+    <div class="card shadow-sm">
         <div class="card-header fw-semibold">
             <i data-lucide="archive" class="me-1"></i> Current Item Cost Reference
         </div>
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-bordered table-striped">
+                <table class="table table-bordered table-striped" id="costingItemsTable">
                     <thead class="table-dark">
                         <tr>
                             <th>Item</th>
@@ -192,40 +152,98 @@
                             <th class="text-end">Action</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        @forelse($items as $item)
-                        <tr>
-                            <td class="fw-semibold">
-                                {{ $item->name }}
-                                <div class="small text-muted">{{ $item->category?->location?->name ?? 'N/A' }} / {{ $item->category?->name ?? 'N/A' }}</div>
-                            </td>
-                            <td>{{ $item->branch?->name ?? 'N/A' }}</td>
-                            <td class="text-end">&#8369;{{ number_format((float) ($item->unit_price ?? 0), 2) }}</td>
-                            <td class="text-end">
-                                {!! $item->latest_unit_cost !== null ? '&#8369;' . number_format((float) $item->latest_unit_cost, 2) : '-' !!}
-                            </td>
-                            <td class="text-end">
-                                <a href="{{ route('reports.costing.create', ['item_id' => $item->id]) }}"
-                                   class="btn btn-sm btn-outline-primary" title="Request price change">
-                                    <i data-lucide="file-plus" style="width:15px;height:15px;"></i>
-                                </a>
-                            </td>
-                        </tr>
-                        @empty
-                        <tr><td colspan="5" class="text-center text-muted py-4">No items found.</td></tr>
-                        @endforelse
-                    </tbody>
+                    <tbody id="itemsTableBody"><tr><td colspan="5" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></td></tr></tbody>
                 </table>
             </div>
         </div>
         <div class="card-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <div class="text-muted small">
-                Showing {{ $items->firstItem() ?? 0 }} to {{ $items->lastItem() ?? 0 }} of {{ $items->total() }} entries
-            </div>
-            <div class="mb-0 custom-pagination-wrapper">
-                {{ $items->onEachSide(1)->links('pagination::bootstrap-5') }}
-            </div>
+            <div id="itemsTableInfo" class="text-muted small"></div>
+            <nav aria-label="Item cost reference pagination">
+                <ul id="itemsPagination" class="pagination pagination-sm mb-0"></ul>
+            </nav>
         </div>
     </div>
 </div>
 @endsection
+
+@push('scripts')
+<script src="{{ asset('js/index-table-bridge.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    IndexTableBridge.init({
+        tableId: 'costingReportsTable',
+        dataUrl: @json(route('reports.costing.data')),
+        filters: [
+            { inputId: 'costingDateFromFilter', param: 'date_from' },
+            { inputId: 'costingDateToFilter', param: 'date_to' },
+            { inputId: 'costingStatusFilter', param: 'status' }
+        ],
+        emptyMessage: 'No costing reports found.',
+        colspan: 10,
+        renderRow: function (row, ctx) {
+            const delta = Number(row.delta || 0);
+            const deltaClass = delta > 0 ? 'text-success' : (delta < 0 ? 'text-danger' : 'text-muted');
+            const deltaSign = delta > 0 ? '+' : '';
+            const statusBadge = row.status === 'approved' ? 'badge-approved' : (row.status === 'rejected' ? 'badge-expired' : 'badge-pending');
+
+            return `
+                <tr>
+                    <td class="text-muted small">${row.id}</td>
+                    <td class="fw-semibold">
+                        ${ctx.escapeHtml(row.item_name)}
+                        <div class="small text-muted">${ctx.escapeHtml(row.category_name)}</div>
+                    </td>
+                    <td class="text-muted small">${ctx.escapeHtml(row.branch_name)}</td>
+                    <td class="text-end text-nowrap">
+                        <span class="text-muted small">₱${Number(row.current_price || 0).toFixed(2)}</span>
+                        <i data-lucide="arrow-right" class="mx-1 text-muted" style="width:12px;height:12px;"></i>
+                        <span class="fw-semibold">₱${Number(row.proposed_price || 0).toFixed(2)}</span>
+                        <div class="small fw-semibold ${deltaClass}">${deltaSign}${delta.toFixed(2)}</div>
+                    </td>
+                    <td><span class="badge bg-primary bg-opacity-10 text-primary">${ctx.escapeHtml(row.source_label)}</span></td>
+                    <td><span class="badge-status ${statusBadge}">${ctx.escapeHtml(row.status.toUpperCase())}</span></td>
+                    <td class="text-muted small">${ctx.escapeHtml(row.requester_name)}</td>
+                    <td class="text-muted small">${ctx.escapeHtml(row.approver_name || '—')}</td>
+                    <td class="text-muted small text-nowrap">${ctx.escapeHtml(row.created_at || '')}</td>
+                    <td class="text-end">
+                        <a href="${row.show_url}" class="btn btn-sm btn-outline-primary" title="View report">
+                            <i data-lucide="eye" style="width:15px;height:15px;"></i>
+                        </a>
+                    </td>
+                </tr>
+            `;
+        }
+    });
+
+    IndexTableBridge.init({
+        tableId: 'costingItemsTable',
+        tbodyId: 'itemsTableBody',
+        paginationId: 'itemsPagination',
+        infoId: 'itemsTableInfo',
+        stateKey: 'costingItemsTable',
+        dataUrl: @json(route('reports.costing.items-data')),
+        emptyMessage: 'No items found.',
+        colspan: 5,
+        renderRow: function (row, ctx) {
+            const latestCost = row.latest_unit_cost !== null ? '₱' + Number(row.latest_unit_cost).toFixed(2) : '-';
+            return `
+                <tr>
+                    <td class="fw-semibold">
+                        ${ctx.escapeHtml(row.name)}
+                        <div class="small text-muted">${ctx.escapeHtml(row.location_name)} / ${ctx.escapeHtml(row.category_name)}</div>
+                    </td>
+                    <td>${ctx.escapeHtml(row.branch_name)}</td>
+                    <td class="text-end">₱${Number(row.unit_price || 0).toFixed(2)}</td>
+                    <td class="text-end">${latestCost}</td>
+                    <td class="text-end">
+                        <a href="${row.request_url}" class="btn btn-sm btn-outline-primary" title="Request price change">
+                            <i data-lucide="file-plus" style="width:15px;height:15px;"></i>
+                        </a>
+                    </td>
+                </tr>
+            `;
+        }
+    });
+});
+</script>
+@endpush

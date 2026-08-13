@@ -11,6 +11,7 @@ use App\Models\ProductionOrder;
 use App\Models\ProductionOutput;
 use App\Services\InventoryService;
 use App\Services\WastageInventoryService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -88,6 +89,91 @@ class ProductionManagementController extends Controller
                 ->orderBy('name')
                 ->get(),
         ]);
+    }
+
+    /**
+     * JSON feed for the Production Orders table, driven by the same
+     * IndexTableBridge client-side pagination used by Inventory Items.
+     */
+    public function data(Request $request): JsonResponse
+    {
+        $branchId = $this->resolveBranchId($request);
+        $sort = (string) $request->input('sort', 'created_at');
+        $direction = strtolower((string) $request->input('direction', 'desc')) === 'asc' ? 'asc' : 'desc';
+        $allowedSort = ['id', 'branch_name', 'status', 'inputs_count', 'outputs_count', 'created_at', 'finished_at'];
+
+        if (! in_array($sort, $allowedSort, true)) {
+            $sort = 'created_at';
+        }
+
+        $productionsQuery = ProductionOrder::query()
+            ->select('production_orders.*')
+            ->with(['branch', 'creator', 'inputs.item', 'inputs.deliveryItem', 'outputs.item'])
+            ->withCount(['inputs', 'outputs'])
+            ->when($branchId, fn ($query, $branchId) => $query->where('branch_id', $branchId))
+            ->when($request->input('search'), fn ($q, $s) => $q->where('id', 'like', "%$s%"));
+
+        if ($sort === 'branch_name') {
+            $productionsQuery->leftJoin('branches as branch_sort', 'production_orders.branch_id', '=', 'branch_sort.id')
+                ->orderBy('branch_sort.name', $direction);
+        } elseif (in_array($sort, ['inputs_count', 'outputs_count'], true)) {
+            $productionsQuery->orderBy($sort, $direction);
+        } else {
+            $productionsQuery->orderBy("production_orders.{$sort}", $direction);
+        }
+
+        $isAdmin = $request->user()->isAdmin();
+
+        $productions = $productionsQuery
+            ->paginate($this->perPage($request, 10))
+            ->through(fn (ProductionOrder $production) => [
+                'id' => $production->id,
+                'creator_name' => $production->creator?->name ?? 'System',
+                'branch_name' => $isAdmin ? ($production->branch?->name ?? 'N/A') : null,
+                'status' => $production->status,
+                'status_label' => strtoupper(str_replace('_', ' ', $production->status)),
+                'created_at' => $production->created_at?->format('M d, Y'),
+                'finished_at' => $production->finished_at?->format('M d, Y'),
+                'outputs_count' => $production->outputs_count,
+                'inputs' => $this->summarizeProductionItems($production->inputs, 'quantity_used'),
+                'outputs' => $this->summarizeProductionItems($production->outputs, 'quantity_produced'),
+                'show_url' => route('productions.show', $production),
+                'cancel_url' => $production->status === 'in_progress' && $production->outputs_count === 0
+                    ? route('productions.cancel', $production)
+                    : null,
+            ]);
+
+        return response()->json($productions);
+    }
+
+    /**
+     * Mirrors <x-production-item-summary>'s name/quantity/unit resolution,
+     * capped to the same first-2-then-"N more" shape the JS renderer expects
+     * — so the AJAX-rendered table looks identical to the old server-rendered one.
+     *
+     * @param  \Illuminate\Support\Collection<int, \App\Models\ProductionInput|\App\Models\ProductionOutput>  $entries
+     * @return array{items: array<int, array{name: string, quantity: float, unit: ?string}>, more: int}
+     */
+    private function summarizeProductionItems($entries, string $quantityField): array
+    {
+        $visible = $entries->take(2);
+
+        return [
+            'items' => $visible->map(function ($entry) use ($quantityField) {
+                $name = $entry->item?->name;
+
+                if (! $name || $name === 'Delivery Material') {
+                    $name = $entry->deliveryItem?->description ?: $name;
+                }
+
+                return [
+                    'name' => $name ?: 'Unavailable item',
+                    'quantity' => (float) data_get($entry, $quantityField, 0),
+                    'unit' => $entry->unit ?: $entry->item?->unit ?: $entry->deliveryItem?->unit,
+                ];
+            })->values()->all(),
+            'more' => max($entries->count() - $visible->count(), 0),
+        ];
     }
 
     public function store(StoreProductionRequest $request): RedirectResponse

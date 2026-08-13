@@ -265,11 +265,11 @@
     </div>
 
     {{-- Transactions --}}
-    <div class="card shadow-sm" data-static-pagination="1">
+    <div class="card shadow-sm">
         <div class="card-header fw-semibold"><i data-lucide="list" class="me-1"></i> Transactions (Official Receipts)</div>
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-bordered table-striped">
+                <table class="table table-bordered table-striped" id="salesTransactionsTable">
                     <thead class="table-dark">
                         <tr>
                             <th>OR #</th>
@@ -286,47 +286,21 @@
                             <th>Received By</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        @forelse($payments as $payment)
-                        <tr>
-                            <td class="text-nowrap small">{{ $payment->or_number ?? '—' }}</td>
-                            <td class="text-nowrap text-muted small">{{ optional($payment->payment_date)->format('M d, Y') ?? $payment->created_at->format('M d, Y') }}</td>
-                            <td class="text-muted small">{{ $payment->branch?->name ?? '—' }}</td>
-                            <td class="text-muted small">{{ $payment->order?->order_number ?? '—' }}</td>
-                            <td class="small">{{ $payment->order?->customer_name ?: 'Walk-in' }}</td>
-                            <td><span class="badge bg-secondary">{{ ucfirst($payment->method) }}</span></td>
-                            <td class="small">
-                                @if($payment->discount_type && $payment->discount_type !== 'none')
-                                    {{ ucfirst($payment->discount_type) }} (₱{{ number_format($payment->discount_amount, 2) }})
-                                @else
-                                    —
-                                @endif
-                            </td>
-                            <td class="small">
-                                @if($payment->promo_discount_amount > 0)
-                                    {{ $payment->promo_discount_label ?? ucfirst($payment->promo_discount_source) }} (₱{{ number_format($payment->promo_discount_amount, 2) }})
-                                @else
-                                    —
-                                @endif
-                            </td>
-                            <td class="text-end">₱{{ number_format($payment->subtotal + $payment->additional_charge_amount, 2) }}</td>
-                            <td class="text-end">₱{{ number_format($payment->vat_amount, 2) }}</td>
-                            <td class="text-end fw-semibold">₱{{ number_format($payment->amount, 2) }}</td>
-                            <td class="text-muted small">{{ $payment->receivedBy?->name ?? '—' }}</td>
-                        </tr>
-                        @empty
-                        <tr><td colspan="12" class="text-center text-muted py-4">No transactions in this period.</td></tr>
-                        @endforelse
-                    </tbody>
+                    <tbody id="tableBody"><tr><td colspan="12" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></td></tr></tbody>
                 </table>
             </div>
         </div>
-        @if($payments->hasPages())
-        <div class="card-footer d-flex justify-content-center d-print-none">
-            {{ $payments->appends(request()->query())->links('pagination::bootstrap-5') }}
+        <div class="card-footer d-flex justify-content-between align-items-center flex-wrap gap-2 d-print-none">
+            <div id="tableInfo" class="text-muted small"></div>
+            <nav aria-label="Transactions pagination">
+                <ul id="pagination" class="pagination pagination-sm mb-0"></ul>
+            </nav>
         </div>
-        @endif
     </div>
+
+    <input type="hidden" id="salesDateFromFilter" value="{{ $dateFrom }}">
+    <input type="hidden" id="salesDateToFilter" value="{{ $dateTo }}">
+    <input type="hidden" id="salesMethodFilter" value="{{ $method }}">
 </div>
 @endsection
 
@@ -356,4 +330,48 @@
     }
 }
 </style>
+@endpush
+
+@push('scripts')
+<script src="{{ asset('js/index-table-bridge.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    IndexTableBridge.init({
+        tableId: 'salesTransactionsTable',
+        dataUrl: @json(route('reports.menu-order-sales.data')),
+        filters: [
+            { inputId: 'salesDateFromFilter', param: 'date_from' },
+            { inputId: 'salesDateToFilter', param: 'date_to' },
+            { inputId: 'salesMethodFilter', param: 'payment_method' }
+        ],
+        emptyMessage: 'No transactions in this period.',
+        colspan: 12,
+        renderRow: function (row, ctx) {
+            const discountCell = row.discount_type && row.discount_type !== 'none'
+                ? `${ctx.escapeHtml(row.discount_type.charAt(0).toUpperCase() + row.discount_type.slice(1))} (₱${Number(row.discount_amount || 0).toFixed(2)})`
+                : '—';
+            const promoCell = row.promo_discount_amount > 0
+                ? `${ctx.escapeHtml(row.promo_discount_label || (row.promo_discount_source ? row.promo_discount_source.charAt(0).toUpperCase() + row.promo_discount_source.slice(1) : ''))} (₱${Number(row.promo_discount_amount || 0).toFixed(2)})`
+                : '—';
+
+            return `
+                <tr>
+                    <td class="text-nowrap small">${ctx.escapeHtml(row.or_number || '—')}</td>
+                    <td class="text-nowrap text-muted small">${ctx.escapeHtml(row.date)}</td>
+                    <td class="text-muted small">${ctx.escapeHtml(row.branch || '—')}</td>
+                    <td class="text-muted small">${ctx.escapeHtml(row.order_number || '—')}</td>
+                    <td class="small">${ctx.escapeHtml(row.customer)}</td>
+                    <td><span class="badge bg-secondary">${ctx.escapeHtml(row.method.charAt(0).toUpperCase() + row.method.slice(1))}</span></td>
+                    <td class="small">${discountCell}</td>
+                    <td class="small">${promoCell}</td>
+                    <td class="text-end">₱${Number(row.gross || 0).toFixed(2)}</td>
+                    <td class="text-end">₱${Number(row.vat || 0).toFixed(2)}</td>
+                    <td class="text-end fw-semibold">₱${Number(row.net || 0).toFixed(2)}</td>
+                    <td class="text-muted small">${ctx.escapeHtml(row.received_by || '—')}</td>
+                </tr>
+            `;
+        }
+    });
+});
+</script>
 @endpush

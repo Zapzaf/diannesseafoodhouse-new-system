@@ -108,11 +108,11 @@
     </div>
 
     {{-- Table --}}
-    <div class="card shadow-sm" data-static-pagination="1">
+    <div class="card shadow-sm">
         <div class="card-header fw-semibold"><i data-lucide="list" class="me-1"></i> Feedback Responses</div>
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-bordered table-striped align-middle">
+                <table class="table table-bordered table-striped align-middle" id="feedbackTable">
                     <thead class="table-dark">
                         <tr>
                             <th>Date</th>
@@ -125,34 +125,57 @@
                             <th>Improvements</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        @forelse($feedback as $entry)
-                        <tr>
-                            <td class="text-nowrap text-muted small">{{ $entry->date->format('M d, Y') }}</td>
-                            <td class="text-muted small">{{ $entry->branch?->name ?? '—' }}</td>
-                            <td class="fw-semibold">{{ $entry->name ?: 'Anonymous' }}</td>
-                            @foreach($ratingFields as $field => $label)
-                            <td class="text-center">
-                                <span class="badge {{ $entry->{$field} >= 4 ? 'bg-success' : ($entry->{$field} >= 3 ? 'bg-warning text-dark' : 'bg-danger') }}">
-                                    {{ $entry->{$field} }}/5
-                                </span>
-                            </td>
-                            @endforeach
-                            <td class="text-center fw-bold">{{ number_format($entry->average_rating, 2) }}</td>
-                            <td class="text-muted small">{{ $entry->improvements ?: '—' }}</td>
-                        </tr>
-                        @empty
-                        <tr><td colspan="{{ 5 + count($ratingFields) }}" class="text-center text-muted py-4">No feedback in this period.</td></tr>
-                        @endforelse
-                    </tbody>
+                    <tbody id="tableBody"><tr><td colspan="{{ 5 + count($ratingFields) }}" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></td></tr></tbody>
                 </table>
             </div>
         </div>
-        @if($feedback->hasPages())
-        <div class="card-footer d-flex justify-content-center">
-            {{ $feedback->appends(request()->query())->links('pagination::bootstrap-5') }}
+        <div class="card-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div id="tableInfo" class="text-muted small"></div>
+            <nav aria-label="Feedback pagination">
+                <ul id="pagination" class="pagination pagination-sm mb-0"></ul>
+            </nav>
         </div>
-        @endif
     </div>
+
+    <input type="hidden" id="feedbackDateFromFilter" value="{{ $dateFrom }}">
+    <input type="hidden" id="feedbackDateToFilter" value="{{ $dateTo }}">
 </div>
 @endsection
+
+@push('scripts')
+<script src="{{ asset('js/index-table-bridge.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const ratingFields = @json($ratingFields);
+
+    IndexTableBridge.init({
+        tableId: 'feedbackTable',
+        dataUrl: @json(route('reports.feedback.data')),
+        filters: [
+            { inputId: 'feedbackDateFromFilter', param: 'date_from' },
+            { inputId: 'feedbackDateToFilter', param: 'date_to' }
+        ],
+        emptyMessage: 'No feedback in this period.',
+        colspan: {{ 5 + count($ratingFields) }},
+        renderRow: function (row, ctx) {
+            const ratingCells = Object.keys(ratingFields).map(function (field) {
+                const value = Number(row.ratings[field] || 0);
+                const badgeClass = value >= 4 ? 'bg-success' : (value >= 3 ? 'bg-warning text-dark' : 'bg-danger');
+                return `<td class="text-center"><span class="badge ${badgeClass}">${value}/5</span></td>`;
+            }).join('');
+
+            return `
+                <tr>
+                    <td class="text-nowrap text-muted small">${ctx.escapeHtml(row.date)}</td>
+                    <td class="text-muted small">${ctx.escapeHtml(row.branch || '—')}</td>
+                    <td class="fw-semibold">${ctx.escapeHtml(row.name)}</td>
+                    ${ratingCells}
+                    <td class="text-center fw-bold">${Number(row.average_rating || 0).toFixed(2)}</td>
+                    <td class="text-muted small">${ctx.escapeHtml(row.improvements || '—')}</td>
+                </tr>
+            `;
+        }
+    });
+});
+</script>
+@endpush

@@ -66,11 +66,11 @@
     </div>
 
     {{-- Table --}}
-    <div class="card shadow-sm" data-static-pagination="1">
+    <div class="card shadow-sm">
         <div class="card-header fw-semibold"><i data-lucide="list" class="me-1"></i> Transactions</div>
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-bordered table-striped">
+                <table class="table table-bordered table-striped" id="transactionsTable">
                     <thead class="table-dark">
                         <tr>
                             <th>Log ID</th>
@@ -84,41 +84,57 @@
                             <th>By</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        @forelse($transactions as $tx)
-                        <tr>
-                            <td class="text-nowrap fw-semibold small">{{ $tx->log_id ?? 'N/A' }}</td>
-                            <td class="text-nowrap text-muted small">{{ $tx->created_at->format('M d, Y H:i') }}</td>
-                            <td class="fw-semibold">{{ $tx->inventory?->name ?? '—' }}</td>
-                            <td class="text-muted small">{{ $tx->inventory?->branch?->name ?? '—' }}</td>
-                            <td>
-                                <span class="badge {{ $tx->type === 'in' ? 'bg-success' : 'bg-danger' }}">
-                                    {{ strtoupper($tx->type) }}
-                                </span>
-                            </td>
-                            <td>{{ number_format($tx->quantity, 2) }} {{ $tx->inventory?->unit }}</td>
-                            <td>
-                                @if($tx->status === 'pending')
-                                    <span class="badge-status badge-pending">PENDING</span>
-                                @else
-                                    <span class="badge-status badge-approved">APPROVED</span>
-                                @endif
-                            </td>
-                            <td class="text-muted small">{{ $tx->reason ?? '—' }}</td>
-                            <td class="text-muted small">{{ $tx->creator?->name ?? '—' }}</td>
-                        </tr>
-                        @empty
-                        <tr><td colspan="9" class="text-center text-muted py-4">No transactions in this period.</td></tr>
-                        @endforelse
-                    </tbody>
+                    <tbody id="tableBody"><tr><td colspan="9" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></td></tr></tbody>
                 </table>
             </div>
         </div>
-        @if($transactions->hasPages())
-        <div class="card-footer d-flex justify-content-center">
-            {{ $transactions->appends(request()->query())->links('pagination::bootstrap-5') }}
+        <div class="card-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div id="tableInfo" class="text-muted small"></div>
+            <nav aria-label="Transactions pagination">
+                <ul id="pagination" class="pagination pagination-sm mb-0"></ul>
+            </nav>
         </div>
-        @endif
     </div>
+
+    <input type="hidden" id="transactionDateFromFilter" value="{{ $dateFrom }}">
+    <input type="hidden" id="transactionDateToFilter" value="{{ $dateTo }}">
+    <input type="hidden" id="transactionTypeFilter" value="{{ $type }}">
 </div>
 @endsection
+
+@push('scripts')
+<script src="{{ asset('js/index-table-bridge.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    IndexTableBridge.init({
+        tableId: 'transactionsTable',
+        dataUrl: @json(route('reports.transaction.data')),
+        filters: [
+            { inputId: 'transactionDateFromFilter', param: 'date_from' },
+            { inputId: 'transactionDateToFilter', param: 'date_to' },
+            { inputId: 'transactionTypeFilter', param: 'type' }
+        ],
+        emptyMessage: 'No transactions in this period.',
+        colspan: 9,
+        renderRow: function (row, ctx) {
+            const typeBadge = row.type === 'in' ? 'bg-success' : 'bg-danger';
+            const statusBadge = row.status === 'pending' ? 'badge-pending' : 'badge-approved';
+            const statusLabel = row.status === 'pending' ? 'PENDING' : 'APPROVED';
+            return `
+                <tr>
+                    <td class="text-nowrap fw-semibold small">${ctx.escapeHtml(row.log_id)}</td>
+                    <td class="text-nowrap text-muted small">${ctx.escapeHtml(row.date || '—')}</td>
+                    <td class="fw-semibold">${ctx.escapeHtml(row.item_name || '—')}</td>
+                    <td class="text-muted small">${ctx.escapeHtml(row.branch_name || '—')}</td>
+                    <td><span class="badge ${typeBadge}">${ctx.escapeHtml((row.type || '').toUpperCase())}</span></td>
+                    <td>${Number(row.quantity || 0).toFixed(2)} ${ctx.escapeHtml(row.unit || '')}</td>
+                    <td><span class="badge-status ${statusBadge}">${statusLabel}</span></td>
+                    <td class="text-muted small">${ctx.escapeHtml(row.reason || '—')}</td>
+                    <td class="text-muted small">${ctx.escapeHtml(row.created_by || '—')}</td>
+                </tr>
+            `;
+        }
+    });
+});
+</script>
+@endpush

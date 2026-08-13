@@ -66,6 +66,81 @@ class CostingReportController extends Controller
         ]);
     }
 
+    /**
+     * JSON feed for the Report History table (see
+     * ReportController::deliveryData() docblock for why).
+     */
+    public function reportsData(Request $request): JsonResponse
+    {
+        $branchId = $this->resolveBranchId($request);
+        $status = $request->input('status', '');
+        $dateFrom = $request->input('date_from', now()->startOfMonth()->toDateString());
+        $dateTo = $request->input('date_to', now()->toDateString());
+
+        $reports = CostingReport::query()
+            ->with(['item.category', 'branch', 'requester', 'approver'])
+            ->when($branchId, fn ($q, $id) => $q->where('branch_id', $id))
+            ->when($status, fn ($q, $s) => $q->where('status', $s))
+            ->whereDate('created_at', '>=', $dateFrom)
+            ->whereDate('created_at', '<=', $dateTo)
+            ->latest()
+            ->paginate($this->perPage($request, 20))
+            ->through(fn (CostingReport $report) => [
+                'id' => $report->id,
+                'item_name' => $report->item?->name ?? 'Deleted item',
+                'category_name' => $report->item?->category?->name ?? 'N/A',
+                'branch_name' => $report->branch?->name ?? 'N/A',
+                'current_price' => (float) $report->current_price,
+                'proposed_price' => (float) $report->proposed_price,
+                'delta' => (float) $report->proposed_price - (float) $report->current_price,
+                'source_label' => $report->reasonTypeLabel().($report->reference_id ? ' #'.$report->reference_id : ''),
+                'status' => $report->status,
+                'requester_name' => $report->requester?->name ?? 'N/A',
+                'approver_name' => $report->approver?->name,
+                'created_at' => $report->created_at?->format('M d, Y H:i'),
+                'show_url' => route('reports.costing.show', $report),
+            ]);
+
+        return response()->json($reports);
+    }
+
+    /**
+     * JSON feed for the Current Item Cost Reference table.
+     */
+    public function itemsData(Request $request): JsonResponse
+    {
+        $branchId = $this->resolveBranchId($request);
+
+        $latestUnitCostSub = InventoryTransaction::query()
+            ->select('transaction_price')
+            ->whereColumn('item_id', 'items.id')
+            ->where('type', 'in')
+            ->where('status', 'approved')
+            ->whereNotNull('transaction_price')
+            ->latest('created_at')
+            ->limit(1);
+
+        $items = Item::query()
+            ->with(['category.location', 'branch'])
+            ->when($branchId, fn ($q, $id) => $q->where('branch_id', $id))
+            ->select('items.*')
+            ->selectSub($latestUnitCostSub, 'latest_unit_cost')
+            ->orderBy('name')
+            ->paginate($this->perPage($request, 10))
+            ->through(fn (Item $item) => [
+                'id' => $item->id,
+                'name' => $item->name,
+                'location_name' => $item->category?->location?->name ?? 'N/A',
+                'category_name' => $item->category?->name ?? 'N/A',
+                'branch_name' => $item->branch?->name ?? 'N/A',
+                'unit_price' => (float) ($item->unit_price ?? 0),
+                'latest_unit_cost' => $item->latest_unit_cost !== null ? (float) $item->latest_unit_cost : null,
+                'request_url' => route('reports.costing.create', ['item_id' => $item->id]),
+            ]);
+
+        return response()->json($items);
+    }
+
     public function create(Request $request): View
     {
         $branchId = $this->resolveBranchId($request);

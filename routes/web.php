@@ -201,6 +201,7 @@ Route::middleware('auth')->group(function (): void {
 
 	Route::prefix('productions')->name('productions.')->group(function (): void {
 		Route::get('/', [ProductionManagementController::class, 'index'])->name('index');
+		Route::get('/data', [ProductionManagementController::class, 'data'])->name('data');
 		Route::get('/create', [ProductionManagementController::class, 'create'])->name('create');
 		Route::post('/', [ProductionManagementController::class, 'store'])->name('store');
 		Route::get('/{production}', [ProductionManagementController::class, 'show'])->name('show');
@@ -322,10 +323,15 @@ Route::middleware('auth')->group(function (): void {
 		Route::get('/inventory', [ReportController::class, 'inventory'])->name('inventory.index');
 		Route::get('/cogs', [ReportController::class, 'cogs'])->name('cogs.index');
 		Route::get('/feedback', [ReportController::class, 'feedback'])->name('feedback.index');
+		Route::get('/feedback/data', [ReportController::class, 'feedbackData'])->name('feedback.data');
 		Route::get('/transactions', [ReportController::class, 'transaction'])->name('transaction.index');
+		Route::get('/transactions/data', [ReportController::class, 'transactionData'])->name('transaction.data');
 		Route::get('/deliveries', [ReportController::class, 'delivery'])->name('delivery.index');
+		Route::get('/deliveries/data', [ReportController::class, 'deliveryData'])->name('delivery.data');
 		Route::get('/deliveries/export', [ReportController::class, 'exportDelivery'])->name('delivery.export');
 		Route::get('/costing', [CostingReportController::class, 'index'])->name('costing.index');
+		Route::get('/costing/data', [CostingReportController::class, 'reportsData'])->name('costing.data');
+		Route::get('/costing/items-data', [CostingReportController::class, 'itemsData'])->name('costing.items-data');
 		Route::get('/costing/create', [CostingReportController::class, 'create'])->name('costing.create');
 		Route::post('/costing', [CostingReportController::class, 'store'])->name('costing.store');
 		Route::get('/costing/search/deliveries', [CostingReportController::class, 'searchDeliveries'])->name('costing.search.deliveries');
@@ -336,6 +342,7 @@ Route::middleware('auth')->group(function (): void {
 
 		Route::middleware('role:admin,branch_manager')->group(function (): void {
 			Route::get('/menu-order-sales', [MenuOrderSalesReportController::class, 'index'])->name('menu-order-sales.index');
+			Route::get('/menu-order-sales/data', [MenuOrderSalesReportController::class, 'data'])->name('menu-order-sales.data');
 			Route::get('/menu-order-sales/export/excel', [MenuOrderSalesReportController::class, 'exportExcel'])->name('menu-order-sales.export-excel');
 			Route::get('/menu-order-sales/export/pdf', [MenuOrderSalesReportController::class, 'exportPdf'])->name('menu-order-sales.export-pdf');
 		});
@@ -354,6 +361,7 @@ Route::middleware('auth')->group(function (): void {
 
 		Route::prefix('z-reading')->name('z-reading.')->group(function (): void {
 			Route::get('/', [ZReadingController::class, 'index'])->name('index');
+			Route::get('/data', [ZReadingController::class, 'data'])->name('data');
 			Route::get('/preview', [ZReadingController::class, 'preview'])->name('preview');
 			Route::post('/', [ZReadingController::class, 'store'])->name('store');
 			Route::get('/{zReading}', [ZReadingController::class, 'show'])->name('show');

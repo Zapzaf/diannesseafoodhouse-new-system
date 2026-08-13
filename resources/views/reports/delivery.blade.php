@@ -82,11 +82,11 @@
     </div>
 
     {{-- Table --}}
-    <div class="card shadow-sm" data-static-pagination="1">
+    <div class="card shadow-sm">
         <div class="card-header fw-semibold"><i data-lucide="truck" class="me-1"></i> Delivery Items</div>
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-bordered table-striped">
+                <table class="table table-bordered table-striped" id="deliveryItemsTable">
                     <thead class="table-dark">
                         <tr>
                             <th>Delivery Reference</th>
@@ -102,43 +102,61 @@
                             <th>Created By</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        @forelse($deliveryItems as $deliveryItem)
-                        @php
-                            $delivery = $deliveryItem->delivery;
-                            $itemName = $deliveryItem->description
-                                ?: ($deliveryItem->item?->name ?? $deliveryItem->sourceItem?->name ?? 'Unspecified item');
-                            $sourceName = $delivery?->sourceBranch?->name
-                                ?? $delivery?->supplier?->name
-                                ?? null;
-                        @endphp
-                        <tr>
-                            <td class="fw-semibold text-nowrap">{{ $delivery->reference_number }}</td>
-                            <td class="text-nowrap text-muted small">{{ $delivery->created_at->format('M d, Y H:i') }}</td>
-                            <td>{{ $delivery->destinationBranch?->name ?? '—' }}</td>
-                            <td>{{ $sourceName ?? '—' }}</td>
-                            <td class="fw-semibold">{{ $itemName }}</td>
-                            <td class="text-end">{{ number_format((float) $deliveryItem->quantity, 2) }}</td>
-                            <td>{{ $deliveryItem->unit }}</td>
-                            <td class="text-end fw-semibold">₱{{ number_format((float) ($deliveryItem->price ?? 0), 2) }}</td>
-                            <td>
-                                <span class="badge-status badge-{{ $delivery->status }}">{{ strtoupper($delivery->status) }}</span>
-                            </td>
-                            <td class="text-muted small">{{ $delivery->approver?->name ?? '—' }}</td>
-                            <td class="text-muted small">{{ $delivery->creator?->name ?? '—' }}</td>
-                        </tr>
-                        @empty
-                        <tr><td colspan="11" class="text-center text-muted py-4">No deliveries in this period.</td></tr>
-                        @endforelse
-                    </tbody>
+                    <tbody id="tableBody"><tr><td colspan="11" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></td></tr></tbody>
                 </table>
             </div>
         </div>
-        @if($deliveryItems->hasPages())
-        <div class="card-footer d-flex justify-content-center">
-            {{ $deliveryItems->appends(request()->query())->links('pagination::bootstrap-5') }}
+        <div class="card-footer d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div id="tableInfo" class="text-muted small"></div>
+            <nav aria-label="Delivery items pagination">
+                <ul id="pagination" class="pagination pagination-sm mb-0"></ul>
+            </nav>
         </div>
-        @endif
     </div>
+
+    {{-- Current filter values, mirrored into IndexTableBridge as fixed
+         (non-interactive) filters — this keeps date_from/date_to/status in
+         every paginated fetch AND preserved in the URL after page/per-page
+         changes. They only actually change via the "Apply" reload above. --}}
+    <input type="hidden" id="deliveryDateFromFilter" value="{{ $dateFrom }}">
+    <input type="hidden" id="deliveryDateToFilter" value="{{ $dateTo }}">
+    <input type="hidden" id="deliveryStatusFilter" value="{{ $status }}">
 </div>
 @endsection
+
+@push('scripts')
+<script src="{{ asset('js/index-table-bridge.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    IndexTableBridge.init({
+        tableId: 'deliveryItemsTable',
+        dataUrl: @json(route('reports.delivery.data')),
+        filters: [
+            { inputId: 'deliveryDateFromFilter', param: 'date_from' },
+            { inputId: 'deliveryDateToFilter', param: 'date_to' },
+            { inputId: 'deliveryStatusFilter', param: 'status' }
+        ],
+        emptyMessage: 'No deliveries in this period.',
+        colspan: 11,
+        renderRow: function (row, ctx) {
+            const statusLabel = (row.status || '').toUpperCase();
+            return `
+                <tr>
+                    <td class="fw-semibold text-nowrap">${ctx.escapeHtml(row.reference_number)}</td>
+                    <td class="text-nowrap text-muted small">${ctx.escapeHtml(row.date || '—')}</td>
+                    <td>${ctx.escapeHtml(row.destination || '—')}</td>
+                    <td>${ctx.escapeHtml(row.source || '—')}</td>
+                    <td class="fw-semibold">${ctx.escapeHtml(row.item_name)}</td>
+                    <td class="text-end">${Number(row.quantity || 0).toFixed(2)}</td>
+                    <td>${ctx.escapeHtml(row.unit || '')}</td>
+                    <td class="text-end fw-semibold">₱${Number(row.cost || 0).toFixed(2)}</td>
+                    <td><span class="badge-status badge-${ctx.escapeHtml(row.status)}">${ctx.escapeHtml(statusLabel)}</span></td>
+                    <td class="text-muted small">${ctx.escapeHtml(row.approved_by || '—')}</td>
+                    <td class="text-muted small">${ctx.escapeHtml(row.created_by || '—')}</td>
+                </tr>
+            `;
+        }
+    });
+});
+</script>
+@endpush
