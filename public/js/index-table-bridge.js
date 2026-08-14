@@ -245,6 +245,8 @@ window.IndexTableBridge = (function () {
             });
         }
 
+        let activeAbortController = null;
+
         function loadData() {
             const params = new URLSearchParams({
                 page: currentPage,
@@ -266,7 +268,17 @@ window.IndexTableBridge = (function () {
 
             syncUrl(params);
 
-            fetch(config.dataUrl + '?' + params.toString())
+            // Cancel any still-in-flight request so fast typing/clicking
+            // doesn't pile up overlapping fetches whose responses can land
+            // out of order and thrash the table (this is what caused the
+            // "search freezes the browser" issue).
+            if (activeAbortController) {
+                activeAbortController.abort();
+            }
+            activeAbortController = new AbortController();
+            const thisRequestController = activeAbortController;
+
+            fetch(config.dataUrl + '?' + params.toString(), { signal: thisRequestController.signal })
                 .then(function (response) {
                     return response.json();
                 })
@@ -310,14 +322,26 @@ window.IndexTableBridge = (function () {
                     // cards, totals) in sync with whatever this table's
                     // response carries beyond just its own rows/pagination.
                     if (typeof config.onData === 'function') config.onData(data);
+                })
+                .catch(function (error) {
+                    // A superseded request was aborted on purpose — ignore it,
+                    // the request that replaced it will render instead.
+                    if (error && error.name === 'AbortError') return;
+                    throw error;
                 });
         }
 
+        let searchDebounce = null;
+
         if (searchInput) {
             searchInput.addEventListener('input', function (event) {
-                search = event.target.value;
-                currentPage = 1;
-                loadData();
+                const value = event.target.value;
+                clearTimeout(searchDebounce);
+                searchDebounce = setTimeout(function () {
+                    search = value;
+                    currentPage = 1;
+                    loadData();
+                }, 300);
             });
         }
 
