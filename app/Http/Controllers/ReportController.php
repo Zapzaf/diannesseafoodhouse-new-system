@@ -90,10 +90,116 @@ class ReportController extends Controller
         $totalCogs = (clone $itemsQuery)->get()
             ->sum(fn (Item $item) => (float) $item->quantity_sold * (float) ($item->latest_unit_cost ?? $item->unit_price));
 
-        return view('reports.cogs', compact('items', 'dateFrom', 'dateTo', 'totalCogs') + [
+        [$totalBeginningValue, $totalPurchasesValue, $totalEndingValue, $totalCogsFormula] =
+            $this->cogsFormulaTotals($branchId, $dateFrom, $dateTo);
+
+        return view('reports.cogs', compact(
+            'items',
+            'dateFrom',
+            'dateTo',
+            'totalCogs',
+            'totalBeginningValue',
+            'totalPurchasesValue',
+            'totalEndingValue',
+            'totalCogsFormula'
+        ) + [
             'branches' => Branch::query()->where('is_active', true)->orderBy('name')->get(),
             'selectedBranchId' => $branchId,
         ]);
+    }
+
+    /**
+     * Textbook COGS: Beginning Inventory + Purchases − Ending Inventory.
+     *
+     * Beginning/Ending quantities are reconstructed from the item's current
+     * on-hand quantity by "unwinding" approved transactions that happened
+     * after the period, since we don't keep historical stock snapshots:
+     *   ending qty   = current qty − (in after period) + (out after period)
+     *   beginning qty = ending qty − (in during period) + (out during period)
+     * Beginning/Ending are valued at each item's latest purchase cost (the
+     * same convention used elsewhere in this report). Purchases are valued
+     * at the actual price paid on each "in" transaction, falling back to
+     * that same latest cost where a transaction has no recorded price.
+     *
+     * @return array{0: float, 1: float, 2: float, 3: float} [beginningValue, purchasesValue, endingValue, cogs]
+     */
+    private function cogsFormulaTotals(?int $branchId, string $dateFrom, string $dateTo): array
+    {
+        $latestUnitCostSub = InventoryTransaction::query()
+            ->select('transaction_price')
+            ->whereColumn('item_id', 'items.id')
+            ->where('type', 'in')
+            ->where('status', 'approved')
+            ->whereNotNull('transaction_price')
+            ->latest('created_at')
+            ->limit(1);
+
+        $items = Item::query()
+            ->when($branchId, fn ($q, $id) => $q->where('branch_id', $id))
+            ->select('items.id', 'items.quantity', 'items.unit_price')
+            ->selectSub($latestUnitCostSub, 'latest_unit_cost')
+            ->get();
+
+        if ($items->isEmpty()) {
+            return [0.0, 0.0, 0.0, 0.0];
+        }
+
+        $itemIds = $items->pluck('id');
+        $periodEnd = \Illuminate\Support\Carbon::parse($dateTo)->endOfDay();
+
+        $duringByItem = InventoryTransaction::query()
+            ->whereIn('item_id', $itemIds)
+            ->where('status', 'approved')
+            ->whereDate('created_at', '>=', $dateFrom)
+            ->whereDate('created_at', '<=', $dateTo)
+            ->selectRaw("item_id,
+                SUM(CASE WHEN type = 'in' THEN quantity ELSE 0 END) as qty_in,
+                SUM(CASE WHEN type = 'out' THEN quantity ELSE 0 END) as qty_out,
+                SUM(CASE WHEN type = 'in' AND transaction_price IS NOT NULL THEN quantity * transaction_price ELSE 0 END) as purchases_value_priced,
+                SUM(CASE WHEN type = 'in' AND transaction_price IS NULL THEN quantity ELSE 0 END) as qty_in_unpriced")
+            ->groupBy('item_id')
+            ->get()
+            ->keyBy('item_id');
+
+        $afterByItem = InventoryTransaction::query()
+            ->whereIn('item_id', $itemIds)
+            ->where('status', 'approved')
+            ->where('created_at', '>', $periodEnd)
+            ->selectRaw("item_id,
+                SUM(CASE WHEN type = 'in' THEN quantity ELSE 0 END) as qty_in,
+                SUM(CASE WHEN type = 'out' THEN quantity ELSE 0 END) as qty_out")
+            ->groupBy('item_id')
+            ->get()
+            ->keyBy('item_id');
+
+        $totalBeginningValue = 0.0;
+        $totalPurchasesValue = 0.0;
+        $totalEndingValue = 0.0;
+
+        foreach ($items as $item) {
+            $cost = (float) ($item->latest_unit_cost ?? $item->unit_price);
+            $during = $duringByItem->get($item->id);
+            $after = $afterByItem->get($item->id);
+
+            $duringIn = (float) ($during->qty_in ?? 0);
+            $duringOut = (float) ($during->qty_out ?? 0);
+            $afterIn = (float) ($after->qty_in ?? 0);
+            $afterOut = (float) ($after->qty_out ?? 0);
+
+            $endingQty = (float) $item->quantity - $afterIn + $afterOut;
+            $beginningQty = $endingQty - $duringIn + $duringOut;
+
+            $purchasesValue = (float) ($during->purchases_value_priced ?? 0)
+                + ((float) ($during->qty_in_unpriced ?? 0) * $cost);
+
+            $totalBeginningValue += $beginningQty * $cost;
+            $totalEndingValue += $endingQty * $cost;
+            $totalPurchasesValue += $purchasesValue;
+        }
+
+        $totalCogsFormula = $totalBeginningValue + $totalPurchasesValue - $totalEndingValue;
+
+        return [$totalBeginningValue, $totalPurchasesValue, $totalEndingValue, $totalCogsFormula];
     }
 
     public function transaction(Request $request): View

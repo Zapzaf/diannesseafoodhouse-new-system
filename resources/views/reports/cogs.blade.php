@@ -27,6 +27,36 @@
         </div>
     </div>
 
+    {{-- Formula summary: Beginning + Purchases − Ending = COGS --}}
+    <div class="card shadow-sm mb-4 border-0" style="background: linear-gradient(135deg,#fff7f5,#fff);">
+        <div class="card-body">
+            <div class="row g-3 text-center align-items-center">
+                <div class="col-6 col-md">
+                    <div class="text-muted small">Beginning Inventory</div>
+                    <div class="fs-5 fw-bold">₱{{ number_format($totalBeginningValue, 2) }}</div>
+                </div>
+                <div class="col-auto d-none d-md-block fs-4 text-muted">+</div>
+                <div class="col-6 col-md">
+                    <div class="text-muted small">Purchases</div>
+                    <div class="fs-5 fw-bold text-success">₱{{ number_format($totalPurchasesValue, 2) }}</div>
+                </div>
+                <div class="col-auto d-none d-md-block fs-4 text-muted">&minus;</div>
+                <div class="col-6 col-md">
+                    <div class="text-muted small">Ending Inventory</div>
+                    <div class="fs-5 fw-bold">₱{{ number_format($totalEndingValue, 2) }}</div>
+                </div>
+                <div class="col-auto d-none d-md-block fs-4 text-muted">=</div>
+                <div class="col-6 col-md">
+                    <div class="text-muted small">Cost of Goods Sold</div>
+                    <div class="fs-5 fw-bold text-danger">₱{{ number_format($totalCogsFormula, 2) }}</div>
+                </div>
+            </div>
+            <div class="form-text mt-2 mb-0 text-center">
+                Beginning Inventory + Purchases &minus; Ending Inventory = Cost of Goods Sold, for the selected period and branch. Beginning/Ending stock is valued at each item's latest purchase cost; Purchases are valued at the actual price paid on each stock-in.
+            </div>
+        </div>
+    </div>
+
     {{-- Summary --}}
     <div class="row g-4 mb-4">
         <div class="col-md-4">
@@ -36,7 +66,7 @@
                         <i data-lucide="receipt" class="text-danger" style="width:24px;height:24px;"></i>
                     </div>
                     <div>
-                        <div class="text-muted small">Total Cost of Goods Sold</div>
+                        <div class="text-muted small">Total Cost of Goods Sold (by item)</div>
                         <div class="fs-4 fw-bold">₱{{ number_format($totalCogs, 2) }}</div>
                     </div>
                 </div>
