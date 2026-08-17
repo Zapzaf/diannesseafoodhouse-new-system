@@ -1,17 +1,16 @@
 @extends('layouts.app')
 @section('page_title', 'Check Voucher ' . $checkVoucher->cv_no)
 @php
-    $canDeleteAdvance = auth()->user()->isAdmin()
-        && $checkVoucher->type === 'advance'
-        && $checkVoucher->liquidations->isEmpty();
-    $deleteAdvanceConfirm = $checkVoucher->status === 'draft'
-        ? 'Delete this advance? This cannot be undone.'
-        : 'This advance has already been paid out. Deleting it will also remove its Check Register entry, if any. This cannot be undone. Continue?';
+    $canDeleteVoucher = auth()->user()->isAdmin()
+        && ! ($checkVoucher->type === 'advance' && $checkVoucher->liquidations->isNotEmpty());
+    $deleteVoucherConfirm = $checkVoucher->status === 'draft'
+        ? 'Delete Check Voucher '.$checkVoucher->cv_no.'? This cannot be undone.'
+        : 'Check Voucher '.$checkVoucher->cv_no.' has already been paid out. Deleting it will also remove its Check Register entry and any receipts. This cannot be undone. Continue?';
 @endphp
 @section('content')
     <x-page-header title="Check Voucher {{ $checkVoucher->cv_no }}" subtitle="{{ ucwords(str_replace('_', ' ', $checkVoucher->type)) }}" icon="banknote">
-        @if($canDeleteAdvance)
-        <form action="{{ route('check-vouchers.destroy', $checkVoucher) }}" method="POST" onsubmit="return confirm('{{ $deleteAdvanceConfirm }}')">
+        @if($canDeleteVoucher)
+        <form action="{{ route('check-vouchers.destroy', $checkVoucher) }}" method="POST" onsubmit="return confirm('{{ $deleteVoucherConfirm }}')">
             @csrf @method('DELETE')
             <button type="submit" class="btn btn-outline-danger">
                 <i data-lucide="trash-2" class="me-1"></i> Delete

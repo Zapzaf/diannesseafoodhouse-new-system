@@ -53,6 +53,7 @@ class CheckVoucherController extends Controller
 
         $vouchers = $query
             ->with(['purchaseVoucher', 'checkRegisterEntry', 'costAccount', 'branch'])
+            ->withCount('liquidations')
             ->latest('date')
             ->paginate($this->perPage($request, 20))
             ->withQueryString();
@@ -335,34 +336,46 @@ class CheckVoucherController extends Controller
     }
 
     /**
-     * Admin-only cleanup for a cash advance — entered by mistake, or (per the
-     * client's request) an old advance they want removed even after it was
-     * paid out. Still blocked once liquidation(s) are recorded against it,
-     * since those are real accounting entries the deletion would otherwise
-     * silently cascade away; void the advance instead in that case so the
-     * audit trail stays intact. If the advance was already paid (has a
-     * Check Register entry), that entry is removed along with it so the
-     * register doesn't reference a check voucher that no longer exists.
+     * Admin-only: delete the entire Check Voucher — any disbursement type,
+     * whether it's still a draft or already paid out — per the client's
+     * request for a straightforward Delete action on CVs (e.g. CV#2613,
+     * CV#2612). Related records clean up automatically via DB cascades:
+     * its Check Register entry, receipts (COD/Other), and advance
+     * liquidations are all deleted with it; any Petty Cash Vouchers it
+     * replenished are simply unlinked (their own PCV record stays intact).
+     *
+     * The one hard stop is an Advance with liquidation(s) already recorded
+     * against it — those are real recorded expenses, not something to
+     * silently cascade away. Void it instead in that case so the audit
+     * trail stays intact.
+     *
+     * If the CV settled a Purchase Voucher or Service, that parent's
+     * paid/partially-paid/unpaid status is recomputed afterward so it
+     * doesn't keep counting a payment that no longer exists.
      */
     public function destroy(Request $request, CheckVoucher $checkVoucher)
     {
         abort_unless($request->user()?->isAdmin(), 403);
         $this->authorizeBranchRecord($request, $checkVoucher->branch_id);
 
-        if ($checkVoucher->type !== 'advance') {
-            return back()->with('error', 'Only Advance disbursements can be deleted here.');
-        }
-
-        if ($checkVoucher->liquidations()->exists()) {
+        if ($checkVoucher->type === 'advance' && $checkVoucher->liquidations()->exists()) {
             return back()->with('error', 'This advance already has liquidation(s) recorded and cannot be deleted. Void it instead if it was recorded in error.');
         }
 
+        $purchaseVoucher = $checkVoucher->purchaseVoucher;
+        $service = $checkVoucher->service;
+        $cvNo = $checkVoucher->cv_no;
+
         DB::transaction(function () use ($checkVoucher): void {
-            $checkVoucher->checkRegisterEntry?->delete();
             $checkVoucher->delete();
         });
 
-        return redirect()->route('reports.payables.advances')->with('success', 'Advance deleted.');
+        $purchaseVoucher?->recomputeStatus();
+        $service?->recomputeStatus();
+
+        return redirect()
+            ->to(url()->previous() === route('check-vouchers.show', $checkVoucher) ? route('check-vouchers.index') : url()->previous())
+            ->with('success', 'Check Voucher '.$cvNo.' deleted.');
     }
 
     public function show(Request $request, CheckVoucher $checkVoucher)
