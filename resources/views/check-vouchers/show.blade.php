@@ -3,13 +3,15 @@
 @php
     $canDeleteAdvance = auth()->user()->isAdmin()
         && $checkVoucher->type === 'advance'
-        && $checkVoucher->status === 'draft'
         && $checkVoucher->liquidations->isEmpty();
+    $deleteAdvanceConfirm = $checkVoucher->status === 'draft'
+        ? 'Delete this advance? This cannot be undone.'
+        : 'This advance has already been paid out. Deleting it will also remove its Check Register entry, if any. This cannot be undone. Continue?';
 @endphp
 @section('content')
     <x-page-header title="Check Voucher {{ $checkVoucher->cv_no }}" subtitle="{{ ucwords(str_replace('_', ' ', $checkVoucher->type)) }}" icon="banknote">
         @if($canDeleteAdvance)
-        <form action="{{ route('check-vouchers.destroy', $checkVoucher) }}" method="POST" onsubmit="return confirm('Delete this advance? This cannot be undone.')">
+        <form action="{{ route('check-vouchers.destroy', $checkVoucher) }}" method="POST" onsubmit="return confirm('{{ $deleteAdvanceConfirm }}')">
             @csrf @method('DELETE')
             <button type="submit" class="btn btn-outline-danger">
                 <i data-lucide="trash-2" class="me-1"></i> Delete
@@ -311,6 +313,20 @@
                     <div class="col-md-4"><div class="small text-muted">Advance Amount</div><div class="fw-semibold">₱{{ number_format($checkVoucher->amount_w_vat, 2) }}</div></div>
                     <div class="col-md-4"><div class="small text-muted">Liquidated</div><div class="fw-semibold">₱{{ number_format($checkVoucher->liquidated_amount, 2) }}</div></div>
                     <div class="col-md-4"><div class="small text-muted">Outstanding</div><div class="fw-semibold">₱{{ number_format($checkVoucher->outstanding_advance, 2) }}</div></div>
+                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-4">
+                        <div class="small text-muted">VAT</div>
+                        <div class="fw-semibold">
+                            @if($checkVoucher->vat > 0)
+                                <span class="badge bg-primary-soft text-primary">With VAT</span>
+                            @else
+                                <span class="badge bg-secondary-soft text-secondary">Without VAT</span>
+                            @endif
+                        </div>
+                    </div>
+                    <div class="col-md-4"><div class="small text-muted">Net Purchases</div><div class="fw-semibold">₱{{ number_format($checkVoucher->net_purchases, 2) }}</div></div>
+                    <div class="col-md-4"><div class="small text-muted">VAT Amount</div><div class="fw-semibold">₱{{ number_format($checkVoucher->vat, 2) }}</div></div>
                 </div>
                 <div class="table-responsive mb-3">
                     <table class="table table-bordered table-sm">

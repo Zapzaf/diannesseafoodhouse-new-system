@@ -46,8 +46,13 @@
                                 <td class="text-end fw-semibold">₱{{ number_format($advance->outstanding_advance, 2) }}</td>
                                 @if(auth()->user()->isAdmin())
                                 <td class="table-actions-cell text-nowrap">
-                                    @if($advance->status === 'draft' && $advance->liquidations->isEmpty())
-                                    <form action="{{ route('check-vouchers.destroy', $advance) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this advance? This cannot be undone.')">
+                                    @if($advance->liquidations->isEmpty())
+                                    @php
+                                        $deleteConfirm = $advance->status === 'draft'
+                                            ? 'Delete this advance? This cannot be undone.'
+                                            : 'This advance has already been paid out. Deleting it will also remove its Check Register entry, if any. This cannot be undone. Continue?';
+                                    @endphp
+                                    <form action="{{ route('check-vouchers.destroy', $advance) }}" method="POST" class="d-inline" onsubmit="return confirm('{{ $deleteConfirm }}')">
                                         @csrf @method('DELETE')
                                         <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i data-lucide="trash-2"></i></button>
                                     </form>

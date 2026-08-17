@@ -465,6 +465,7 @@ Route::middleware('auth')->group(function (): void {
 		Route::get('/', [CheckVoucherController::class, 'index'])->name('index');
 		Route::get('/create', [CheckVoucherController::class, 'create'])->name('create');
 		Route::post('/', [CheckVoucherController::class, 'store'])->name('store');
+		Route::get('/export', [CheckVoucherController::class, 'export'])->name('export');
 		Route::get('/unreplenished-pcvs', [CheckVoucherController::class, 'unreplenishedPcvs'])->name('unreplenished-pcvs');
 		Route::get('/unpaid-apvs', [CheckVoucherController::class, 'unpaidApvs'])->name('unpaid-apvs');
 		Route::get('/unpaid-services', [CheckVoucherController::class, 'unpaidServices'])->name('unpaid-services');

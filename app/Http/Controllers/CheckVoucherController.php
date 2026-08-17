@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\DisbursementReportExport;
 use App\Models\AdvanceLiquidation;
 use App\Models\BankAccount;
 use App\Models\ChartOfAccount;
@@ -17,12 +18,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Maatwebsite\Excel\Facades\Excel;
 
 class CheckVoucherController extends Controller
 {
-    public function index(Request $request)
+    private function filteredQuery(Request $request)
     {
-        $query = CheckVoucher::query()
+        return CheckVoucher::query()
             ->when($this->activeBranchId($request), fn ($q, $id) => $q->where('branch_id', $id))
             ->when($request->input('type'), fn ($q, $t) => $q->where('type', $t))
             ->when($request->input('status'), fn ($q, $s) => $q->where('status', $s))
@@ -33,6 +35,11 @@ class CheckVoucherController extends Controller
                     ->orWhereHas('purchaseVoucher', fn ($apv) => $apv->where('apv_no', 'like', "%{$s}%"))
                     ->orWhereHas('service', fn ($ser) => $ser->where('ref_no', 'like', "%{$s}%"));
             }));
+    }
+
+    public function index(Request $request)
+    {
+        $query = $this->filteredQuery($request);
 
         $totals = (clone $query)->selectRaw('
             COALESCE(SUM(amount_w_vat), 0) as amount_w_vat,
@@ -51,6 +58,23 @@ class CheckVoucherController extends Controller
             ->withQueryString();
 
         return view('check-vouchers.index', compact('vouchers', 'totals'));
+    }
+
+    /**
+     * Excel export of Disbursements (Check Vouchers), honoring the same
+     * type/status/search/branch filters as the index list, with the
+     * creating/updating user included per the client's request.
+     */
+    public function export(Request $request)
+    {
+        $vouchers = $this->filteredQuery($request)
+            ->with(['branch', 'supplier', 'creator', 'updater'])
+            ->latest('date')
+            ->get();
+
+        $filename = 'disbursements-'.now()->format('Y-m-d').'.xlsx';
+
+        return Excel::download(new DisbursementReportExport($vouchers), $filename);
     }
 
     public function create(Request $request)
@@ -127,6 +151,7 @@ class CheckVoucherController extends Controller
         } elseif ($type === 'advance') {
             $rules['advance_account_id'] = ['required', Rule::exists('chart_of_accounts', 'id')->whereIn('type', ['credit_liability', 'debit_asset'])];
             $rules['amount_w_vat'] = ['required', 'numeric', 'min:0.01'];
+            $rules['advance_vat_type'] = ['required', Rule::in(['with_vat', 'without_vat'])];
             $rules['branch_id'] = [
                 Rule::requiredIf(fn () => $request->user()->isAdmin() && ! $request->session()->get('selected_branch_id')),
                 'nullable', 'exists:branches,id',
@@ -247,9 +272,11 @@ class CheckVoucherController extends Controller
             $vatExempt = $isStandalone ? round($receipts->sum('vat_exempt'), 2) : (float) ($validated['vat_exempt'] ?? 0);
             $nonVat = $isStandalone ? round($receipts->sum('non_vat_purchase'), 2) : (float) ($validated['non_vat_purchase'] ?? 0);
 
-            $vatSplit = $isStandalone
-                ? VatCalculator::split($amountWVat)
-                : ['net_purchases' => 0, 'vat' => 0];
+            $vatSplit = match (true) {
+                $isStandalone => VatCalculator::split($amountWVat),
+                $type === 'advance' && ($validated['advance_vat_type'] ?? 'without_vat') === 'with_vat' => VatCalculator::split($amountWVat),
+                default => ['net_purchases' => 0, 'vat' => 0],
+            };
 
             $siNo = $isStandalone
                 ? $receipts->pluck('si_no')->filter()->implode(', ') ?: null
@@ -308,11 +335,14 @@ class CheckVoucherController extends Controller
     }
 
     /**
-     * Admin-only cleanup for a cash advance entered by mistake. Restricted to
-     * advances that haven't actually been paid out yet (still "draft") and
-     * have no liquidations recorded — once money has moved or been
-     * liquidated against it, the record must be voided (Check Register)
-     * rather than deleted, so the audit trail stays intact.
+     * Admin-only cleanup for a cash advance — entered by mistake, or (per the
+     * client's request) an old advance they want removed even after it was
+     * paid out. Still blocked once liquidation(s) are recorded against it,
+     * since those are real accounting entries the deletion would otherwise
+     * silently cascade away; void the advance instead in that case so the
+     * audit trail stays intact. If the advance was already paid (has a
+     * Check Register entry), that entry is removed along with it so the
+     * register doesn't reference a check voucher that no longer exists.
      */
     public function destroy(Request $request, CheckVoucher $checkVoucher)
     {
@@ -327,11 +357,10 @@ class CheckVoucherController extends Controller
             return back()->with('error', 'This advance already has liquidation(s) recorded and cannot be deleted. Void it instead if it was recorded in error.');
         }
 
-        if ($checkVoucher->status !== 'draft') {
-            return back()->with('error', 'This advance has already been paid out and cannot be deleted — void the check/payment instead.');
-        }
-
-        $checkVoucher->delete();
+        DB::transaction(function () use ($checkVoucher): void {
+            $checkVoucher->checkRegisterEntry?->delete();
+            $checkVoucher->delete();
+        });
 
         return redirect()->route('reports.payables.advances')->with('success', 'Advance deleted.');
     }

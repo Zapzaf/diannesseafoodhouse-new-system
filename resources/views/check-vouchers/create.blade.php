@@ -183,6 +183,17 @@
                                     </select>
                                     <div class="form-text text-muted">Pick an Accounts Payable account when advancing a person (e.g. Ate Dinah) against future purchases, or an Advances (asset) account for a general cash advance (e.g. Advances – KDs).</div>
                                 </div>
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold d-block">VAT</label>
+                                    <div class="btn-group" role="group" aria-label="Advance VAT type">
+                                        <input type="radio" class="btn-check" name="advance_vat_type" id="advanceVatWithout" value="without_vat" autocomplete="off" {{ old('advance_vat_type', 'without_vat') === 'without_vat' ? 'checked' : '' }}>
+                                        <label class="btn btn-outline-primary" for="advanceVatWithout">Without VAT</label>
+
+                                        <input type="radio" class="btn-check" name="advance_vat_type" id="advanceVatWith" value="with_vat" autocomplete="off" {{ old('advance_vat_type') === 'with_vat' ? 'checked' : '' }}>
+                                        <label class="btn btn-outline-primary" for="advanceVatWith">With VAT</label>
+                                    </div>
+                                    <div class="form-text text-muted">"With VAT" treats the amount below as VAT-inclusive and splits it into Net Purchases + VAT (12%). "Without VAT" records the full amount with no VAT component — use this for plain cash advances.</div>
+                                </div>
                             </div>
 
                             {{-- Standalone (COD / Other) section --}}

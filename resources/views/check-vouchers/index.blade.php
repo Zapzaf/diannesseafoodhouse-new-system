@@ -2,6 +2,9 @@
 @section('page_title', 'Check Vouchers (CV)')
 @section('content')
     <x-page-header title="Check Vouchers (CV)" subtitle="Disbursements: petty cash replenishment, APV payments, and direct purchases" icon="banknote">
+        <a href="{{ route('check-vouchers.export', request()->query()) }}" class="btn btn-success text-white">
+            <i data-lucide="download" class="me-1"></i> Export Excel
+        </a>
         <a href="{{ route('check-vouchers.create') }}" class="btn btn-primary">
             <i data-lucide="plus-circle" class="me-1"></i> New Check Voucher
         </a>
