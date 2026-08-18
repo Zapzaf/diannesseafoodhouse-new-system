@@ -269,9 +269,31 @@
                             {{-- Amount field shared by PCF replenishment / APV payment / Service payment / Advance (standalone types use their own amount above) --}}
                             <div class="cv-type-section" data-type="pcf_replenishment,apv_payment,service_payment,advance" style="display:none;">
                                 <div class="mb-3" style="max-width: 280px;">
-                                    <label class="form-label fw-semibold">Amount w/ VAT <span class="text-danger">*</span></label>
+                                    <label class="form-label fw-semibold" id="linkedAmountLabel">Amount w/ VAT <span class="text-danger">*</span></label>
                                     <input type="number" step="0.01" min="0" name="amount_w_vat" id="linkedAmount" class="form-control @error('amount_w_vat') is-invalid @enderror" value="{{ old('amount_w_vat', $payApv ? round($payApv->payable_total - $payApv->amount_paid, 2) : ($payService ? round($payService->payable_total - $payService->amount_paid, 2) : '')) }}">
                                     @error('amount_w_vat')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                                </div>
+                            </div>
+
+                            {{-- Advance amount summary: recomputed live from the amount above + the VAT toggle --}}
+                            <div class="cv-type-section" data-type="advance" style="display:none;">
+                                <div class="card bg-light border-0" style="max-width: 340px;">
+                                    <div class="card-body py-3">
+                                        <div class="small text-muted mb-2 fw-semibold">Advance Summary</div>
+                                        <div class="d-flex justify-content-between small mb-1">
+                                            <span class="text-muted">Net Amount</span>
+                                            <span id="advanceNetAmount" class="fw-semibold">₱0.00</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between small mb-1">
+                                            <span class="text-muted">VAT (12%)</span>
+                                            <span id="advanceVatAmount" class="fw-semibold">₱0.00</span>
+                                        </div>
+                                        <hr class="my-2">
+                                        <div class="d-flex justify-content-between">
+                                            <span class="fw-semibold">Total Amount</span>
+                                            <span id="advanceTotalAmount" class="fw-bold">₱0.00</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -337,9 +359,54 @@ document.addEventListener('DOMContentLoaded', function () {
     typeSelect.addEventListener('change', toggleSections);
     toggleSections();
 
+    // --- Advance: VAT toggle drives the shared amount label + live summary box ---
+    const linkedAmountLabel = document.getElementById('linkedAmountLabel');
+    const advanceVatRadios = document.querySelectorAll('input[name="advance_vat_type"]');
+    const advanceNetAmount = document.getElementById('advanceNetAmount');
+    const advanceVatAmount = document.getElementById('advanceVatAmount');
+    const advanceTotalAmount = document.getElementById('advanceTotalAmount');
+
+    function isAdvanceWithVat() {
+        const checked = document.querySelector('input[name="advance_vat_type"]:checked');
+        return checked ? checked.value === 'with_vat' : false;
+    }
+
+    function updateAdvanceAmountUi() {
+        if (typeSelect.value !== 'advance') {
+            if (linkedAmountLabel) linkedAmountLabel.innerHTML = 'Amount w/ VAT <span class="text-danger">*</span>';
+            return;
+        }
+
+        const withVat = isAdvanceWithVat();
+        if (linkedAmountLabel) {
+            linkedAmountLabel.innerHTML = (withVat ? 'Amount w/ VAT' : 'Amount') + ' <span class="text-danger">*</span>';
+        }
+
+        const amount = parseFloat(document.getElementById('linkedAmount')?.value) || 0;
+        // Without VAT: the amount stands as-is, nothing to deduct.
+        // With VAT: the amount is VAT-inclusive, so it's split into Net + 12% VAT.
+        let net = amount;
+        let vat = 0;
+        if (withVat) {
+            net = Math.round((amount / 1.12) * 100) / 100;
+            vat = Math.round((amount - net) * 100) / 100;
+        }
+
+        if (advanceNetAmount) advanceNetAmount.textContent = '₱' + net.toFixed(2);
+        if (advanceVatAmount) advanceVatAmount.textContent = '₱' + vat.toFixed(2);
+        if (advanceTotalAmount) advanceTotalAmount.textContent = '₱' + amount.toFixed(2);
+    }
+
+    advanceVatRadios.forEach(function (radio) {
+        radio.addEventListener('change', updateAdvanceAmountUi);
+    });
+    typeSelect.addEventListener('change', updateAdvanceAmountUi);
+    updateAdvanceAmountUi();
+
     // --- PCF replenishment checklist ---
     const pcvChecklist = document.getElementById('pcvChecklist');
     const linkedAmount = document.getElementById('linkedAmount');
+    linkedAmount?.addEventListener('input', updateAdvanceAmountUi);
 
     function renderPcvChecklist(pcvs) {
         if (!pcvs.length) {
