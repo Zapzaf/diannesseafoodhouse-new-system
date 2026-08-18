@@ -324,8 +324,12 @@
                             @endif
                         </div>
                     </div>
+                    @if($checkVoucher->vat > 0)
                     <div class="col-md-4"><div class="small text-muted">Net Purchases</div><div class="fw-semibold">₱{{ number_format($checkVoucher->net_purchases, 2) }}</div></div>
                     <div class="col-md-4"><div class="small text-muted">VAT Amount</div><div class="fw-semibold">₱{{ number_format($checkVoucher->vat, 2) }}</div></div>
+                    @else
+                    <div class="col-md-4"><div class="small text-muted">Non-VAT Amount</div><div class="fw-semibold">₱{{ number_format($checkVoucher->non_vat_purchase, 2) }}</div></div>
+                    @endif
                 </div>
                 <div class="table-responsive mb-3">
                     <table class="table table-bordered table-sm">

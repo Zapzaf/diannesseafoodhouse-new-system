@@ -159,12 +159,18 @@ class CheckVoucher extends Model
      * that was never there, under-withholding EWT on a non-VAT transaction.
      * For advances we use the already-computed net_purchases instead (which by
      * this point correctly holds either the VAT-exclusive split for "With VAT"
-     * advances, or the full amount for "Without VAT" ones).
+     * advances, or 0 for "Without VAT" ones — matching the rule elsewhere in
+     * this app that EWT is never withheld on a non-VAT/VAT-exempt amount).
      *
      * amount_paid must total amount_w_vat + vat_exempt + non_vat_purchase, not just
      * amount_w_vat — a CV that's entirely VAT-exempt or non-VAT (amount_w_vat = 0)
      * was previously left with amount_paid = 0, which the Check Register then
      * displayed as ₱0.00 even though the CV carried a real amount.
+     *
+     * Advances don't follow that sum, though: a "Without VAT" advance mirrors
+     * its whole amount into non_vat_purchase purely so it lands in the right
+     * report column (see store()) — it isn't additional money on top of
+     * amount_w_vat, so adding both here would double the amount paid.
      */
     public function applyEwt(): void
     {
@@ -173,7 +179,11 @@ class CheckVoucher extends Model
             : VatCalculator::split((float) $this->amount_w_vat)['net_purchases'];
 
         $this->ewt_amount = round($netPurchase * (float) $this->ewt_rate, 2);
-        $totalAmount = (float) $this->amount_w_vat + (float) $this->vat_exempt + (float) $this->non_vat_purchase;
+
+        $totalAmount = $this->type === 'advance'
+            ? (float) $this->amount_w_vat
+            : (float) $this->amount_w_vat + (float) $this->vat_exempt + (float) $this->non_vat_purchase;
+
         $this->amount_paid = round($totalAmount - $this->ewt_amount, 2);
     }
 

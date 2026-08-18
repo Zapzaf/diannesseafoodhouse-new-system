@@ -266,6 +266,7 @@ class CheckVoucherController extends Controller
 
         DB::transaction(function () use ($validated, $type, $request, $pcvs, $receipts, $branchId, $apv, $service): void {
             $isStandalone = in_array($type, ['cod_purchase', 'other_disbursement'], true);
+            $isAdvanceWithoutVat = $type === 'advance' && ($validated['advance_vat_type'] ?? 'without_vat') !== 'with_vat';
 
             // Standalone CVs (COD / Other) derive their totals from the attached
             // receipts, since one payment commonly covers several supplier receipts.
@@ -273,14 +274,21 @@ class CheckVoucherController extends Controller
             $vatExempt = $isStandalone ? round($receipts->sum('vat_exempt'), 2) : (float) ($validated['vat_exempt'] ?? 0);
             $nonVat = $isStandalone ? round($receipts->sum('non_vat_purchase'), 2) : (float) ($validated['non_vat_purchase'] ?? 0);
 
-            // Advances "Without VAT" carry no VAT component at all — the full
-            // amount is the net purchase, not zero, so it still shows up in
-            // Net Purchases totals (Purchase Disbursement Summary, etc.)
-            // instead of silently disappearing from every report.
+            // A "Without VAT" advance carries no VAT component at all, so it
+            // must be classified as Non-VAT (not Net Purchases, which
+            // specifically means "VAT stripped out of a VAT-inclusive
+            // gross") — otherwise it lands in the wrong column on the
+            // Disbursements list and Purchase Disbursement Summary. This is
+            // a display/classification mirror only: amount_w_vat itself
+            // keeps holding the advance's real total, since Outstanding
+            // Advance and Liquidation still read it from there.
+            if ($isAdvanceWithoutVat) {
+                $nonVat = $amountWVat;
+            }
+
             $vatSplit = match (true) {
                 $isStandalone => VatCalculator::split($amountWVat),
-                $type === 'advance' && ($validated['advance_vat_type'] ?? 'without_vat') === 'with_vat' => VatCalculator::split($amountWVat),
-                $type === 'advance' => ['net_purchases' => $amountWVat, 'vat' => 0],
+                $type === 'advance' && ! $isAdvanceWithoutVat => VatCalculator::split($amountWVat),
                 default => ['net_purchases' => 0, 'vat' => 0],
             };
 
