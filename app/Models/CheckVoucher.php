@@ -153,6 +153,14 @@ class CheckVoucher extends Model
      * of CV type, so this doesn't fall back to amount_w_vat for APV payments or
      * PCF replenishments.
      *
+     * Advances are the one exception: amount_w_vat there isn't necessarily
+     * VAT-inclusive at all — a "Without VAT" advance has no VAT baked into it,
+     * so forcing it through ÷ 1.12 would strip out an assumed VAT component
+     * that was never there, under-withholding EWT on a non-VAT transaction.
+     * For advances we use the already-computed net_purchases instead (which by
+     * this point correctly holds either the VAT-exclusive split for "With VAT"
+     * advances, or the full amount for "Without VAT" ones).
+     *
      * amount_paid must total amount_w_vat + vat_exempt + non_vat_purchase, not just
      * amount_w_vat — a CV that's entirely VAT-exempt or non-VAT (amount_w_vat = 0)
      * was previously left with amount_paid = 0, which the Check Register then
@@ -160,7 +168,10 @@ class CheckVoucher extends Model
      */
     public function applyEwt(): void
     {
-        $netPurchase = VatCalculator::split((float) $this->amount_w_vat)['net_purchases'];
+        $netPurchase = $this->type === 'advance'
+            ? (float) $this->net_purchases
+            : VatCalculator::split((float) $this->amount_w_vat)['net_purchases'];
+
         $this->ewt_amount = round($netPurchase * (float) $this->ewt_rate, 2);
         $totalAmount = (float) $this->amount_w_vat + (float) $this->vat_exempt + (float) $this->non_vat_purchase;
         $this->amount_paid = round($totalAmount - $this->ewt_amount, 2);

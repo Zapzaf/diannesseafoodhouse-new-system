@@ -273,9 +273,14 @@ class CheckVoucherController extends Controller
             $vatExempt = $isStandalone ? round($receipts->sum('vat_exempt'), 2) : (float) ($validated['vat_exempt'] ?? 0);
             $nonVat = $isStandalone ? round($receipts->sum('non_vat_purchase'), 2) : (float) ($validated['non_vat_purchase'] ?? 0);
 
+            // Advances "Without VAT" carry no VAT component at all — the full
+            // amount is the net purchase, not zero, so it still shows up in
+            // Net Purchases totals (Purchase Disbursement Summary, etc.)
+            // instead of silently disappearing from every report.
             $vatSplit = match (true) {
                 $isStandalone => VatCalculator::split($amountWVat),
                 $type === 'advance' && ($validated['advance_vat_type'] ?? 'without_vat') === 'with_vat' => VatCalculator::split($amountWVat),
+                $type === 'advance' => ['net_purchases' => $amountWVat, 'vat' => 0],
                 default => ['net_purchases' => 0, 'vat' => 0],
             };
 
