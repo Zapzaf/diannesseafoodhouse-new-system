@@ -181,8 +181,8 @@
                                             ])
                                         </div>
                                         <div class="col-md-3">
-                                            <label class="form-label small fw-semibold mb-1">Cost Account</label>
-                                            <select name="cost_account_id" class="form-select form-select-sm">
+                                            <label class="form-label small fw-semibold mb-1">Cost Account <span class="text-danger">*</span></label>
+                                            <select name="cost_account_id" class="form-select form-select-sm" required>
                                                 <option value="">Select Account</option>
                                                 @foreach($costAccounts as $account)
                                                 <option value="{{ $account->id }}" {{ (int) $receipt->cost_account_id === $account->id ? 'selected' : '' }}>{{ $account->name }}</option>
@@ -249,9 +249,9 @@
                             @error('supplier_id')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label small fw-semibold">Cost Account</label>
-                            <select name="cost_account_id" class="form-select @error('cost_account_id') is-invalid @enderror">
-                                <option value="">Same as CV ({{ $checkVoucher->costAccount?->name ?? 'none set' }})</option>
+                            <label class="form-label small fw-semibold">Cost Account <span class="text-danger">*</span></label>
+                            <select name="cost_account_id" class="form-select @error('cost_account_id') is-invalid @enderror" required>
+                                <option value="">Select Account</option>
                                 @foreach($costAccounts as $account)
                                 <option value="{{ $account->id }}" {{ (string) old('cost_account_id') === (string) $account->id ? 'selected' : '' }}>{{ $account->name }}</option>
                                 @endforeach
