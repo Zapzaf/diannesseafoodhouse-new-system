@@ -102,6 +102,33 @@ class CheckVoucher extends Model
         return $this->belongsTo(ChartOfAccount::class, 'cost_account_id');
     }
 
+    /**
+     * COD Purchase / Other Disbursement CVs can now split their payment
+     * across more than one Chart of Accounts entry via their receipts —
+     * true only when at least two receipts carry genuinely different
+     * accounts, so a CV with one account picked on every receipt (the
+     * common case) still reads as a single-account CV everywhere.
+     */
+    public function getHasMultipleCostAccountsAttribute(): bool
+    {
+        return $this->receipts->pluck('cost_account_id')->filter()->unique()->count() > 1;
+    }
+
+    /**
+     * Per-account subtotal of this CV's receipts, for display when it spans
+     * more than one Chart of Accounts entry — [ChartOfAccount $account, float $total][].
+     */
+    public function costAccountBreakdown(): \Illuminate\Support\Collection
+    {
+        return $this->receipts
+            ->groupBy('cost_account_id')
+            ->map(fn ($group) => [
+                'account' => $group->first()->costAccount,
+                'total' => round((float) $group->sum('total'), 2),
+            ])
+            ->values();
+    }
+
     public function checkRegisterEntry(): HasOne
     {
         return $this->hasOne(CheckRegister::class);

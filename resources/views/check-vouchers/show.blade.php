@@ -104,15 +104,33 @@
         @php $receiptsEditable = in_array($checkVoucher->type, ['cod_purchase', 'other_disbursement'], true); @endphp
         @if($checkVoucher->receipts->isNotEmpty() || $receiptsEditable)
         <div class="card mb-4">
-            <div class="card-header"><i class="me-1" data-lucide="receipt"></i> Receipts / Invoices ({{ $checkVoucher->receipts->count() }})</div>
+            <div class="card-header d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                <span><i class="me-1" data-lucide="receipt"></i> Receipts / Invoices ({{ $checkVoucher->receipts->count() }})</span>
+                @if($checkVoucher->has_multiple_cost_accounts)
+                <span class="badge bg-info-soft text-info">Split across {{ $checkVoucher->costAccountBreakdown()->count() }} Chart of Accounts</span>
+                @endif
+            </div>
             <div class="card-body">
                 <p class="small text-muted mb-3">Reuse CV # <strong>{{ $checkVoucher->cv_no }}</strong> for every receipt in this same payment — add a row per receipt instead of creating a new Check Voucher.</p>
+                @if($checkVoucher->has_multiple_cost_accounts)
+                <div class="row g-2 mb-3">
+                    @foreach($checkVoucher->costAccountBreakdown() as $breakdown)
+                    <div class="col-md-4">
+                        <div class="border rounded p-2 small">
+                            <div class="text-muted">{{ $breakdown['account']?->name ?? 'Unassigned' }}</div>
+                            <div class="fw-semibold">₱{{ number_format($breakdown['total'], 2) }}</div>
+                        </div>
+                    </div>
+                    @endforeach
+                </div>
+                @endif
                 <div class="table-responsive">
                     <table class="table table-bordered table-sm align-middle mb-0">
                         <thead>
                             <tr>
                                 <th>SI / Receipt #</th>
                                 <th>Supplier</th>
+                                <th>Cost Account</th>
                                 <th class="text-end">Amount w/ VAT</th>
                                 <th class="text-end">VAT-Exempt</th>
                                 <th class="text-end">Non-VAT</th>
@@ -125,6 +143,7 @@
                             <tr id="receipt-view-{{ $receipt->id }}">
                                 <td>{{ $receipt->si_no ?: '—' }}</td>
                                 <td>{{ $receipt->supplier?->name ?: '—' }}</td>
+                                <td class="text-muted small">{{ $receipt->costAccount?->name ?: '—' }}</td>
                                 <td class="text-end">₱{{ number_format($receipt->amount_w_vat, 2) }}</td>
                                 <td class="text-end">₱{{ number_format($receipt->vat_exempt, 2) }}</td>
                                 <td class="text-end">₱{{ number_format($receipt->non_vat_purchase, 2) }}</td>
@@ -142,7 +161,7 @@
                             </tr>
                             @if($receiptsEditable)
                             <tr id="receipt-edit-{{ $receipt->id }}" class="d-none">
-                                <td colspan="7" class="bg-light">
+                                <td colspan="8" class="bg-light">
                                     <form action="{{ route('check-vouchers.receipts.update', [$checkVoucher, $receipt]) }}" method="POST" class="row g-3 align-items-end py-2">
                                         @csrf
                                         @method('PUT')
@@ -161,15 +180,24 @@
                                                 'selectClass' => 'form-select-sm',
                                             ])
                                         </div>
-                                        <div class="col-md-2">
+                                        <div class="col-md-3">
+                                            <label class="form-label small fw-semibold mb-1">Cost Account</label>
+                                            <select name="cost_account_id" class="form-select form-select-sm">
+                                                <option value="">Select Account</option>
+                                                @foreach($costAccounts as $account)
+                                                <option value="{{ $account->id }}" {{ (int) $receipt->cost_account_id === $account->id ? 'selected' : '' }}>{{ $account->name }}</option>
+                                                @endforeach
+                                            </select>
+                                        </div>
+                                        <div class="col-md-1">
                                             <label class="form-label small fw-semibold mb-1">Amount w/ VAT</label>
                                             <input type="number" step="0.01" min="0" name="amount_w_vat" class="form-control form-control-sm" value="{{ $receipt->amount_w_vat }}">
                                         </div>
-                                        <div class="col-md-2">
+                                        <div class="col-md-1">
                                             <label class="form-label small fw-semibold mb-1">VAT-Exempt</label>
                                             <input type="number" step="0.01" min="0" name="vat_exempt" class="form-control form-control-sm" value="{{ $receipt->vat_exempt }}">
                                         </div>
-                                        <div class="col-md-2">
+                                        <div class="col-md-1">
                                             <label class="form-label small fw-semibold mb-1">Non-VAT</label>
                                             <input type="number" step="0.01" min="0" name="non_vat_purchase" class="form-control form-control-sm" value="{{ $receipt->non_vat_purchase }}">
                                         </div>
@@ -185,7 +213,7 @@
                         </tbody>
                         <tfoot>
                             <tr class="table-light fw-bold">
-                                <td colspan="2" class="text-end">Sub-Total</td>
+                                <td colspan="3" class="text-end">Sub-Total</td>
                                 <td class="text-end">₱{{ number_format($checkVoucher->receipts->sum('amount_w_vat'), 2) }}</td>
                                 <td class="text-end">₱{{ number_format($checkVoucher->receipts->sum('vat_exempt'), 2) }}</td>
                                 <td class="text-end">₱{{ number_format($checkVoucher->receipts->sum('non_vat_purchase'), 2) }}</td>
@@ -219,6 +247,16 @@
                                 'selectClass' => (($errors ?? null)?->has('supplier_id')) ? 'is-invalid' : '',
                             ])
                             @error('supplier_id')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-semibold">Cost Account</label>
+                            <select name="cost_account_id" class="form-select @error('cost_account_id') is-invalid @enderror">
+                                <option value="">Same as CV ({{ $checkVoucher->costAccount?->name ?? 'none set' }})</option>
+                                @foreach($costAccounts as $account)
+                                <option value="{{ $account->id }}" {{ (string) old('cost_account_id') === (string) $account->id ? 'selected' : '' }}>{{ $account->name }}</option>
+                                @endforeach
+                            </select>
+                            @error('cost_account_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
                         <div class="col-md-2">
                             <label class="form-label small fw-semibold">Amount w/ VAT</label>

@@ -200,13 +200,14 @@
                             <div class="cv-type-section" data-type="cod_purchase,other_disbursement" style="display:none;">
                                 <h6 class="fw-bold text-primary">Purchase / VAT Detail</h6>
                                 <div class="mb-3">
-                                    <label class="form-label fw-semibold">Cost Account <span class="text-danger">*</span></label>
-                                    <select name="cost_account_id" class="form-select">
+                                    <label class="form-label fw-semibold">Default Cost Account <span class="text-danger">*</span></label>
+                                    <select name="cost_account_id" id="defaultCostAccount" class="form-select">
                                         <option value="">Select Account</option>
                                         @foreach($costAccounts as $account)
                                         <option value="{{ $account->id }}" {{ (string) old('cost_account_id') === (string) $account->id ? 'selected' : '' }}>{{ $account->name }}</option>
                                         @endforeach
                                     </select>
+                                    <div class="form-text text-muted">Pre-fills each new receipt row below — change a row's own Cost Account to split this CV across more than one Chart of Accounts entry.</div>
                                 </div>
 
                                 <label class="form-label fw-semibold d-flex align-items-center justify-content-between">
@@ -215,13 +216,14 @@
                                         <i data-lucide="plus" style="width:14px;height:14px;"></i> Add Receipt
                                     </button>
                                 </label>
-                                <p class="small text-muted mb-2">One payment often covers several supplier receipts — add a row per receipt/invoice. The CV total is computed automatically from all rows.</p>
+                                <p class="small text-muted mb-2">One payment often covers several supplier receipts — add a row per receipt/invoice, each with its own Cost Account. The CV total is computed automatically from all rows.</p>
                                 <div class="table-responsive">
                                     <table class="table table-sm table-bordered align-middle mb-1" id="receiptsTable">
                                         <thead>
                                             <tr>
                                                 <th style="min-width:150px;">SI / Receipt #</th>
                                                 <th style="min-width:180px;">Supplier</th>
+                                                <th style="min-width:190px;">Cost Account</th>
                                                 <th style="min-width:130px;">Amount w/ VAT</th>
                                                 <th style="min-width:130px;">VAT-Exempt</th>
                                                 <th style="min-width:130px;">Non-VAT</th>
@@ -232,7 +234,7 @@
                                         <tbody id="receiptsTableBody"></tbody>
                                         <tfoot>
                                             <tr class="table-light fw-bold">
-                                                <td colspan="2" class="text-end">Sub-Total</td>
+                                                <td colspan="3" class="text-end">Sub-Total</td>
                                                 <td id="receiptTotalAmountWVat" class="text-end">₱0.00</td>
                                                 <td id="receiptTotalExempt" class="text-end">₱0.00</td>
                                                 <td id="receiptTotalNonVat" class="text-end">₱0.00</td>
@@ -254,6 +256,14 @@
                                                 'searchClass' => 'form-control-sm',
                                                 'selectClass' => 'form-select-sm receipt-supplier',
                                             ])
+                                        </td>
+                                        <td>
+                                            <select name="receipts[__INDEX__][cost_account_id]" class="form-select form-select-sm receipt-cost-account">
+                                                <option value="">Select Account</option>
+                                                @foreach($costAccounts as $account)
+                                                <option value="{{ $account->id }}">{{ $account->name }}</option>
+                                                @endforeach
+                                            </select>
                                         </td>
                                         <td><input type="number" step="0.01" min="0" name="receipts[__INDEX__][amount_w_vat]" class="form-control form-control-sm receipt-amount"></td>
                                         <td><input type="number" step="0.01" min="0" name="receipts[__INDEX__][vat_exempt]" class="form-control form-control-sm receipt-exempt"></td>
@@ -560,6 +570,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const receiptsTableBody = document.getElementById('receiptsTableBody');
     const receiptRowTemplate = document.getElementById('receiptRowTemplate');
     const addReceiptRowBtn = document.getElementById('addReceiptRow');
+    const defaultCostAccount = document.getElementById('defaultCostAccount');
     const standalonePreview = document.getElementById('standalonePreview');
     const oldReceipts = @json(old('receipts', []));
     let receiptRowIndex = 0;
@@ -577,6 +588,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
         row.querySelector('.receipt-si-no').value = data.si_no || '';
         row.querySelector('.receipt-supplier').value = data.supplier_id || '';
+        // Pre-fill from whatever this receipt already had (re-displaying after a
+        // validation error), otherwise fall back to the CV's Default Cost Account
+        // so most receipts need zero extra clicks — override per row to split.
+        row.querySelector('.receipt-cost-account').value = data.cost_account_id || defaultCostAccount?.value || '';
         row.querySelector('.receipt-amount').value = data.amount_w_vat || '';
         row.querySelector('.receipt-exempt').value = data.vat_exempt || '';
         row.querySelector('.receipt-nonvat').value = data.non_vat_purchase || '';

@@ -11,6 +11,7 @@ class CheckVoucherReceipt extends Model
         'check_voucher_id',
         'si_no',
         'supplier_id',
+        'cost_account_id',
         'amount_w_vat',
         'vat',
         'net_purchases',
@@ -42,5 +43,10 @@ class CheckVoucherReceipt extends Model
     public function supplier(): BelongsTo
     {
         return $this->belongsTo(Supplier::class);
+    }
+
+    public function costAccount(): BelongsTo
+    {
+        return $this->belongsTo(ChartOfAccount::class, 'cost_account_id');
     }
 }

@@ -158,11 +158,15 @@ class CheckVoucherController extends Controller
                 'nullable', 'exists:branches,id',
             ];
         } else {
+            // The default/fallback account — pre-fills each new receipt row, and
+            // covers any row that doesn't override it. Receipts can each pick
+            // their own account below, so one CV can split across several.
             $rules['cost_account_id'] = ['required', Rule::exists('chart_of_accounts', 'id')->whereIn('type', ['debit_expense', 'debit_asset'])];
             // A single CV commonly settles several supplier receipts in one check.
             $rules['receipts'] = ['required', 'array', 'min:1'];
             $rules['receipts.*.si_no'] = ['nullable', 'string', 'max:100'];
             $rules['receipts.*.supplier_id'] = ['nullable', 'exists:suppliers,id'];
+            $rules['receipts.*.cost_account_id'] = ['nullable', Rule::exists('chart_of_accounts', 'id')->whereIn('type', ['debit_expense', 'debit_asset'])];
             $rules['receipts.*.amount_w_vat'] = ['nullable', 'numeric', 'min:0'];
             $rules['receipts.*.vat_exempt'] = ['nullable', 'numeric', 'min:0'];
             $rules['receipts.*.non_vat_purchase'] = ['nullable', 'numeric', 'min:0'];
@@ -218,6 +222,7 @@ class CheckVoucherController extends Controller
             $receipts = collect($validated['receipts'])->map(fn (array $r): array => [
                 'si_no' => $r['si_no'] ?? null,
                 'supplier_id' => $r['supplier_id'] ?? null,
+                'cost_account_id' => $r['cost_account_id'] ?? $validated['cost_account_id'] ?? null,
                 'amount_w_vat' => (float) ($r['amount_w_vat'] ?? 0),
                 'vat_exempt' => (float) ($r['vat_exempt'] ?? 0),
                 'non_vat_purchase' => (float) ($r['non_vat_purchase'] ?? 0),
@@ -336,6 +341,7 @@ class CheckVoucherController extends Controller
                 $checkVoucher->receipts()->create([
                     'si_no' => $receipt['si_no'],
                     'supplier_id' => $receipt['supplier_id'],
+                    'cost_account_id' => $receipt['cost_account_id'],
                     'amount_w_vat' => $receipt['amount_w_vat'],
                     'vat' => $receiptSplit['vat'],
                     'net_purchases' => $receiptSplit['net_purchases'],
@@ -394,10 +400,11 @@ class CheckVoucherController extends Controller
     public function show(Request $request, CheckVoucher $checkVoucher)
     {
         $this->authorizeBranchRecord($request, $checkVoucher->branch_id);
-        $checkVoucher->load(['purchaseVoucher.vendor', 'service.supplier', 'pettyCashVouchers.items', 'costAccount', 'bankAccount', 'advanceAccount', 'checkRegisterEntry', 'receipts.supplier', 'liquidations', 'attachments']);
+        $checkVoucher->load(['purchaseVoucher.vendor', 'service.supplier', 'pettyCashVouchers.items', 'costAccount', 'bankAccount', 'advanceAccount', 'checkRegisterEntry', 'receipts.supplier', 'receipts.costAccount', 'liquidations', 'attachments']);
         $suppliers = \App\Models\Supplier::orderBy('name')->get();
+        $costAccounts = ChartOfAccount::whereIn('type', ['debit_expense', 'debit_asset'])->where('is_active', true)->orderBy('type')->orderBy('name')->get();
 
-        return view('check-vouchers.show', compact('checkVoucher', 'suppliers'));
+        return view('check-vouchers.show', compact('checkVoucher', 'suppliers', 'costAccounts'));
     }
 
     /**
@@ -413,6 +420,7 @@ class CheckVoucherController extends Controller
         $validated = $request->validate([
             'si_no' => ['nullable', 'string', 'max:100'],
             'supplier_id' => ['nullable', 'exists:suppliers,id'],
+            'cost_account_id' => ['nullable', Rule::exists('chart_of_accounts', 'id')->whereIn('type', ['debit_expense', 'debit_asset'])],
             'amount_w_vat' => ['nullable', 'numeric', 'min:0'],
             'vat_exempt' => ['nullable', 'numeric', 'min:0'],
             'non_vat_purchase' => ['nullable', 'numeric', 'min:0'],
@@ -433,6 +441,10 @@ class CheckVoucherController extends Controller
             $checkVoucher->receipts()->create([
                 'si_no' => $validated['si_no'] ?? null,
                 'supplier_id' => $validated['supplier_id'] ?? null,
+                // Falls back to the CV's own account when this receipt doesn't
+                // pick its own — lets an existing single-account CV gain a
+                // second, differently-accounted receipt without re-entering one.
+                'cost_account_id' => $validated['cost_account_id'] ?? $checkVoucher->cost_account_id,
                 'amount_w_vat' => $amountWVat,
                 'vat' => $split['vat'],
                 'net_purchases' => $split['net_purchases'],
@@ -455,6 +467,7 @@ class CheckVoucherController extends Controller
         $validated = $request->validate([
             'si_no' => ['nullable', 'string', 'max:100'],
             'supplier_id' => ['nullable', 'exists:suppliers,id'],
+            'cost_account_id' => ['nullable', Rule::exists('chart_of_accounts', 'id')->whereIn('type', ['debit_expense', 'debit_asset'])],
             'amount_w_vat' => ['nullable', 'numeric', 'min:0'],
             'vat_exempt' => ['nullable', 'numeric', 'min:0'],
             'non_vat_purchase' => ['nullable', 'numeric', 'min:0'],
@@ -475,6 +488,7 @@ class CheckVoucherController extends Controller
             $receipt->update([
                 'si_no' => $validated['si_no'] ?? null,
                 'supplier_id' => $validated['supplier_id'] ?? null,
+                'cost_account_id' => $validated['cost_account_id'] ?? $receipt->cost_account_id,
                 'amount_w_vat' => $amountWVat,
                 'vat' => $split['vat'],
                 'net_purchases' => $split['net_purchases'],
