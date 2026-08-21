@@ -16,9 +16,9 @@
             <div class="card-body py-3">
                 <form method="GET" class="d-flex align-items-center flex-wrap gap-2">
                     <span class="text-muted small fw-semibold me-1">Filter:</span>
-                    <a href="{{ route('changelog.index') }}" class="btn btn-sm {{ !$type ? 'btn-primary' : 'btn-outline-secondary' }}">All</a>
+                    <a href="{{ route('changelog.index') }}" class="btn btn-sm {{ !$type ? 'btn-primary text-white' : 'btn-secondary text-white' }}">All</a>
                     @foreach(\App\Models\ChangelogUpdate::TYPES as $value => $meta)
-                    <a href="{{ route('changelog.index', ['type' => $value]) }}" class="btn btn-sm {{ $type === $value ? 'btn-primary' : 'btn-outline-secondary' }}">
+                    <a href="{{ route('changelog.index', ['type' => $value]) }}" class="btn btn-sm {{ $type === $value ? 'btn-primary text-white' : 'btn-secondary text-white' }}">
                         <i data-lucide="{{ $meta['icon'] }}" style="width:13px;height:13px;" class="me-1"></i>{{ $meta['label'] }}
                     </a>
                     @endforeach
@@ -62,12 +62,12 @@
                         <p class="text-muted small mb-3 changelog-card-description">{{ $update->description }}</p>
                         @if(auth()->user()->isAdmin())
                         <div class="mt-auto d-flex gap-2 pt-2 border-top">
-                            <a href="{{ route('changelog.edit', $update) }}" class="btn btn-sm btn-outline-primary flex-fill">
+                            <a href="{{ route('changelog.edit', $update) }}" class="btn btn-sm btn-primary text-white flex-fill">
                                 <i data-lucide="edit-2" style="width:13px;height:13px;" class="me-1"></i>Edit
                             </a>
                             <form action="{{ route('changelog.destroy', $update) }}" method="POST" class="flex-fill" onsubmit="return confirm('Delete this update?')">
                                 @csrf @method('DELETE')
-                                <button type="submit" class="btn btn-sm btn-outline-danger w-100">
+                                <button type="submit" class="btn btn-sm btn-danger text-white w-100">
                                     <i data-lucide="trash-2" style="width:13px;height:13px;" class="me-1"></i>Delete
                                 </button>
                             </form>

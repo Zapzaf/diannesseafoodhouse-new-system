@@ -2,7 +2,7 @@
 @section('page_title', 'Outstanding Payables')
 @section('content')
     <x-page-header title="Outstanding Payables" subtitle="Unpaid Purchases and Services across the accounting module" icon="alert-triangle">
-        <a href="{{ route('reports.payables.export.pdf', request()->query()) }}" class="btn btn-outline-secondary">
+        <a href="{{ route('reports.payables.export.pdf', request()->query()) }}" class="btn btn-secondary text-white">
             <i data-lucide="file-down" class="me-1"></i> Export PDF
         </a>
         <a href="{{ route('reports.payables.advances') }}" class="btn btn-light text-primary">
@@ -47,7 +47,7 @@
                         <input type="date" name="date_to" class="form-control" value="{{ request('date_to') }}">
                     </div>
                     <div class="col-md-2">
-                        <button type="submit" class="btn btn-outline-primary w-100">Filter</button>
+                        <button type="submit" class="btn btn-primary text-white w-100">Filter</button>
                     </div>
                 </form>
             </div>

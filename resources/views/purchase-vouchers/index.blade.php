@@ -28,7 +28,7 @@
                         </select>
                     </div>
                     <div class="col-md-2">
-                        <button type="submit" class="btn btn-outline-primary w-100">Filter</button>
+                        <button type="submit" class="btn btn-primary w-100 text-white">Filter</button>
                     </div>
                 </form>
 
@@ -65,15 +65,15 @@
                                     </span>
                                 </td>
                                 <td class="table-actions-cell text-nowrap">
-                                    <a href="{{ route('purchase-vouchers.show', $voucher) }}" class="btn btn-sm btn-outline-secondary"><i data-lucide="eye"></i></a>
+                                    <a href="{{ route('purchase-vouchers.show', $voucher) }}" class="btn btn-sm btn-info text-white" title="View"><i data-lucide="eye"></i></a>
                                     @if($voucher->status === 'unpaid')
-                                    <a href="{{ route('purchase-vouchers.edit', $voucher) }}" class="btn btn-sm btn-outline-primary"><i data-lucide="edit-2"></i></a>
+                                    <a href="{{ route('purchase-vouchers.edit', $voucher) }}" class="btn btn-sm btn-primary text-white" title="Edit"><i data-lucide="edit-2"></i></a>
                                     <form action="{{ route('purchase-vouchers.destroy', $voucher) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this APV?');">
                                         @csrf @method('DELETE')
-                                        <button type="submit" class="btn btn-sm btn-outline-danger"><i data-lucide="trash-2"></i></button>
+                                        <button type="submit" class="btn btn-sm btn-danger text-white" title="Delete"><i data-lucide="trash-2"></i></button>
                                     </form>
                                     @else
-                                    <a href="{{ route('check-vouchers.create', ['pay_apv' => $voucher->id]) }}" class="btn btn-sm btn-outline-success">Pay</a>
+                                    <a href="{{ route('check-vouchers.create', ['pay_apv' => $voucher->id]) }}" class="btn btn-sm btn-success text-white">Pay</a>
                                     @endif
                                 </td>
                             </tr>

@@ -20,7 +20,7 @@
                         <input type="text" name="search" class="form-control" placeholder="Search bank or account name" value="{{ request('search') }}">
                     </div>
                     <div class="col-md-2">
-                        <button type="submit" class="btn btn-outline-primary w-100">Filter</button>
+                        <button type="submit" class="btn btn-primary w-100 text-white">Filter</button>
                     </div>
                 </form>
 
@@ -51,7 +51,7 @@
                                 <td class="table-actions-cell text-nowrap">
                                     <form action="{{ route('bank-accounts.toggle-active', $bankAccount) }}" method="POST" class="d-inline">
                                         @csrf
-                                        <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                        <button type="submit" class="btn btn-sm {{ $bankAccount->is_active ? 'btn-warning' : 'btn-success' }} text-white">
                                             {{ $bankAccount->is_active ? 'Deactivate' : 'Activate' }}
                                         </button>
                                     </form>

@@ -82,12 +82,12 @@
                     <div class="form-control-plaintext text-muted small coupon-code-pooled-note d-none">Shared campaign limit</div>
                 </div>
                 <div class="col-md-1 d-grid">
-                    <button type="button" class="btn btn-outline-danger coupon-code-remove"><i data-lucide="x"></i></button>
+                    <button type="button" class="btn btn-danger coupon-code-remove text-white"><i data-lucide="x"></i></button>
                 </div>
             </div>
             @endforeach
         </div>
-        <button type="button" id="addCouponCodeBtn" class="btn btn-sm btn-outline-primary">
+        <button type="button" id="addCouponCodeBtn" class="btn btn-sm btn-primary text-white">
             <i data-lucide="plus-circle" class="me-1"></i> Add Another Code
         </button>
         @error('codes')<div class="text-danger small mt-2">{{ $message }}</div>@enderror
@@ -189,7 +189,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 '<div class="form-control-plaintext text-muted small coupon-code-pooled-note d-none">Shared campaign limit</div>' +
             '</div>' +
             '<div class="col-md-1 d-grid">' +
-                '<button type="button" class="btn btn-outline-danger coupon-code-remove"><i data-lucide="x"></i></button>' +
+                '<button type="button" class="btn btn-danger coupon-code-remove text-white"><i data-lucide="x"></i></button>' +
             '</div>';
         container.appendChild(row);
         index++;

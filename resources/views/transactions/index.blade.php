@@ -24,8 +24,7 @@
                     <input type="text" name="search" class="form-control" placeholder="Search item, log ID, reason..."
                            value="{{ request('search') }}" list="transactionSearchSuggestions"
                            data-suggest-url="{{ route('transactions.suggestions') }}" autocomplete="off">
-                    <datalist id="transactionSearchSuggestions"></datalist>
-                    <button class="btn btn-outline-secondary" type="submit"><i data-lucide="search" style="width: 14px; height: 14px;"></i></button>
+                    <button class="btn btn-secondary text-white" type="submit" aria-label="Search"><i data-lucide="search" style="width: 14px; height: 14px;"></i></button>
                 </div>
             </form>
         </div>

@@ -66,11 +66,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td>${ctx.escapeHtml(cat.branch ? cat.branch.name : '\u2014')}</td>
                     <td>${cat.menus_count || 0}</td>
                     <td class="table-actions-cell text-nowrap">
-                        <a href="{{ url('/menu-categories') }}/${cat.id}/edit" class="btn btn-sm btn-outline-warning" title="Edit"><i data-lucide="edit"></i></a>
+                        <a href="{{ url('/menu-categories') }}/${cat.id}/edit" class="btn btn-sm btn-primary text-white" title="Edit"><i data-lucide="edit"></i></a>
                         <form action="{{ url('/menu-categories') }}/${cat.id}" method="POST" class="d-inline" onsubmit="return confirm('Delete this category?')">
                             <input type="hidden" name="_token" value="${csrf}">
                             <input type="hidden" name="_method" value="DELETE">
-                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i data-lucide="trash-2"></i></button>
+                            <button type="submit" class="btn btn-sm btn-danger text-white" title="Delete"><i data-lucide="trash-2"></i></button>
                         </form>
                     </td>
                 </tr>`;

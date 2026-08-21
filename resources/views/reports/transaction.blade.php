@@ -78,7 +78,7 @@
                     <input type="text" id="searchInput" class="form-control" placeholder="Search log #, item, reason...">
                 </div>
                 <div class="dropdown">
-                    <button class="btn btn-outline-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" id="itemFilterButton" style="max-width: 220px;">
+                    <button class="btn btn-secondary text-white btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" id="itemFilterButton" style="max-width: 220px;">
                         <span id="itemFilterButtonLabel">All Items</span>
                     </button>
                     <div class="dropdown-menu p-2" style="width: 280px; max-height: 320px; overflow-y: auto;">

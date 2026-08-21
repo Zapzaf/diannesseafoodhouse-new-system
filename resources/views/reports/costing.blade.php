@@ -205,8 +205,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     <td class="text-muted small">${ctx.escapeHtml(row.requester_name)}</td>
                     <td class="text-muted small">${ctx.escapeHtml(row.approver_name || '—')}</td>
                     <td class="text-muted small text-nowrap">${ctx.escapeHtml(row.created_at || '')}</td>
-                    <td class="text-end">
-                        <a href="${row.show_url}" class="btn btn-sm btn-outline-primary" title="View report">
+                    <td class="table-actions-cell text-end">
+                        <a href="${row.show_url}" class="btn btn-sm btn-info text-white" title="View report">
                             <i data-lucide="eye" style="width:15px;height:15px;"></i>
                         </a>
                     </td>
@@ -235,8 +235,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     <td>${ctx.escapeHtml(row.branch_name)}</td>
                     <td class="text-end">₱${Number(row.unit_price || 0).toFixed(2)}</td>
                     <td class="text-end">${latestCost}</td>
-                    <td class="text-end">
-                        <a href="${row.request_url}" class="btn btn-sm btn-outline-primary" title="Request price change">
+                    <td class="table-actions-cell text-end">
+                        <a href="${row.request_url}" class="btn btn-sm btn-primary text-white" title="Request price change">
                             <i data-lucide="file-plus" style="width:15px;height:15px;"></i>
                         </a>
                     </td>

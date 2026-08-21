@@ -94,7 +94,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     <td class="text-muted small">${ctx.escapeHtml(row.generated_by || '—')}</td>
                     <td class="text-nowrap small">${ctx.escapeHtml(row.generated_at)}</td>
                     <td><span class="badge ${statusBadge}">${ctx.escapeHtml(row.status.charAt(0).toUpperCase() + row.status.slice(1))}</span></td>
-                    <td><a href="${row.show_url}" class="btn btn-sm btn-outline-info"><i data-lucide="eye"></i></a></td>
+                    <td class="table-actions-cell"><a href="${row.show_url}" class="btn btn-sm btn-info text-white" title="View"><i data-lucide="eye"></i></a></td>
                 </tr>
             `;
         }

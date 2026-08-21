@@ -74,7 +74,7 @@
                                     @endif
                                 </td>
                                 <td><span class="badge {{ $shift->status === 'open' ? 'bg-success' : 'bg-secondary' }}">{{ ucfirst($shift->status) }}</span></td>
-                                <td><a href="{{ route('cash-shifts.show', $shift) }}" class="btn btn-sm btn-outline-info"><i data-lucide="eye"></i></a></td>
+                                <td class="table-actions-cell"><a href="{{ route('cash-shifts.show', $shift) }}" class="btn btn-sm btn-info text-white" title="View"><i data-lucide="eye"></i></a></td>
                             </tr>
                             @empty
                             <tr><td colspan="9" class="text-center text-muted py-4">No cash shifts found.</td></tr>

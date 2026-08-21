@@ -12,7 +12,7 @@
         @if($canDeleteVoucher)
         <form action="{{ route('check-vouchers.destroy', $checkVoucher) }}" method="POST" onsubmit="return confirm('{{ $deleteVoucherConfirm }}')">
             @csrf @method('DELETE')
-            <button type="submit" class="btn btn-outline-danger">
+            <button type="submit" class="btn btn-danger text-white">
                 <i data-lucide="trash-2" class="me-1"></i> Delete
             </button>
         </form>
@@ -150,11 +150,11 @@
                                 <td class="text-end fw-semibold">₱{{ number_format($receipt->total, 2) }}</td>
                                 @if($receiptsEditable)
                                 <td class="text-nowrap">
-                                    <button type="button" class="btn btn-sm btn-outline-secondary toggleReceiptEdit" data-target="receipt-edit-{{ $receipt->id }}"><i data-lucide="pencil" style="width:14px;height:14px;"></i></button>
+                                    <button type="button" class="btn btn-sm btn-primary text-white toggleReceiptEdit" data-target="receipt-edit-{{ $receipt->id }}" title="Edit"><i data-lucide="pencil" style="width:14px;height:14px;"></i></button>
                                     <form action="{{ route('check-vouchers.receipts.destroy', [$checkVoucher, $receipt]) }}" method="POST" class="d-inline" onsubmit="return confirm('Remove this receipt?');">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="btn btn-sm btn-outline-danger"><i data-lucide="trash-2" style="width:14px;height:14px;"></i></button>
+                                        <button type="submit" class="btn btn-sm btn-danger text-white" title="Delete"><i data-lucide="trash-2" style="width:14px;height:14px;"></i></button>
                                     </form>
                                 </td>
                                 @endif
@@ -202,8 +202,8 @@
                                             <input type="number" step="0.01" min="0" name="non_vat_purchase" class="form-control form-control-sm" value="{{ $receipt->non_vat_purchase }}">
                                         </div>
                                         <div class="col-12 d-flex gap-2 pt-1">
-                                            <button type="submit" class="btn btn-sm btn-primary">Save</button>
-                                            <button type="button" class="btn btn-sm btn-outline-secondary toggleReceiptEdit" data-target="receipt-edit-{{ $receipt->id }}">Cancel</button>
+                                            <button type="submit" class="btn btn-sm btn-primary text-white">Save</button>
+                                            <button type="button" class="btn btn-sm btn-secondary text-white toggleReceiptEdit" data-target="receipt-edit-{{ $receipt->id }}">Cancel</button>
                                         </div>
                                     </form>
                                 </td>

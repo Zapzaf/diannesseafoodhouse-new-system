@@ -230,7 +230,7 @@
                     <h5>Low Stock Watchlist</h5>
                     <span>{{ $lowStockCount > 0 ? 'Items that need replenishment' : 'Inventory levels are healthy' }}</span>
                 </div>
-                <a href="{{ route('items.low-stock') }}" class="btn btn-outline-primary btn-sm">
+                <a href="{{ route('items.low-stock') }}" class="btn btn-primary btn-sm text-white">
                     View All
                 </a>
             </div>

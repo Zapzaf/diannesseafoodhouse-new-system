@@ -4,7 +4,7 @@
 
 @section('content')
     <x-page-header title="{{ $location->name }}: Location &gt; Categories &gt; Items" subtitle="Branch: {{ $location->branch?->name ?? 'N/A' }}" icon="archive">
-        <a href="{{ route('categories.all') }}" class="btn btn-outline-primary">
+        <a href="{{ route('categories.all') }}" class="btn btn-secondary text-white">
             <i data-lucide="arrow-left" class="me-1"></i> All Location Categories
         </a>
     </x-page-header>

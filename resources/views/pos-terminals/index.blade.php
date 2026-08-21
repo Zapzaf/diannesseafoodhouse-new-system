@@ -78,13 +78,13 @@
                                         <td class="table-actions-cell text-end text-nowrap">
                                             <form action="{{ route('pos-terminals.toggle-active', $terminal) }}" method="POST" class="d-inline">
                                                 @csrf
-                                                <button type="submit" class="btn btn-sm btn-outline-secondary" title="{{ $terminal->is_active ? 'Deactivate' : 'Activate' }}">
+                                                <button type="submit" class="btn btn-sm {{ $terminal->is_active ? 'btn-warning' : 'btn-success' }} text-white" title="{{ $terminal->is_active ? 'Deactivate' : 'Activate' }}">
                                                     <i data-lucide="{{ $terminal->is_active ? 'toggle-right' : 'toggle-left' }}"></i>
                                                 </button>
                                             </form>
                                             <form action="{{ route('pos-terminals.destroy', $terminal) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this terminal?')">
                                                 @csrf @method('DELETE')
-                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete">
+                                                <button type="submit" class="btn btn-sm btn-danger text-white" title="Delete">
                                                     <i data-lucide="trash-2"></i>
                                                 </button>
                                             </form>

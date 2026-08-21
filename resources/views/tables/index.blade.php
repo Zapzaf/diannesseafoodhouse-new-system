@@ -123,12 +123,12 @@ document.addEventListener('DOMContentLoaded', function() {
         colspan: 7,
         renderRow: function(table, ctx) {
             const actions = [];
-            actions.push(`<a href="${window.location.origin}/tables/${table.id}/edit" class="btn btn-sm btn-outline-secondary" title="Edit"><i data-lucide="edit"></i></a>`);
-            actions.push(`<button type="button" class="btn btn-sm btn-outline-${table.status === 'available' ? 'primary' : 'secondary'}" title="${table.status === 'available' ? 'Assign' : 'Release'}" onclick="handleTableAction(${table.id}, '${table.status}')">${table.status === 'available' ? '<i data-lucide="plus-square"></i>' : '<i data-lucide="refresh-cw"></i>'}</button>`);
+            actions.push(`<a href="${window.location.origin}/tables/${table.id}/edit" class="btn btn-sm btn-primary text-white" title="Edit"><i data-lucide="edit"></i></a>`);
+            actions.push(`<button type="button" class="btn btn-sm ${table.status === 'available' ? 'btn-success' : 'btn-secondary'} text-white" title="${table.status === 'available' ? 'Assign' : 'Release'}" onclick="handleTableAction(${table.id}, '${table.status}')">${table.status === 'available' ? '<i data-lucide="plus-square"></i>' : '<i data-lucide="refresh-cw"></i>'}</button>`);
             actions.push(`<form action="${window.location.origin}/tables/${table.id}" method="POST" class="d-inline" onsubmit="return confirm('Delete this table?')">
                     <input type="hidden" name="_token" value="${csrf}">
                     <input type="hidden" name="_method" value="DELETE">
-                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i data-lucide="trash-2"></i></button>
+                    <button type="submit" class="btn btn-sm btn-danger text-white" title="Delete"><i data-lucide="trash-2"></i></button>
                 </form>`);
 
             return `

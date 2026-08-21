@@ -54,7 +54,7 @@
                                     @endphp
                                     <form action="{{ route('check-vouchers.destroy', $advance) }}" method="POST" class="d-inline" onsubmit="return confirm('{{ $deleteConfirm }}')">
                                         @csrf @method('DELETE')
-                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i data-lucide="trash-2"></i></button>
+                                        <button type="submit" class="btn btn-sm btn-danger text-white" title="Delete"><i data-lucide="trash-2"></i></button>
                                     </form>
                                     @else
                                     <span class="text-muted">—</span>

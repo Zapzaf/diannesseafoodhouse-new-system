@@ -77,8 +77,8 @@
                             <i data-lucide="trash-2" style="width: 20px; height: 20px;"></i>
                             <span>Wasted Items</span>
                         </h5>
-                        <button type="button" class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" id="add-waste-row">
-                            <i data-lucide="plus" style="width: 14px; height: 14px;"></i> Add Item
+                        <button type="button" class="btn btn-sm btn-primary text-white" id="add-waste-row">
+                            <i data-lucide="plus"></i> Add Item
                         </button>
                     </div>
                     @error('items')
@@ -140,7 +140,7 @@
                                             @enderror
                                         </td>
                                         <td class="table-actions-cell text-center">
-                                            <button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Remove"><i data-lucide="trash-2"></i></button>
+                                            <button type="button" class="btn btn-sm btn-danger remove-row text-white" title="Remove"><i data-lucide="trash-2"></i></button>
                                         </td>
                                     </tr>
                                 @endforeach
@@ -149,9 +149,9 @@
                     </div>
 
                     <div class="mt-4 d-flex justify-content-end gap-3">
-                        <a href="{{ route('waste-reports.index') }}" class="btn btn-outline-secondary px-4">Cancel</a>
-                        <button type="submit" class="btn btn-danger px-4 d-flex align-items-center gap-2">
-                            <i data-lucide="alert-triangle" style="width: 18px; height: 18px;"></i>
+                        <a href="{{ route('waste-reports.index') }}" class="btn btn-secondary text-white px-4">Cancel</a>
+                        <button type="submit" class="btn btn-danger px-4">
+                            <i data-lucide="alert-triangle"></i>
                             <span>Save Waste Report</span>
                         </button>
                     </div>
@@ -198,7 +198,7 @@ document.addEventListener('DOMContentLoaded', function () {
             <td><input type="text" class="form-control unit-display" value="Select item" disabled></td>
             <td><select class="form-select" data-field="reason" required><option value="">Select Reason</option>${reasonOptions()}</select></td>
             <td><input type="text" class="form-control" data-field="notes" placeholder="Optional"></td>
-            <td class="table-actions-cell text-center"><button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Remove"><i data-lucide="trash-2"></i></button></td>
+            <td class="table-actions-cell text-center"><button type="button" class="btn btn-sm btn-danger remove-row text-white" title="Remove"><i data-lucide="trash-2"></i></button></td>
         `;
     }
 

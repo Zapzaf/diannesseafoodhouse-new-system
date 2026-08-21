@@ -25,7 +25,7 @@
                         </select>
                     </div>
                     <div class="col-md-2">
-                        <button type="submit" class="btn btn-outline-primary w-100">Filter</button>
+                        <button type="submit" class="btn btn-primary w-100 text-white">Filter</button>
                     </div>
                 </form>
 
@@ -63,11 +63,11 @@
                                     @if($check->status === 'issued')
                                     <form action="{{ route('check-register.mark-cleared', $check) }}" method="POST" class="d-inline">
                                         @csrf
-                                        <button type="submit" class="btn btn-sm btn-outline-success">Mark Cleared</button>
+                                        <button type="submit" class="btn btn-sm btn-success text-white">Mark Cleared</button>
                                     </form>
                                     <form action="{{ route('check-register.void', $check) }}" method="POST" class="d-inline" onsubmit="return confirm('Void this check?');">
                                         @csrf
-                                        <button type="submit" class="btn btn-sm btn-outline-danger">Void</button>
+                                        <button type="submit" class="btn btn-sm btn-danger text-white">Void</button>
                                     </form>
                                     @endif
                                 </td>

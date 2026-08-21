@@ -60,7 +60,7 @@
                     <input type="text" name="void_reason" class="form-control" placeholder="Reason for voiding (required)" required>
                 </div>
                 <div class="col-md-4">
-                    <button type="submit" class="btn btn-outline-danger w-100">Void Z Reading</button>
+                    <button type="submit" class="btn btn-danger text-white w-100">Void Z Reading</button>
                 </div>
             </form>
         </div>

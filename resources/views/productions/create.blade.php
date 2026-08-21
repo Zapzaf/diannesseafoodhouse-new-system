@@ -38,8 +38,8 @@
                             <i data-lucide="database" style="width: 20px; height: 20px;"></i>
                             <span>Raw Inputs <span class="text-muted fw-normal small">(inventory items to consume)</span></span>
                         </h5>
-                        <button type="button" class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" id="add-production-input">
-                            <i data-lucide="plus" style="width: 14px; height: 14px;"></i> Add Input
+                        <button type="button" class="btn btn-sm btn-primary text-white" id="add-production-input">
+                            <i data-lucide="plus"></i> Add Input
                         </button>
                     </div>
 
@@ -70,7 +70,7 @@
                                         <input type="hidden" data-field="unit" name="inputs[0][unit]">
                                     </td>
                                     <td class="table-actions-cell text-center">
-                                        <button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Remove"><i data-lucide="trash-2"></i></button>
+                                        <button type="button" class="btn btn-sm btn-danger remove-row text-white" title="Remove"><i data-lucide="trash-2"></i></button>
                                     </td>
                                 </tr>
                             </tbody>
@@ -78,9 +78,9 @@
                     </div>
 
                     <div class="mt-4 d-flex justify-content-end gap-3">
-                        <a href="{{ route('productions.index') }}" class="btn btn-outline-secondary px-4">Cancel</a>
-                        <button type="submit" class="btn btn-primary px-4 d-flex align-items-center gap-2">
-                            <i data-lucide="play" style="width: 18px; height: 18px;"></i>
+                        <a href="{{ route('productions.index') }}" class="btn btn-secondary text-white px-4">Cancel</a>
+                        <button type="submit" class="btn btn-primary px-4">
+                            <i data-lucide="play"></i>
                             <span>Start Production</span>
                         </button>
                     </div>
@@ -112,7 +112,7 @@ document.addEventListener('DOMContentLoaded', function () {
             <td><div class="item-picker"><input type="search" class="form-control item-picker-search" placeholder="Search item by name or ID" autocomplete="off" required><input type="hidden" data-field="item_id"><div class="item-picker-results d-none"></div></div></td>
             <td><input type="number" step="0.01" min="0.01" name="quantity_used" class="form-control" required></td>
             <td><input type="text" class="form-control unit-display" value="Select an item" disabled><input type="hidden" data-field="unit"></td>
-            <td class="table-actions-cell text-center"><button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Remove"><i data-lucide="trash-2"></i></button></td>`;
+            <td class="table-actions-cell text-center"><button type="button" class="btn btn-sm btn-danger remove-row text-white" title="Remove"><i data-lucide="trash-2"></i></button></td>`;
         tableBody.appendChild(row);
         reindexRows();
         if (typeof window.refreshLucideIcons === 'function') {

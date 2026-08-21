@@ -119,7 +119,7 @@
             <div class="card mb-4">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <div><i data-lucide="list" class="me-1"></i> Ingredients (Recipe / BOM)</div>
-                    <button type="button" id="addIngredientBtn" class="btn btn-sm btn-outline-primary">
+                    <button type="button" id="addIngredientBtn" class="btn btn-sm btn-primary text-white">
                         <i data-lucide="plus" class="me-1"></i> Add Ingredient
                     </button>
                 </div>
@@ -170,7 +170,7 @@
                                 >
                             </div>
                             <div class="col-md-2">
-                                <button type="button" class="btn btn-outline-danger w-100 btn-remove-ingredient">
+                                <button type="button" class="btn btn-danger w-100 btn-remove-ingredient text-white">
                                     <i data-lucide="trash-2"></i> Remove
                                 </button>
                             </div>
@@ -196,7 +196,7 @@
                                 <input type="number" class="form-control" name="ingredients[0][quantity_required]" step="0.01" min="0.01" placeholder="Qty required" required>
                             </div>
                             <div class="col-md-2">
-                                <button type="button" class="btn btn-outline-danger w-100 btn-remove-ingredient">
+                                <button type="button" class="btn btn-danger w-100 btn-remove-ingredient text-white">
                                     <i data-lucide="trash-2"></i> Remove
                                 </button>
                             </div>
@@ -407,7 +407,7 @@ addIngredientBtn?.addEventListener('click', function () {
             <input type="number" class="form-control" name="ingredients[${rowIndex}][quantity_required]" step="0.01" min="0.01" placeholder="Qty required" required>
         </div>
         <div class="col-md-2">
-            <button type="button" class="btn btn-outline-danger w-100 btn-remove-ingredient">
+            <button type="button" class="btn btn-danger w-100 btn-remove-ingredient text-white">
                 <i data-lucide="trash-2"></i> Remove
             </button>
         </div>`;

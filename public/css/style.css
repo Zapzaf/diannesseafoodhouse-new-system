@@ -345,14 +345,95 @@ body {
 .text-primary {
     color: var(--primary-color) !important;
 }
-.btn-primary {
-    background-color: var(--primary-color);
-    border-color: var(--primary-color);
-    color: #ffffff;
+/* Buttons & Icon Vertical Alignment */
+.btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.45rem !important;
+    vertical-align: middle !important;
     font-weight: 500;
-    padding: 0.5rem 1.25rem;
+    line-height: 1.5;
     border-radius: 8px;
     transition: all var(--transition-speed) ease;
+}
+
+.btn-sm {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.875rem;
+    gap: 0.35rem !important;
+    border-radius: 6px;
+}
+
+.btn-lg {
+    padding: 0.75rem 1.5rem;
+    font-size: 1.1rem;
+    gap: 0.55rem !important;
+    border-radius: 10px;
+}
+
+.btn svg.lucide,
+.btn i.lucide,
+.btn svg,
+.btn i,
+.btn [data-lucide] {
+    width: 1.15em !important;
+    height: 1.15em !important;
+    flex-shrink: 0;
+    display: inline-block;
+    vertical-align: middle;
+    stroke-width: 2px;
+}
+
+.btn-sm svg.lucide,
+.btn-sm i.lucide,
+.btn-sm svg,
+.btn-sm i,
+.btn-sm [data-lucide] {
+    width: 1rem !important;
+    height: 1rem !important;
+}
+
+.btn-lg svg.lucide,
+.btn-lg i.lucide,
+.btn-lg svg,
+.btn-lg i,
+.btn-lg [data-lucide] {
+    width: 1.3rem !important;
+    height: 1.3rem !important;
+}
+
+/* Action button icons in tables & icon-only buttons */
+.table-actions-cell .btn,
+.table-actions-cell .btn-sm,
+.btn-icon,
+.btn-icon-sm {
+    width: 32px !important;
+    height: 32px !important;
+    min-width: 32px !important;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 7px !important;
+}
+
+.table-actions-cell .btn svg,
+.table-actions-cell .btn i,
+.table-actions-cell .btn-sm svg,
+.table-actions-cell .btn-sm i,
+.btn-icon svg,
+.btn-icon i {
+    width: 15px !important;
+    height: 15px !important;
+    margin: 0 !important;
+}
+
+/* Solid Button System Overrides */
+.btn-primary {
+    background-color: var(--primary-color) !important;
+    border-color: var(--primary-color) !important;
+    color: #ffffff !important;
 }
 .btn-primary:hover, .btn-primary:focus, .btn-primary:active {
     background-color: var(--primary-color-hover) !important;
@@ -360,6 +441,79 @@ body {
     box-shadow: 0 0 0 0.25rem rgba(var(--primary-color-rgb), 0.25) !important;
     color: #ffffff !important;
 }
+
+.btn-secondary {
+    background-color: var(--btn-secondary-bg) !important;
+    border-color: var(--btn-secondary-bg) !important;
+    color: #ffffff !important;
+}
+.btn-secondary:hover, .btn-secondary:focus, .btn-secondary:active {
+    background-color: var(--btn-secondary-hover) !important;
+    border-color: var(--btn-secondary-hover) !important;
+    box-shadow: 0 0 0 0.25rem rgba(100, 116, 139, 0.25) !important;
+    color: #ffffff !important;
+}
+
+.btn-success {
+    background-color: var(--btn-success-bg) !important;
+    border-color: var(--btn-success-bg) !important;
+    color: #ffffff !important;
+}
+.btn-success:hover, .btn-success:focus, .btn-success:active {
+    background-color: var(--btn-success-hover) !important;
+    border-color: var(--btn-success-hover) !important;
+    box-shadow: 0 0 0 0.25rem rgba(16, 185, 129, 0.25) !important;
+    color: #ffffff !important;
+}
+
+.btn-danger {
+    background-color: var(--btn-danger-bg) !important;
+    border-color: var(--btn-danger-bg) !important;
+    color: #ffffff !important;
+}
+.btn-danger:hover, .btn-danger:focus, .btn-danger:active {
+    background-color: var(--btn-danger-hover) !important;
+    border-color: var(--btn-danger-hover) !important;
+    box-shadow: 0 0 0 0.25rem rgba(244, 63, 94, 0.25) !important;
+    color: #ffffff !important;
+}
+
+.btn-warning {
+    background-color: var(--btn-warning-bg) !important;
+    border-color: var(--btn-warning-bg) !important;
+    color: #ffffff !important;
+}
+.btn-warning:hover, .btn-warning:focus, .btn-warning:active {
+    background-color: var(--btn-warning-hover) !important;
+    border-color: var(--btn-warning-hover) !important;
+    box-shadow: 0 0 0 0.25rem rgba(245, 158, 11, 0.25) !important;
+    color: #ffffff !important;
+}
+
+.btn-info {
+    background-color: var(--btn-info-bg) !important;
+    border-color: var(--btn-info-bg) !important;
+    color: #ffffff !important;
+}
+.btn-info:hover, .btn-info:focus, .btn-info:active {
+    background-color: var(--btn-info-hover) !important;
+    border-color: var(--btn-info-hover) !important;
+    box-shadow: 0 0 0 0.25rem rgba(14, 165, 233, 0.25) !important;
+    color: #ffffff !important;
+}
+
+.btn-dark {
+    background-color: var(--btn-dark-bg) !important;
+    border-color: var(--btn-dark-bg) !important;
+    color: #ffffff !important;
+}
+.btn-dark:hover, .btn-dark:focus, .btn-dark:active {
+    background-color: var(--btn-dark-hover) !important;
+    border-color: var(--btn-dark-hover) !important;
+    box-shadow: 0 0 0 0.25rem rgba(30, 41, 59, 0.25) !important;
+    color: #ffffff !important;
+}
+
 .btn-outline-primary {
     color: var(--primary-color);
     border-color: var(--primary-color);
@@ -2146,6 +2300,9 @@ body {
     overflow: hidden;
     background-color: var(--bg-card) !important;
     box-shadow: none !important;
+    contain: content;
+    content-visibility: auto;
+    contain-intrinsic-size: 0 280px;
     transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
 
@@ -2163,19 +2320,24 @@ body {
 .menu-card-img-wrapper {
     aspect-ratio: 1 / 1;
     width: 100%;
+    height: auto;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     background-color: var(--bg-table-header);
     overflow: hidden;
+    position: relative;
+    contain: strict;
 }
 
 .menu-card-img-wrapper img {
     width: 100%;
     height: 100%;
+    aspect-ratio: 1 / 1;
     object-fit: cover;
     object-position: center;
+    display: block;
 }
 
 .menu-modal-card .hover-overlay {

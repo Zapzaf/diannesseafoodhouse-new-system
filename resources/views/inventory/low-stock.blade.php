@@ -44,7 +44,7 @@
                     @endforeach
                 </select>
                 @if($locationId || $categoryId)
-                <a href="{{ route('items.low-stock') }}" class="btn btn-outline-secondary d-flex align-items-center py-0">Reset</a>
+                <a href="{{ route('items.low-stock') }}" class="btn btn-secondary text-white d-flex align-items-center py-0">Reset</a>
                 @endif
             </form>
         </div>

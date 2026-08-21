@@ -8,11 +8,11 @@
         <a href="{{ route('menu-orders.payments.receipt', $payment) }}" target="_blank" class="btn btn-primary">
             <i data-lucide="printer" class="me-1"></i> Print Receipt
         </a>
-        <a href="{{ route('menu-orders.show', $payment->order) }}" class="btn btn-outline-primary">
+        <a href="{{ route('menu-orders.show', $payment->order) }}" class="btn btn-secondary text-white">
             <i data-lucide="shopping-bag" class="me-1"></i> View Order
         </a>
         @endif
-        <a href="{{ route('payments.index') }}" class="btn btn-outline-primary">
+        <a href="{{ route('payments.index') }}" class="btn btn-secondary text-white">
             <i data-lucide="arrow-left" class="me-1"></i> Back to Payments
         </a>
     </x-page-header>

@@ -109,7 +109,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const cancelBtn = row.cancel_url
                 ? `<form action="${row.cancel_url}" method="POST" class="d-inline" onsubmit="return confirm('Cancel Production #${row.id}? Pulled inputs will be restocked to inventory.');">
                         <input type="hidden" name="_token" value="${csrf}">
-                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Cancel Production"><i data-lucide="x-circle"></i></button>
+                        <button type="submit" class="btn btn-sm btn-danger text-white" title="Cancel Production"><i data-lucide="x-circle"></i></button>
                    </form>`
                 : '';
 
@@ -126,7 +126,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     <td>${renderItemSummary(row.inputs, 'input', 'No inputs')}</td>
                     <td>${renderItemSummary(row.outputs, 'output', 'No outputs yet')}</td>
                     <td class="table-actions-cell text-end">
-                        <a href="${row.show_url}" class="btn btn-sm btn-outline-secondary" title="Open"><i data-lucide="eye"></i></a>
+                        <a href="${row.show_url}" class="btn btn-sm btn-info text-white" title="Open"><i data-lucide="eye"></i></a>
                         ${cancelBtn}
                     </td>
                 </tr>

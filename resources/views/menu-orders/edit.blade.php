@@ -68,7 +68,7 @@
                                                     @method('PUT')
                                                     <input type="hidden" name="return_to" value="edit">
                                                     <input type="number" name="quantity" class="form-control form-control-sm qty-input text-end" style="width:64px;" value="{{ $item->quantity }}" min="1" max="999" data-original="{{ $item->quantity }}">
-                                                    <button type="submit" class="btn btn-sm btn-outline-primary qty-save-btn d-none" title="Save quantity"><i data-lucide="check" style="width:14px;height:14px;"></i></button>
+                                                    <button type="submit" class="btn btn-sm btn-primary qty-save-btn d-none text-white" title="Save quantity"><i data-lucide="check" style="width:14px;height:14px;"></i></button>
                                                 </form>
                                                 @else
                                                 <span class="fw-semibold">{{ $item->quantity }}</span>
@@ -83,7 +83,7 @@
                                                     @csrf
                                                     @method('DELETE')
                                                     <input type="hidden" name="return_to" value="edit">
-                                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete item">
+                                                    <button type="submit" class="btn btn-sm btn-danger text-white" title="Delete item">
                                                         <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
                                                     </button>
                                                 </form>
@@ -137,7 +137,7 @@
                     <div class="card mb-4 menu-order-form-card">
                         <div class="card-header d-flex justify-content-between align-items-center">
                             <span class="fw-semibold">Additional Charges</span>
-                            <button type="button" class="btn btn-outline-primary btn-sm" id="addAdditionalChargeBtn">
+                            <button type="button" class="btn btn-primary btn-sm text-white" id="addAdditionalChargeBtn">
                                 <i data-lucide="plus" class="me-1"></i> Add Charge
                             </button>
                         </div>
@@ -168,7 +168,7 @@
                                             </div>
                                         </div>
                                         <div class="col-lg-1 d-grid">
-                                            <button type="button" class="btn btn-outline-danger remove-additional-charge" title="Remove charge">
+                                            <button type="button" class="btn btn-danger remove-additional-charge text-white" title="Remove charge">
                                                 <i data-lucide="trash-2"></i>
                                             </button>
                                         </div>
@@ -196,10 +196,10 @@
                                     <input type="text" id="couponCodeInput" class="form-control text-uppercase" placeholder="Enter coupon code" value="{{ old('promo_coupon_code', $order->promo_discount_source === 'coupon' ? $order->promo_discount_code : '') }}">
                                 </div>
                                 <div class="col-md-3">
-                                    <button type="button" class="btn btn-outline-primary w-100" id="applyCouponBtn">Apply</button>
+                                    <button type="button" class="btn btn-primary w-100 text-white" id="applyCouponBtn">Apply</button>
                                 </div>
                                 <div class="col-md-3">
-                                    <button type="button" class="btn btn-outline-secondary w-100 {{ $order->promo_discount_source ? '' : 'd-none' }}" id="removeCouponBtn">Remove</button>
+                                    <button type="button" class="btn btn-secondary w-100 text-white {{ $order->promo_discount_source ? '' : 'd-none' }}" id="removeCouponBtn">Remove</button>
                                 </div>
                             </div>
                             @error('promo_coupon_code')<div class="text-danger small mb-2">{{ $message }}</div>@enderror
@@ -366,12 +366,14 @@
     if (addMenuModal) {
         addMenuModal.addEventListener('show.bs.modal', function () {
             if (modalError) modalError.classList.add('d-none');
-            if (modalSearch) modalSearch.value = '';
+            if (modalSearch && modalSearch.value) modalSearch.value = '';
             if (fields) fields.innerHTML = '';
             if (!modalGrid) return;
-            modalGrid.querySelectorAll('.modal-item-qty').forEach(function (input) {
-                input.value = '0';
-                updateCardStyle(input.closest('.menu-modal-card'), 0);
+            var activeCards = modalGrid.querySelectorAll('.menu-modal-card.border-primary');
+            activeCards.forEach(function (card) {
+                var input = card.querySelector('.modal-item-qty');
+                if (input) input.value = '0';
+                updateCardStyle(card, 0);
             });
             filterModal();
         });
@@ -509,7 +511,7 @@
             '<div class="col-lg-5"><label class="form-label fw-semibold small mb-1">Label / Description</label><input type="text" name="additional_charges[' + index + '][label]" class="form-control additional-charge-label" maxlength="120" required></div>' +
             '<div class="col-lg-3"><label class="form-label fw-semibold small mb-1">Charge Type</label><select name="additional_charges[' + index + '][type]" class="form-select additional-charge-type" required><option value="fixed">Fixed Amount</option><option value="percentage">Percentage</option></select></div>' +
             '<div class="col-lg-3"><label class="form-label fw-semibold small mb-1">Value</label><div class="input-group"><span class="input-group-text additional-charge-prefix">₱</span><input type="number" name="additional_charges[' + index + '][value]" class="form-control additional-charge-value" min="0.01" step="0.01" required></div></div>' +
-            '<div class="col-lg-1 d-grid"><button type="button" class="btn btn-outline-danger remove-additional-charge" title="Remove charge"><i data-lucide="trash-2"></i></button></div>' +
+            '<div class="col-lg-1 d-grid"><button type="button" class="btn btn-danger remove-additional-charge text-white" title="Remove charge"><i data-lucide="trash-2"></i></button></div>' +
             '</div>';
         additionalChargesList.appendChild(row);
         bindAdditionalChargeRow(row);

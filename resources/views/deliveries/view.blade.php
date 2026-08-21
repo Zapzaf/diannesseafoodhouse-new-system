@@ -14,7 +14,7 @@
             </button>
         </form>
         @endcan
-        <a href="{{ route('deliveries.index') }}" class="btn btn-outline-primary">
+        <a href="{{ route('deliveries.index') }}" class="btn btn-secondary text-white">
             <i data-lucide="arrow-left" class="me-1"></i> All Deliveries
         </a>
     </x-page-header>
@@ -160,7 +160,7 @@
             </div>
             @if(auth()->user()?->isAdmin())
                 <div class="d-flex justify-content-end mt-2">
-                    <button type="submit" class="btn btn-sm btn-outline-primary">
+                    <button type="submit" class="btn btn-sm btn-primary text-white">
                         <i data-lucide="save" class="me-1"></i> Save Prices
                     </button>
                 </div>

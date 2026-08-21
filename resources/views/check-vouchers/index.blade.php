@@ -56,7 +56,7 @@
                         </select>
                     </div>
                     <div class="col-md-2">
-                        <button type="submit" class="btn btn-outline-primary w-100">Filter</button>
+                        <button type="submit" class="btn btn-primary w-100 text-white">Filter</button>
                     </div>
                 </form>
 
@@ -130,11 +130,11 @@
                                     <span class="d-inline-block text-truncate" style="max-width: 170px;" title="{{ $voucher->remarks }}">{{ $voucher->remarks ?: '—' }}</span>
                                 </td>
                                 <td class="table-actions-cell text-nowrap">
-                                    <a href="{{ route('check-vouchers.show', $voucher) }}" class="btn btn-sm btn-outline-secondary" title="View"><i data-lucide="eye"></i></a>
+                                    <a href="{{ route('check-vouchers.show', $voucher) }}" class="btn btn-sm btn-info text-white" title="View"><i data-lucide="eye"></i></a>
                                     @if(auth()->user()->isAdmin() && ! ($voucher->type === 'advance' && $voucher->liquidations_count > 0))
                                     <form action="{{ route('check-vouchers.destroy', $voucher) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete Check Voucher {{ $voucher->cv_no }}? This removes it entirely, including its check register entry and any receipts. This cannot be undone.')">
                                         @csrf @method('DELETE')
-                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i data-lucide="trash-2"></i></button>
+                                        <button type="submit" class="btn btn-sm btn-danger text-white" title="Delete"><i data-lucide="trash-2"></i></button>
                                     </form>
                                     @endif
                                 </td>

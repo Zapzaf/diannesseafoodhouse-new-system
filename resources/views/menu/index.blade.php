@@ -98,12 +98,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td>${ingredientText}</td>
                     <td>${ctx.escapeHtml(menu.branch ? menu.branch.name : '\u2014')}</td>
                     <td class="table-actions-cell text-nowrap">
-                            <a href="{{ url('/menus') }}/${menu.id}" class="btn btn-sm btn-outline-info" title="View"><i data-lucide="eye"></i></a>
-                            <a href="{{ url('/menus') }}/${menu.id}/edit" class="btn btn-sm btn-outline-primary" title="Edit"><i data-lucide="edit"></i></a>
+                            <a href="{{ url('/menus') }}/${menu.id}" class="btn btn-sm btn-info text-white" title="View"><i data-lucide="eye"></i></a>
+                            <a href="{{ url('/menus') }}/${menu.id}/edit" class="btn btn-sm btn-primary text-white" title="Edit"><i data-lucide="edit"></i></a>
                             <form action="{{ url('/menus') }}/${menu.id}" method="POST" class="d-inline" onsubmit="return confirm('Delete this menu item?')">
                                 <input type="hidden" name="_token" value="${csrf}">
                                 <input type="hidden" name="_method" value="DELETE">
-                                <button class="btn btn-sm btn-outline-danger" title="Delete"><i data-lucide="trash-2"></i></button>
+                                <button class="btn btn-sm btn-danger text-white" title="Delete"><i data-lucide="trash-2"></i></button>
                             </form>
                         </td>
                     </tr>

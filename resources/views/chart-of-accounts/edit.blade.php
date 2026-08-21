@@ -36,7 +36,7 @@
                         @error('type')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
                     <div class="d-flex justify-content-end gap-3 mt-4">
-                        <a href="{{ route('chart-of-accounts.index') }}" class="btn btn-outline-secondary px-4">Cancel</a>
+                        <a href="{{ route('chart-of-accounts.index') }}" class="btn btn-secondary text-white px-4">Cancel</a>
                         <button type="submit" class="btn btn-primary px-4">Save Changes</button>
                     </div>
                 </form>

@@ -42,7 +42,7 @@
                     </div>
                     @endif
                     <div class="d-flex justify-content-end gap-3 mt-4">
-                        <a href="{{ route('bank-accounts.index') }}" class="btn btn-outline-secondary px-4">Cancel</a>
+                        <a href="{{ route('bank-accounts.index') }}" class="btn btn-secondary text-white px-4">Cancel</a>
                         <button type="submit" class="btn btn-primary px-4">Save Bank Account</button>
                     </div>
                 </form>

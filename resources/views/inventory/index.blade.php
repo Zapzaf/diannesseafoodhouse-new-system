@@ -538,11 +538,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td>${ctx.escapeHtml(item.supplier_name || 'N/A')}</td>
                     <td class="text-muted small text-nowrap">${ctx.escapeHtml(item.last_transaction_at || '—')}</td>
                     <td class="table-actions-cell text-nowrap">
-                            <button type="button" class="btn btn-sm btn-outline-success stockin-btn" data-id="${item.id}" data-name="${itemName}" data-unit="${ctx.escapeHtml(item.unit || '')}" data-price="${unitPrice !== null ? unitPrice : ''}" data-allows-decimals="${item.allows_decimal_quantity ? '1' : '0'}"><i data-lucide="plus-circle"></i></button>
-                            <button type="button" class="btn btn-sm btn-outline-warning deduct-btn" data-id="${item.id}" data-name="${itemName}" data-remaining="${remaining}" data-unit="${ctx.escapeHtml(item.unit || '')}" data-price="${unitPrice !== null ? unitPrice : ''}" data-allows-decimals="${item.allows_decimal_quantity ? '1' : '0'}"><i data-lucide="minus-circle"></i></button>
-                            <button type="button" class="btn btn-sm btn-outline-info transfer-btn" data-id="${item.id}" data-name="${itemName}" data-remaining="${remaining}" data-branch-name="${branchName}" data-branch-id="${item.branch_id || ''}" title="Transfer to another branch"><i data-lucide="send"></i></button>
-                            <a href="{{ url('/inventory') }}/${item.id}/edit" class="btn btn-sm btn-outline-primary"><i data-lucide="edit-2"></i></a>
-                            <button type="button" class="btn btn-sm btn-outline-danger inventory-delete-btn" data-delete-url="{{ url('/inventory') }}/${item.id}" data-token="${csrf}" title="Delete item"><i data-lucide="trash-2"></i></button></td>
+                            <button type="button" class="btn btn-sm btn-success text-white stockin-btn" data-id="${item.id}" data-name="${itemName}" data-unit="${ctx.escapeHtml(item.unit || '')}" data-price="${unitPrice !== null ? unitPrice : ''}" data-allows-decimals="${item.allows_decimal_quantity ? '1' : '0'}" title="Stock In"><i data-lucide="plus-circle"></i></button>
+                            <button type="button" class="btn btn-sm btn-warning text-white deduct-btn" data-id="${item.id}" data-name="${itemName}" data-remaining="${remaining}" data-unit="${ctx.escapeHtml(item.unit || '')}" data-price="${unitPrice !== null ? unitPrice : ''}" data-allows-decimals="${item.allows_decimal_quantity ? '1' : '0'}" title="Deduct Stock"><i data-lucide="minus-circle"></i></button>
+                            <button type="button" class="btn btn-sm btn-info text-white transfer-btn" data-id="${item.id}" data-name="${itemName}" data-remaining="${remaining}" data-branch-name="${branchName}" data-branch-id="${item.branch_id || ''}" title="Transfer to another branch"><i data-lucide="send"></i></button>
+                            <a href="{{ url('/inventory') }}/${item.id}/edit" class="btn btn-sm btn-primary text-white" title="Edit item"><i data-lucide="edit-2"></i></a>
+                            <button type="button" class="btn btn-sm btn-danger text-white inventory-delete-btn" data-delete-url="{{ url('/inventory') }}/${item.id}" data-token="${csrf}" title="Delete item"><i data-lucide="trash-2"></i></button></td>
                 </tr>
             `;
         }

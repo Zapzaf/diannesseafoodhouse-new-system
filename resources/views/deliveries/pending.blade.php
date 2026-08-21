@@ -62,8 +62,8 @@
                             <td class="text-muted small">{{ $delivery->created_at->format('M d, Y H:i') }}</td>
                             <td>{{ $delivery->creator?->name ?? 'System' }}</td>
                             <td><span class="badge-status badge-pending">PENDING</span></td>
-                            <td class="text-nowrap">
-                                <a href="{{ route('deliveries.show', $delivery) }}" class="btn btn-sm btn-outline-primary">
+                            <td class="table-actions-cell text-nowrap">
+                                <a href="{{ route('deliveries.show', $delivery) }}" class="btn btn-sm btn-info text-white">
                                     <i data-lucide="eye" class="me-1"></i> View
                                 </a>
                                 @can('approve', $delivery)
@@ -73,11 +73,11 @@
                                     <input type="hidden" name="items[{{ $index }}][delivery_item_id]" value="{{ $item->id }}">
                                     <input type="hidden" name="items[{{ $index }}][allocated_to]" value="{{ $item->allocated_to ?? 'inventory' }}">
                                     @endforeach
-                                    <button type="submit" class="btn btn-sm btn-success">
+                                    <button type="submit" class="btn btn-sm btn-success text-white">
                                         <i data-lucide="check" class="me-1"></i> Approve
                                     </button>
                                 </form>
-                                @endif
+                                @endcan
                             </td>
                         </tr>
                         @endforeach

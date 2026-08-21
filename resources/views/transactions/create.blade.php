@@ -51,7 +51,7 @@
                 <div class="mb-3">
                     <label class="form-label fw-semibold">Items <span class="text-danger">*</span></label>
                     <div id="itemRowsContainer"></div>
-                    <button type="button" id="addItemBtn" class="btn btn-sm btn-outline-primary mt-2">
+                    <button type="button" id="addItemBtn" class="btn btn-sm btn-primary text-white mt-2">
                         <i data-lucide="plus" class="me-1" style="width:14px;height:14px"></i> Add Item
                     </button>
                 </div>

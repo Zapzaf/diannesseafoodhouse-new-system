@@ -124,7 +124,7 @@
                                 <td><input type="number" step="0.01" min="0" name="items[{{ $index }}][vat_exempt]" class="form-control form-control-sm text-end voucher-item-vat-exempt {{ $rowAmountError ? 'is-invalid' : '' }}" value="{{ $item['vat_exempt'] }}"></td>
                                 <td><input type="number" step="0.01" min="0" name="items[{{ $index }}][non_vat_purchase]" class="form-control form-control-sm text-end voucher-item-non-vat {{ $rowAmountError ? 'is-invalid' : '' }}" value="{{ $item['non_vat_purchase'] }}"></td>
                                 <td class="voucher-item-preview">—</td>
-                                <td><button type="button" class="btn btn-sm btn-outline-danger voucher-item-remove"><i data-lucide="x"></i></button></td>
+                                <td><button type="button" class="btn btn-sm btn-danger voucher-item-remove text-white"><i data-lucide="x"></i></button></td>
                             </tr>
                             @if($rowAmountError)
                             <tr class="voucher-item-row-error">
@@ -159,11 +159,11 @@
                         <td><input type="number" step="0.01" min="0" name="items[__INDEX__][vat_exempt]" class="form-control form-control-sm text-end voucher-item-vat-exempt"></td>
                         <td><input type="number" step="0.01" min="0" name="items[__INDEX__][non_vat_purchase]" class="form-control form-control-sm text-end voucher-item-non-vat"></td>
                         <td class="voucher-item-preview">—</td>
-                        <td><button type="button" class="btn btn-sm btn-outline-danger voucher-item-remove"><i data-lucide="x"></i></button></td>
+                        <td><button type="button" class="btn btn-sm btn-danger voucher-item-remove text-white"><i data-lucide="x"></i></button></td>
                     </tr>
                 </template>
 
-                <button type="button" id="addItemRowBtn" class="btn btn-sm btn-outline-primary mt-2">
+                <button type="button" id="addItemRowBtn" class="btn btn-sm btn-primary text-white mt-2">
                     <i data-lucide="plus-circle" class="me-1"></i> Add Line Item
                 </button>
             </div>
@@ -191,7 +191,7 @@
 </div>
 
 <div class="d-flex justify-content-end gap-3 mt-4">
-    <a href="{{ route('petty-cash-vouchers.index') }}" class="btn btn-outline-secondary px-4">Cancel</a>
+    <a href="{{ route('petty-cash-vouchers.index') }}" class="btn btn-secondary text-white px-4">Cancel</a>
     <button type="submit" class="btn btn-primary px-4 d-flex align-items-center gap-2">
         <i data-lucide="save" style="width: 18px; height: 18px;"></i>
         <span>Save Petty Cash Voucher</span>

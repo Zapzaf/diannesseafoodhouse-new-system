@@ -46,21 +46,22 @@
                     return;
                 }
 
-                const scope = root && root.querySelectorAll ? root : document;
-                scope.querySelectorAll('svg[data-lucide]').forEach(svg => {
-                    svg.removeAttribute('data-lucide');
-                });
-
-                if (!scope.querySelector('[data-lucide]:not(svg)')) {
+                const scope = (root && root.querySelectorAll) ? root : document;
+                if (!scope.querySelector('i[data-lucide], span[data-lucide], [data-lucide]:not(svg)')) {
                     return;
                 }
 
                 window.__isRefreshingLucideIcons = true;
                 try {
-                    window.lucide.createIcons();
-                    document.querySelectorAll('svg[data-lucide]').forEach(svg => {
-                        svg.removeAttribute('data-lucide');
-                    });
+                    if (scope !== document && typeof window.lucide.createIcons === 'function') {
+                        try {
+                            window.lucide.createIcons({ root: scope });
+                        } catch (e) {
+                            window.lucide.createIcons();
+                        }
+                    } else {
+                        window.lucide.createIcons();
+                    }
                 } finally {
                     window.setTimeout(() => {
                         window.__isRefreshingLucideIcons = false;
@@ -665,7 +666,7 @@
                     <div class="d-flex align-items-center justify-content-between">
                         <!-- Left: Sidebar Toggler and Title/Search placeholder -->
                         <div class="d-flex align-items-center gap-3 flex-grow-1 me-3">
-                            <button class="btn btn-outline-secondary py-1.5 px-2 border-opacity-10" id="sidebarToggle" title="Toggle sidebar">
+                            <button class="btn btn-secondary py-1.5 px-2 text-white border-0" id="sidebarToggle" title="Toggle sidebar">
                                 <i data-lucide="panel-left" class="d-none d-lg-inline-block" style="width: 20px; height: 20px;"></i>
                                 <i data-lucide="menu" class="d-lg-none" style="width: 20px; height: 20px;"></i>
                             </button>

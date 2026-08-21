@@ -18,7 +18,7 @@
                 <form method="GET" action="{{ url()->current() }}" class="d-flex gap-2 align-items-center">
                     <div class="input-group input-group-sm" style="max-width: 250px;">
                         <input type="text" name="search" class="form-control" placeholder="Search..." value="{{ request('search') }}">
-                        <button class="btn btn-outline-secondary" type="submit"><i data-lucide="search" style="width: 14px; height: 14px;"></i></button>
+                        <button class="btn btn-secondary text-white" type="submit" aria-label="Search"><i data-lucide="search" style="width: 14px; height: 14px;"></i></button>
                     </div>
                 </form>
             </div>

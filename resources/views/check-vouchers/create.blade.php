@@ -202,7 +202,7 @@
 
                                 <label class="form-label fw-semibold d-flex align-items-center justify-content-between">
                                     <span>Receipts / Invoices <span class="text-danger">*</span></span>
-                                    <button type="button" id="addReceiptRow" class="btn btn-sm btn-outline-primary">
+                                    <button type="button" id="addReceiptRow" class="btn btn-sm btn-primary text-white">
                                         <i data-lucide="plus" style="width:14px;height:14px;"></i> Add Receipt
                                     </button>
                                 </label>
@@ -260,7 +260,7 @@
                                         <td><input type="number" step="0.01" min="0" name="receipts[__INDEX__][non_vat_purchase]" class="form-control form-control-sm receipt-nonvat"></td>
                                         <td class="text-end receipt-row-total text-nowrap">₱0.00</td>
                                         <td class="text-center">
-                                            <button type="button" class="btn btn-sm btn-outline-danger removeReceiptRow"><i data-lucide="trash-2" style="width:14px;height:14px;"></i></button>
+                                            <button type="button" class="btn btn-sm btn-danger removeReceiptRow text-white" title="Remove"><i data-lucide="trash-2" style="width:14px;height:14px;"></i></button>
                                         </td>
                                     </tr>
                                 </template>
@@ -328,7 +328,7 @@
             </div>
 
             <div class="d-flex justify-content-end gap-3 mt-4">
-                <a href="{{ route('check-vouchers.index') }}" class="btn btn-outline-secondary px-4">Cancel</a>
+                <a href="{{ route('check-vouchers.index') }}" class="btn btn-secondary text-white px-4">Cancel</a>
                 <button type="submit" class="btn btn-primary px-4 d-flex align-items-center gap-2">
                     <i data-lucide="save" style="width: 18px; height: 18px;"></i>
                     <span>Save Check Voucher</span>
@@ -457,7 +457,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
         apvResults.innerHTML = apvs.map(function (apv) {
-            return '<button type="button" class="btn btn-sm btn-outline-secondary w-100 text-start mb-1 apv-result" ' +
+            return '<button type="button" class="btn btn-sm btn-secondary text-white w-100 text-start mb-1 apv-result" ' +
                 'data-id="' + apv.id + '" data-vendor="' + (apv.vendor_name || '') + '" data-address="' + (apv.vendor_address || '') + '" data-tin="' + (apv.vendor_tin || '') + '" data-balance="' + apv.remaining_balance + '" data-apv-no="' + apv.apv_no + '">' +
                 apv.apv_no + ' — ' + (apv.vendor_name || 'No vendor') + ' — Balance ₱' + Number(apv.remaining_balance).toFixed(2) +
                 '</button>';
@@ -508,7 +508,7 @@ document.addEventListener('DOMContentLoaded', function () {
             return;
         }
         serviceResults.innerHTML = services.map(function (service) {
-            return '<button type="button" class="btn btn-sm btn-outline-secondary w-100 text-start mb-1 service-result" ' +
+            return '<button type="button" class="btn btn-sm btn-secondary text-white w-100 text-start mb-1 service-result" ' +
                 'data-id="' + service.id + '" data-supplier="' + (service.supplier_name || service.payor || '') + '" data-balance="' + service.remaining_balance + '" data-ref-no="' + service.ref_no + '">' +
                 service.ref_no + ' — ' + (service.supplier_name || service.payor || 'No supplier') + ' — Balance ₱' + Number(service.remaining_balance).toFixed(2) +
                 '</button>';

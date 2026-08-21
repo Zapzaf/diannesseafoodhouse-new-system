@@ -22,7 +22,7 @@
                     </select>
                     <div class="input-group input-group-sm" style="max-width: 250px;">
                         <input type="text" name="search" class="form-control" placeholder="Search..." value="{{ request('search') }}">
-                        <button class="btn btn-outline-secondary" type="submit"><i data-lucide="search" style="width: 14px; height: 14px;"></i></button>
+                        <button class="btn btn-secondary text-white" type="submit" aria-label="Search"><i data-lucide="search" style="width: 14px; height: 14px;"></i></button>
                     </div>
                 </form>
             </div>
@@ -50,20 +50,20 @@
                                     </span>
                                 </td>
                                 <td class="table-actions-cell text-nowrap">
-                                    <a href="{{ route('branches.show', $branch) }}" class="btn btn-sm btn-outline-secondary">
+                                    <a href="{{ route('branches.show', $branch) }}" class="btn btn-sm btn-info text-white" title="View">
                                         <i data-lucide="eye"></i>
                                     </a>
-                                    <a href="{{ route('branches.edit', $branch) }}" class="btn btn-sm btn-outline-primary">
+                                    <a href="{{ route('branches.edit', $branch) }}" class="btn btn-sm btn-primary text-white" title="Edit">
                                         <i data-lucide="edit"></i>
                                     </a>
-                                    <a href="{{ route('branches.mail-settings.edit', $branch) }}" class="btn btn-sm btn-outline-info" title="Mail Settings">
+                                    <a href="{{ route('branches.mail-settings.edit', $branch) }}" class="btn btn-sm btn-secondary text-white" title="Mail Settings">
                                         <i data-lucide="mail"></i>
                                     </a>
                                     <form method="POST" action="{{ route('branches.destroy', $branch) }}" class="d-inline"
                                           onsubmit="return confirm('Delete branch {{ addslashes($branch->name) }}? This cannot be undone.')">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <button type="submit" class="btn btn-sm btn-danger text-white" title="Delete">
                                             <i data-lucide="trash-2"></i>
                                         </button>
                                     </form>

@@ -114,7 +114,7 @@
                             <div class="form-text">Uses the values entered above without saving them.</div>
                         </div>
                         <div class="col-auto">
-                            <button type="submit" formaction="{{ route('branches.mail-settings.test', $branch) }}" class="btn btn-outline-primary">
+                            <button type="submit" formaction="{{ route('branches.mail-settings.test', $branch) }}" class="btn btn-secondary text-white">
                                 <i data-lucide="send" class="me-1"></i> Send Test Email
                             </button>
                         </div>

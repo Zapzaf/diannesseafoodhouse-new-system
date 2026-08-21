@@ -105,7 +105,7 @@
 
             <!-- Bottom CTA Buttons -->
             <div class="d-flex justify-content-end gap-3 mt-4">
-                <a href="{{ route('inventory.index') }}" class="btn btn-outline-secondary px-4">Cancel</a>
+                <a href="{{ route('inventory.index') }}" class="btn btn-secondary text-white px-4">Cancel</a>
                 <button type="submit" class="btn btn-primary px-4 d-flex align-items-center gap-2">
                     <i data-lucide="save" style="width: 18px; height: 18px;"></i>
                     <span>Save Changes</span>

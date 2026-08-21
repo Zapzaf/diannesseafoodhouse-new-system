@@ -187,7 +187,7 @@
                                             @if($existingItemId)
                                             <span class="text-muted" title="Existing order rows cannot be removed here. Admins can delete rows from the order details page.">&mdash;</span>
                                             @else
-                                            <button type="button" class="btn btn-sm btn-outline-danger remove-item-row">&times;</button>
+                                            <button type="button" class="btn btn-sm btn-danger remove-item-row text-white" aria-label="Remove item">&times;</button>
                                             @endif
                                         </td>
                                     </tr>
@@ -201,7 +201,7 @@
                         <legend class="float-none w-auto px-2 fs-6 fw-semibold mb-0">Additional Charges</legend>
                         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
                             <div class="small text-muted">Add any fixed fees or percentage-based charges. Percentage charges are computed from the current menu subtotal.</div>
-                            <button type="button" class="btn btn-outline-primary btn-sm" id="addAdditionalChargeBtn">
+                            <button type="button" class="btn btn-primary btn-sm text-white" id="addAdditionalChargeBtn">
                                 <i data-lucide="plus" class="me-1"></i> Add Charge
                             </button>
                         </div>
@@ -232,7 +232,7 @@
                                         </div>
                                     </div>
                                     <div class="col-lg-1 d-grid">
-                                        <button type="button" class="btn btn-outline-danger remove-additional-charge" title="Remove charge">
+                                        <button type="button" class="btn btn-danger remove-additional-charge text-white" title="Remove charge">
                                             <i data-lucide="trash-2"></i>
                                         </button>
                                     </div>
@@ -262,10 +262,10 @@
                                 <input type="text" id="couponCodeInput" class="form-control text-uppercase" placeholder="Enter coupon code" value="{{ old('promo_coupon_code') }}" @error('promo_coupon_code') @enderror>
                             </div>
                             <div class="col-md-3">
-                                <button type="button" class="btn btn-outline-primary w-100" id="applyCouponBtn">Apply</button>
+                                <button type="button" class="btn btn-primary w-100 text-white" id="applyCouponBtn">Apply</button>
                             </div>
                             <div class="col-md-3">
-                                <button type="button" class="btn btn-outline-secondary w-100 d-none" id="removeCouponBtn">Remove</button>
+                                <button type="button" class="btn btn-secondary w-100 text-white d-none" id="removeCouponBtn">Remove</button>
                             </div>
                         </div>
                         @error('promo_coupon_code')<div class="text-danger small mb-2">{{ $message }}</div>@enderror
@@ -409,7 +409,7 @@
                                 
                                 <div class="position-relative menu-card-img-wrapper" title="Click to add to order">
                                     @if($menu->image)
-                                    <img src="{{ asset('storage/' . $menu->image) }}" alt="{{ $menu->name }}" loading="lazy" decoding="async">
+                                    <img src="{{ asset('storage/' . $menu->image) }}" alt="{{ $menu->name }}" width="200" height="200" decoding="async">
                                     @else
                                     <div class="text-center text-muted">
                                         <i data-lucide="image" style="width:32px; height:32px; opacity: 0.5; margin-bottom: 0.5rem;"></i>
@@ -433,9 +433,9 @@
 
                                     <div class="mt-auto">
                                         <div class="input-group input-group-sm">
-                                            <button class="btn btn-outline-secondary px-2 btn-qty-minus" type="button"><i data-lucide="minus" style="width:14px; height:14px;"></i></button>
+                                            <button class="btn btn-secondary px-2 btn-qty-minus text-white" type="button" aria-label="Decrease quantity"><i data-lucide="minus"></i></button>
                                             <input type="number" class="form-control modal-item-qty text-center fw-bold" value="0" min="0" max="999">
-                                            <button class="btn btn-outline-primary px-2 btn-qty-plus" type="button"><i data-lucide="plus" style="width:14px; height:14px;"></i></button>
+                                            <button class="btn btn-primary px-2 btn-qty-plus text-white" type="button" aria-label="Increase quantity"><i data-lucide="plus"></i></button>
                                         </div>
                                     </div>
                                 </div>
@@ -634,7 +634,7 @@
                     '</div>' +
                 '</div>' +
                 '<div class="col-lg-1 d-grid">' +
-                    '<button type="button" class="btn btn-outline-danger remove-additional-charge" title="Remove charge">' +
+                    '<button type="button" class="btn btn-danger remove-additional-charge text-white" title="Remove charge">' +
                         '<i data-lucide="trash-2"></i>' +
                     '</button>' +
                 '</div>' +
@@ -1010,7 +1010,7 @@
             '<td class="text-end item-unit-price">&#x20B1;0.00</td>' +
             '<td class="text-end fw-semibold item-line-total">&#x20B1;0.00</td>' +
             '<td class="text-center">' +
-            '<button type="button" class="btn btn-sm btn-outline-danger remove-item-row">&times;</button>' +
+            '<button type="button" class="btn btn-sm btn-danger remove-item-row text-white" aria-label="Remove item">&times;</button>' +
             '</td>';
         orderItemsBody.appendChild(row);
         bindRowEvents(row);
@@ -1276,19 +1276,22 @@
     var addMenuModal = document.getElementById('addMenuModal');
     if (addMenuModal) {
         addMenuModal.addEventListener('show.bs.modal', function() {
-            if (!modalError || !modalGrid) return;
-            modalError.classList.add('d-none');
+            if (!modalGrid) return;
+            if (modalError) modalError.classList.add('d-none');
+            if (modalSearch && modalSearch.value) {
+                modalSearch.value = '';
+            }
             filterModalByBranch();
-            if (modalSearch) modalSearch.value = '';
-            modalGrid.querySelectorAll('.menu-modal-card').forEach(function(card) {
-                card.parentElement.style.display = '';
+            // Fast reset: only update cards with active quantities
+            var activeCards = modalGrid.querySelectorAll('.menu-modal-card.border-primary');
+            activeCards.forEach(function(card) {
+                var input = card.querySelector('.modal-item-qty');
+                if (input) input.value = '0';
+                updateCardStyle(card, 0);
             });
-            filterModalByBranch();
-            modalGrid.querySelectorAll('.modal-item-qty').forEach(function(input) { 
-                input.value = '0'; 
-                updateCardStyle(input.closest('.menu-modal-card'), 0);
+            window.requestAnimationFrame(function() {
+                refreshModalAvailabilityBadges();
             });
-            refreshModalAvailabilityBadges();
         });
 
         // Add increment/decrement logic
@@ -1396,7 +1399,7 @@
                 '<td class="text-end item-unit-price">\u20B1' + Number(item.price).toFixed(2) + '</td>' +
                 '<td class="text-end fw-semibold item-line-total">\u20B1' + (Number(item.price) * item.qty).toFixed(2) + '</td>' +
                 '<td class="text-center">' +
-                '<button type="button" class="btn btn-sm btn-outline-danger remove-item-row">&times;</button>' +
+                '<button type="button" class="btn btn-sm btn-danger remove-item-row text-white" aria-label="Remove item">&times;</button>' +
                 '</td>';
             orderItemsBody.appendChild(row);
             bindRowEvents(row);

@@ -26,7 +26,7 @@
 
 @section('content')
     <x-page-header :title="'Menu Order ' . $menuOrder->orderNumber()" :subtitle="$menuOrder->customerDisplayName() . ' - ' . ($menuOrder->branch->name ?? '-')" icon="shopping-bag">
-        <a class="btn btn-outline-primary" href="{{ route('menu-orders.billing', $menuOrder) }}" target="_blank">
+        <a class="btn btn-primary text-white" href="{{ route('menu-orders.billing', $menuOrder) }}" target="_blank">
             <i class="me-1" data-lucide="printer"></i> Billing
         </a>
         @if($canRecordPayment)
@@ -35,20 +35,20 @@
         </a>
         @endif
         @if($canEditOrder)
-        <a class="btn btn-outline-primary" href="{{ route('menu-orders.edit', $menuOrder) }}">
+        <a class="btn btn-primary text-white" href="{{ route('menu-orders.edit', $menuOrder) }}">
             <i class="me-1" data-lucide="edit"></i> Edit
         </a>
         @endif
         @if($canEditOrder)
         <form action="{{ route('menu-orders.cancel', $menuOrder) }}" method="POST" onsubmit="return confirm('Cancel this order?')">
             @csrf
-            <button type="submit" class="btn btn-outline-warning">
+            <button type="submit" class="btn btn-warning text-white">
                 <i class="me-1" data-lucide="x-circle"></i> Cancel
             </button>
         </form>
         @endif
         @if($canVoidOrder)
-        <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#voidModal">
+        <button type="button" class="btn btn-warning text-white" data-bs-toggle="modal" data-bs-target="#voidModal">
             <i class="me-1" data-lucide="slash"></i> Void
         </button>
         @endif
@@ -60,7 +60,7 @@
         @endphp
         <form action="{{ route('menu-orders.reactivate', $menuOrder) }}" method="POST" onsubmit="return confirm('{{ $reactivateConfirm }}')">
             @csrf
-            <button type="submit" class="btn btn-outline-success">
+            <button type="submit" class="btn btn-success text-white">
                 <i class="me-1" data-lucide="rotate-ccw"></i> Reactivate
             </button>
         </form>
@@ -69,12 +69,12 @@
         <form action="{{ route('menu-orders.destroy', $menuOrder) }}" method="POST" onsubmit="return confirm('Delete this menu order?')">
             @csrf
             @method('DELETE')
-            <button type="submit" class="btn btn-outline-danger">
+            <button type="submit" class="btn btn-danger text-white">
                 <i class="me-1" data-lucide="trash-2"></i> Delete
             </button>
         </form>
         @endif
-        <a class="btn btn-outline-primary" href="{{ route('menu-orders.index') }}">
+        <a class="btn btn-secondary text-white" href="{{ route('menu-orders.index') }}">
             <i class="me-1" data-lucide="arrow-left"></i> Back
         </a>
     </x-page-header>
@@ -194,7 +194,7 @@
                                                 @csrf
                                                 @method('PUT')
                                                 <input type="number" name="quantity" class="form-control form-control-sm qty-input text-end" style="width:64px;" value="{{ $item->quantity }}" min="1" max="999" data-original="{{ $item->quantity }}">
-                                                <button type="submit" class="btn btn-sm btn-outline-primary qty-save-btn d-none" title="Save quantity"><i data-lucide="check" style="width:14px;height:14px;"></i></button>
+                                                <button type="submit" class="btn btn-sm btn-primary qty-save-btn d-none text-white" title="Save quantity"><i data-lucide="check" style="width:14px;height:14px;"></i></button>
                                             </form>
                                             @else
                                             <span class="fw-semibold">{{ $item->quantity }}</span>
@@ -217,10 +217,10 @@
                                         </td>
                                         <x-table.td-actions :show="$canModifyItems">
                                             @if($menuOrder->items->count() > 1)
-                                            <form action="{{ route('menu-orders.items.destroy', [$menuOrder, $item]) }}" method="POST" onsubmit="return confirm('Delete this item and replenish its deducted inventory?')" class="d-inline">
+                                             <form action="{{ route('menu-orders.items.destroy', [$menuOrder, $item]) }}" method="POST" onsubmit="return confirm('Delete this item and replenish its deducted inventory?')" class="d-inline">
                                                 @csrf
                                                 @method('DELETE')
-                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete item">
+                                                <button type="submit" class="btn btn-sm btn-danger text-white" title="Delete item">
                                                     <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
                                                 </button>
                                             </form>
@@ -267,11 +267,11 @@
                                         <td class="fw-semibold">{{ $payment->or_number ?: '-' }}</td>
                                         <td class="text-center">
                                             <div class="d-inline-flex gap-1">
-                                                <a href="{{ route('menu-orders.payments.receipt', $payment) }}" target="_blank" class="btn btn-sm btn-outline-secondary" title="Print receipt">
+                                                <a href="{{ route('menu-orders.payments.receipt', $payment) }}" target="_blank" class="btn btn-sm btn-secondary text-white" title="Print receipt">
                                                     <i data-lucide="printer" style="width:14px;height:14px;"></i>
                                                 </a>
                                                 @if(auth()->user()->isAdmin())
-                                                <button type="button" class="btn btn-sm btn-outline-primary edit-payment-btn"
+                                                <button type="button" class="btn btn-sm btn-primary edit-payment-btn text-white"
                                                     data-action="{{ route('menu-orders.payments.update', $payment) }}"
                                                     data-amount="{{ number_format((float) $payment->amount, 2, '.', '') }}"
                                                     data-tendered="{{ number_format((float) $payment->amount_tendered, 2, '.', '') }}"
@@ -284,7 +284,7 @@
                                                 <form action="{{ route('menu-orders.payments.destroy', $payment) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this payment? The order balance and status will be recomputed.')">
                                                     @csrf
                                                     @method('DELETE')
-                                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete payment">
+                                                    <button type="submit" class="btn btn-sm btn-danger text-white" title="Delete payment">
                                                         <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
                                                     </button>
                                                 </form>
@@ -639,12 +639,14 @@
     if (addMenuModal) {
         addMenuModal.addEventListener('show.bs.modal', function () {
             if (modalError) modalError.classList.add('d-none');
-            if (modalSearch) modalSearch.value = '';
+            if (modalSearch && modalSearch.value) modalSearch.value = '';
             if (fields) fields.innerHTML = '';
             if (!modalGrid) return;
-            modalGrid.querySelectorAll('.modal-item-qty').forEach(function (input) {
-                input.value = '0';
-                updateCardStyle(input.closest('.menu-modal-card'), 0);
+            var activeCards = modalGrid.querySelectorAll('.menu-modal-card.border-primary');
+            activeCards.forEach(function (card) {
+                var input = card.querySelector('.modal-item-qty');
+                if (input) input.value = '0';
+                updateCardStyle(card, 0);
             });
             filterModal();
         });

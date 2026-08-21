@@ -30,7 +30,7 @@
                                  data-menu-image="{{ $menu->image ? asset('storage/' . $menu->image) : '' }}">
                                 <div class="position-relative menu-card-img-wrapper" title="Click to add to order">
                                     @if($menu->image)
-                                    <img src="{{ asset('storage/' . $menu->image) }}" alt="{{ $menu->name }}" loading="lazy" decoding="async">
+                                    <img src="{{ asset('storage/' . $menu->image) }}" alt="{{ $menu->name }}" width="200" height="200" decoding="async">
                                     @else
                                     <div class="text-center text-muted">
                                         <i data-lucide="image" style="width:32px; height:32px; opacity: 0.5; margin-bottom: 0.5rem;"></i>
@@ -54,9 +54,9 @@
 
                                     <div class="mt-auto">
                                         <div class="input-group input-group-sm">
-                                            <button class="btn btn-outline-secondary px-2 btn-qty-minus" type="button"><i data-lucide="minus" style="width:14px; height:14px;"></i></button>
+                                            <button class="btn btn-secondary px-2 btn-qty-minus text-white" type="button" aria-label="Decrease quantity"><i data-lucide="minus"></i></button>
                                             <input type="number" class="form-control modal-item-qty text-center fw-bold" value="0" min="0" max="999">
-                                            <button class="btn btn-outline-primary px-2 btn-qty-plus" type="button"><i data-lucide="plus" style="width:14px; height:14px;"></i></button>
+                                            <button class="btn btn-primary px-2 btn-qty-plus text-white" type="button" aria-label="Increase quantity"><i data-lucide="plus"></i></button>
                                         </div>
                                     </div>
                                 </div>

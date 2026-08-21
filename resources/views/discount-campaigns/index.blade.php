@@ -2,7 +2,7 @@
 @section('page_title', 'Discounts & Coupons - Dianne\'s Seafood House')
 @section('content')
 <x-page-header title="Discounts & Coupons" subtitle="Promotional discounts and coupon codes — separate from PWD/Senior discounts" icon="tag">
-    <a class="btn btn-outline-primary" href="{{ route('discount-campaigns.redemption-history') }}">
+    <a class="btn btn-secondary text-white" href="{{ route('discount-campaigns.redemption-history') }}">
         <i data-lucide="history" class="me-1"></i> Redemption History
     </a>
     <a class="btn btn-light text-primary" href="{{ route('discount-campaigns.create') }}">
@@ -83,17 +83,17 @@
                             </td>
                             <td><span class="badge {{ $campaign->is_active ? 'bg-success' : 'bg-secondary' }}">{{ $campaign->is_active ? 'Active' : 'Inactive' }}</span></td>
                             <td class="table-actions-cell text-nowrap">
-                                <a href="{{ route('discount-campaigns.redemptions', $campaign) }}" class="btn btn-sm btn-outline-info" title="Redemption History"><i data-lucide="history"></i></a>
-                                <a href="{{ route('discount-campaigns.edit', $campaign) }}" class="btn btn-sm btn-outline-primary" title="Edit"><i data-lucide="edit"></i></a>
+                                <a href="{{ route('discount-campaigns.redemptions', $campaign) }}" class="btn btn-sm btn-info text-white" title="Redemption History"><i data-lucide="history"></i></a>
+                                <a href="{{ route('discount-campaigns.edit', $campaign) }}" class="btn btn-sm btn-primary text-white" title="Edit"><i data-lucide="edit"></i></a>
                                 <form action="{{ route('discount-campaigns.toggle-active', $campaign) }}" method="POST" class="d-inline">
                                     @csrf
-                                    <button type="submit" class="btn btn-sm btn-outline-secondary" title="{{ $campaign->is_active ? 'Deactivate' : 'Activate' }}">
+                                    <button type="submit" class="btn btn-sm {{ $campaign->is_active ? 'btn-warning' : 'btn-success' }} text-white" title="{{ $campaign->is_active ? 'Deactivate' : 'Activate' }}">
                                         <i data-lucide="{{ $campaign->is_active ? 'toggle-right' : 'toggle-left' }}"></i>
                                     </button>
                                 </form>
                                 <form action="{{ route('discount-campaigns.destroy', $campaign) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this campaign?')">
                                     @csrf @method('DELETE')
-                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i data-lucide="trash-2"></i></button>
+                                    <button type="submit" class="btn btn-sm btn-danger text-white" title="Delete"><i data-lucide="trash-2"></i></button>
                                 </form>
                             </td>
                         </tr>

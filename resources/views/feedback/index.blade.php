@@ -61,13 +61,13 @@
                             @endforeach
                             <td class="text-center fw-bold">{{ number_format($entry->average_rating, 2) }}</td>
                             <td class="table-actions-cell text-end text-nowrap">
-                                <a href="{{ route('feedback.show', $entry) }}" class="btn btn-sm btn-outline-primary">
+                                <a href="{{ route('feedback.show', $entry) }}" class="btn btn-sm btn-info text-white" title="View">
                                     <i data-lucide="eye" style="width:14px;height:14px;"></i>
                                 </a>
                                 <form action="{{ route('feedback.destroy', $entry) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this feedback entry?');">
                                     @csrf
                                     @method('DELETE')
-                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    <button type="submit" class="btn btn-sm btn-danger text-white" title="Delete">
                                         <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
                                     </button>
                                 </form>

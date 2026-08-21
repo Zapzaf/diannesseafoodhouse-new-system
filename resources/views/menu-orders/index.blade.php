@@ -111,16 +111,16 @@ document.addEventListener('DOMContentLoaded', function() {
             const canVoid = isBranchManager && order.status !== 'voided' && order.status !== 'cancelled' && Number(order.payments_count || 0) === 0;
 
             const editActions = canEdit ? `
-                <a href="{{ url('/menu-orders') }}/${order.id}/edit" class="btn btn-sm btn-outline-secondary" title="Edit"><i data-lucide="edit"></i></a>
+                <a href="{{ url('/menu-orders') }}/${order.id}/edit" class="btn btn-sm btn-primary text-white" title="Edit"><i data-lucide="edit"></i></a>
                 <form action="{{ url('/menu-orders') }}/${order.id}" method="POST" class="d-inline" onsubmit="return confirm('Delete this menu order?')">
                     <input type="hidden" name="_token" value="${csrf}">
                     <input type="hidden" name="_method" value="DELETE">
-                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i data-lucide="trash-2"></i></button>
+                    <button type="submit" class="btn btn-sm btn-danger text-white" title="Delete"><i data-lucide="trash-2"></i></button>
                 </form>
             ` : '';
 
             const voidAction = canVoid ? `
-                <button type="button" class="btn btn-sm btn-outline-warning" title="Void Order" onclick="openVoidModal(${order.id})">
+                <button type="button" class="btn btn-sm btn-warning text-white" title="Void Order" onclick="openVoidModal(${order.id})">
                     <i data-lucide="slash"></i>
                 </button>
             ` : '';
@@ -136,7 +136,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td><span class="badge badge-status badge-${ctx.escapeHtml(order.payment_status || 'unpaid')}">${ctx.escapeHtml(order.payment_status || 'unpaid')}</span></td>
                     <td><span class="badge badge-status badge-${ctx.escapeHtml(order.status || 'open')}">${ctx.escapeHtml(order.status || 'open')}</span></td>
                     <td class="table-actions-cell text-nowrap">
-                        <a href="{{ url('/menu-orders') }}/${order.id}" class="btn btn-sm btn-outline-info" title="View"><i data-lucide="eye"></i></a>
+                        <a href="{{ url('/menu-orders') }}/${order.id}" class="btn btn-sm btn-info text-white" title="View"><i data-lucide="eye"></i></a>
                         ${editActions}
                         ${voidAction}
                     </td>

@@ -28,7 +28,7 @@
                         </select>
                     </div>
                     <div class="col-md-2">
-                        <button type="submit" class="btn btn-outline-primary w-100">Filter</button>
+                        <button type="submit" class="btn btn-primary w-100 text-white">Filter</button>
                     </div>
                 </form>
 
@@ -59,10 +59,10 @@
                                     </span>
                                 </td>
                                 <td class="table-actions-cell text-nowrap">
-                                    <a href="{{ route('chart-of-accounts.edit', $account) }}" class="btn btn-sm btn-outline-primary" title="Edit"><i data-lucide="edit-2"></i></a>
+                                    <a href="{{ route('chart-of-accounts.edit', $account) }}" class="btn btn-sm btn-primary text-white" title="Edit"><i data-lucide="edit-2"></i></a>
                                     <form action="{{ route('chart-of-accounts.toggle-active', $account) }}" method="POST" class="d-inline">
                                         @csrf
-                                        <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                        <button type="submit" class="btn btn-sm {{ $account->is_active ? 'btn-warning' : 'btn-success' }} text-white">
                                             {{ $account->is_active ? 'Deactivate' : 'Activate' }}
                                         </button>
                                     </form>

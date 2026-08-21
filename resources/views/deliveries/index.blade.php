@@ -25,7 +25,7 @@
                     </select>
                     <div class="input-group input-group-sm" style="max-width: 250px;">
                         <input type="text" name="search" class="form-control" placeholder="Search..." value="{{ request('search') }}">
-                        <button class="btn btn-outline-secondary" type="submit"><i data-lucide="search" style="width: 14px; height: 14px;"></i></button>
+                        <button class="btn btn-secondary text-white" type="submit" aria-label="Search"><i data-lucide="search" style="width: 14px; height: 14px;"></i></button>
                     </div>
                 </form>
             </div>
@@ -77,7 +77,7 @@
                                 <span class="badge-status badge-{{ $delivery->status }}">{{ strtoupper($delivery->status) }}</span>
                             </td>
                             <td class="table-actions-cell text-nowrap">
-                                <a href="{{ route('deliveries.show', $delivery) }}" class="btn btn-sm btn-outline-primary">
+                                <a href="{{ route('deliveries.show', $delivery) }}" class="btn btn-sm btn-info text-white">
                                     <i data-lucide="eye" style="width:14px;height:14px;" class="me-1"></i> View
                                 </a>
                                 @can('delete', $delivery)
@@ -85,7 +85,7 @@
                                       onsubmit="return confirm('Delete delivery {{ $delivery->reference_number }}?\n\nThis will reverse ALL inventory changes from this delivery, and delete any linked production records (including finished ones) after reversing their inputs, outputs, and scrap.\n\nThis cannot be undone.')">
                                     @csrf
                                     @method('DELETE')
-                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete delivery and reverse inventory">
+                                    <button type="submit" class="btn btn-sm btn-danger text-white" title="Delete delivery and reverse inventory">
                                         <i data-lucide="trash-2" style="width:14px;height:14px;"></i>
                                     </button>
                                 </form>

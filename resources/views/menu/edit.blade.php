@@ -4,7 +4,7 @@
 
 @section('content')
     <x-page-header title="Edit Menu Item" :subtitle="$menu->name" icon="edit">
-        <a class="btn btn-outline-primary" href="{{ route('menus.show', $menu) }}">
+        <a class="btn btn-secondary text-white" href="{{ route('menus.show', $menu) }}">
             <i data-lucide="eye" class="me-1"></i> View
         </a>
         <a class="btn btn-primary" href="{{ $returnUrl ?? route('menus.index') }}">
@@ -117,7 +117,7 @@
                         <i data-lucide="list" class="me-1"></i> Ingredients (Recipe / BOM)
                         <span class="badge bg-primary bg-opacity-10 text-primary ms-1" id="ingredientCount"></span>
                     </div>
-                    <button type="button" id="addIngredientBtn" class="btn btn-sm btn-outline-primary">
+                    <button type="button" id="addIngredientBtn" class="btn btn-sm btn-primary text-white">
                         <i data-lucide="plus" class="me-1"></i> Add Ingredient
                     </button>
                 </div>
@@ -172,7 +172,7 @@
                                 </div>
                             </div>
                             <div class="col-md-1 d-grid">
-                                <button type="button" class="btn btn-outline-danger btn-remove-ingredient" title="Remove ingredient">
+                                <button type="button" class="btn btn-danger btn-remove-ingredient text-white" title="Remove ingredient">
                                     <i data-lucide="trash-2" style="width:16px;height:16px;"></i>
                                 </button>
                             </div>
@@ -201,7 +201,7 @@
                                 </div>
                             </div>
                             <div class="col-md-1 d-grid">
-                                <button type="button" class="btn btn-outline-danger btn-remove-ingredient" title="Remove ingredient">
+                                <button type="button" class="btn btn-danger btn-remove-ingredient text-white" title="Remove ingredient">
                                     <i data-lucide="trash-2" style="width:16px;height:16px;"></i>
                                 </button>
                             </div>
@@ -381,7 +381,7 @@ document.getElementById('addIngredientBtn').addEventListener('click', function (
             </div>
         </div>
         <div class="col-md-1 d-grid">
-            <button type="button" class="btn btn-outline-danger btn-remove-ingredient" title="Remove ingredient">
+            <button type="button" class="btn btn-danger btn-remove-ingredient text-white" title="Remove ingredient">
                 <i data-lucide="trash-2" style="width:16px;height:16px;"></i>
             </button>
         </div>`;

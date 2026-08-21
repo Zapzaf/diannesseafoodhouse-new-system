@@ -221,7 +221,7 @@
                     @csrf
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h6 class="mb-0">Finished Outputs</h6>
-                        <button type="button" class="btn btn-sm btn-outline-primary" id="add-output-row">
+                        <button type="button" class="btn btn-sm btn-primary text-white" id="add-output-row">
                             <i data-lucide="plus"></i> Add Output
                         </button>
                     </div>
@@ -256,7 +256,7 @@
                                         <input type="text" class="form-control unit-display" value="Select an item" disabled>
                                         <input type="hidden" name="outputs[0][unit]" data-output-field="unit">
                                     </td>
-                                    <td class="table-actions-cell text-center"><button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Remove"><i data-lucide="trash-2"></i></button></td>
+                                    <td class="table-actions-cell text-center"><button type="button" class="btn btn-sm btn-danger remove-row text-white" title="Remove"><i data-lucide="trash-2"></i></button></td>
                                 </tr>
                             </tbody>
                         </table>
@@ -266,7 +266,7 @@
 
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h6 class="mb-0">Scrap Conversion</h6>
-                        <button type="button" class="btn btn-sm btn-outline-primary" id="add-wastage-row">
+                        <button type="button" class="btn btn-sm btn-primary text-white" id="add-wastage-row">
                             <i data-lucide="plus"></i> Add Conversion Row
                         </button>
                     </div>
@@ -302,7 +302,7 @@
                                     </td>
                                     <td><input type="number" step="0.01" min="0.01" name="wastage[0][converted_quantity]" class="form-control" data-field="converted_quantity"></td>
                                     <td><input type="text" class="form-control unit-display" value="Select Convert To" data-wastage-unit-display="convert" disabled></td>
-                                    <td class="table-actions-cell text-center"><button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Remove"><i data-lucide="trash-2"></i></button></td>
+                                    <td class="table-actions-cell text-center"><button type="button" class="btn btn-sm btn-danger remove-row text-white" title="Remove"><i data-lucide="trash-2"></i></button></td>
                                 </tr>
                             </tbody>
                         </table>
@@ -383,7 +383,7 @@ document.addEventListener('DOMContentLoaded', function () {
             <td><div class="item-picker"><input type="search" class="form-control item-picker-search" placeholder="Search item by name or ID" autocomplete="off"><input type="hidden" data-output-field="item_id"><div class="item-picker-results d-none"></div></div></td>
             <td><input type="number" step="0.01" min="0.01" class="form-control" data-output-field="quantity_produced"></td>
             <td><input type="text" class="form-control unit-display" value="Select an item" disabled><input type="hidden" data-output-field="unit"></td>
-            <td class="table-actions-cell text-center"><button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Remove"><i data-lucide="trash-2"></i></button></td>
+            <td class="table-actions-cell text-center"><button type="button" class="btn btn-sm btn-danger remove-row text-white" title="Remove"><i data-lucide="trash-2"></i></button></td>
         `;
     }, []);
 
@@ -392,7 +392,7 @@ document.addEventListener('DOMContentLoaded', function () {
             <td><div class="item-picker"><input type="search" class="form-control item-picker-search" placeholder="Search item (optional)" autocomplete="off"><input type="hidden" data-field="convert_to_item_id"><div class="item-picker-results d-none"></div></div></td>
             <td><input type="number" step="0.01" min="0.01" class="form-control" data-field="converted_quantity"></td>
             <td><input type="text" class="form-control unit-display" value="Select Convert To" data-wastage-unit-display="convert" disabled></td>
-            <td class="table-actions-cell text-center"><button type="button" class="btn btn-sm btn-outline-danger remove-row" title="Remove"><i data-lucide="trash-2"></i></button></td>
+            <td class="table-actions-cell text-center"><button type="button" class="btn btn-sm btn-danger remove-row text-white" title="Remove"><i data-lucide="trash-2"></i></button></td>
         `;
     }, ['convert_to_item_id', 'converted_quantity']);
 

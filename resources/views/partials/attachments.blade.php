@@ -21,7 +21,7 @@
                         <td class="table-actions-cell">
                             <form action="{{ route('attachments.destroy', [$attachmentType, $attachmentId, $attachment]) }}" method="POST" onsubmit="return confirm('Remove this attachment?');">
                                 @csrf @method('DELETE')
-                                <button type="submit" class="btn btn-sm btn-outline-danger"><i data-lucide="trash-2"></i></button>
+                                <button type="submit" class="btn btn-sm btn-danger text-white" title="Delete"><i data-lucide="trash-2"></i></button>
                             </form>
                         </td>
                     </tr>
@@ -34,7 +34,7 @@
         <form action="{{ route('attachments.store', [$attachmentType, $attachmentId]) }}" method="POST" enctype="multipart/form-data" class="d-flex gap-2">
             @csrf
             <input type="file" name="attachments[]" class="form-control" multiple>
-            <button type="submit" class="btn btn-outline-primary text-nowrap">Upload</button>
+            <button type="submit" class="btn btn-primary text-white text-nowrap">Upload</button>
         </form>
     </div>
 </div>

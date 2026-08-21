@@ -4,7 +4,7 @@
 
 @section('content')
     <x-page-header title="Log Incoming Delivery" subtitle="Record a delivery from an external supplier" icon="truck">
-        <a href="{{ route('deliveries.index') }}" class="btn btn-outline-primary">
+        <a href="{{ route('deliveries.index') }}" class="btn btn-secondary text-white">
             <i data-lucide="arrow-left" class="me-1"></i> All Deliveries
         </a>
     </x-page-header>
@@ -86,8 +86,8 @@
                             <i data-lucide="package" style="width: 20px; height: 20px;"></i>
                             <span>Delivery Items</span>
                         </h5>
-                        <button type="button" class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" id="add-row">
-                            <i data-lucide="plus" style="width: 14px; height: 14px;"></i> Add Item
+                        <button type="button" class="btn btn-sm btn-primary text-white" id="add-row">
+                            <i data-lucide="plus"></i> Add Item
                         </button>
                     </div>
                     @error('items') <div class="alert alert-danger py-2 mt-3 mb-0">{{ $message }}</div> @enderror
@@ -110,7 +110,7 @@
                     </div>
 
                     <div class="mt-4 d-flex justify-content-end gap-3">
-                        <a href="{{ route('deliveries.index') }}" class="btn btn-outline-secondary px-4">Cancel</a>
+                        <a href="{{ route('deliveries.index') }}" class="btn btn-secondary text-white px-4">Cancel</a>
                         <button type="submit" class="btn btn-primary px-4 d-flex align-items-center gap-2">
                             <i data-lucide="save" style="width: 18px; height: 18px;"></i>
                             <span>Save Delivery</span>
@@ -155,7 +155,7 @@
                     {{-- Step 2: Search & pick inventory item (only shown when Inventory Storage chosen) --}}
                     <div id="stepSearch" class="d-none">
                         <div class="destination-search-header">
-                            <button type="button" class="btn btn-sm btn-outline-secondary" id="backToChoose">
+                            <button type="button" class="btn btn-sm btn-secondary text-white" id="backToChoose">
                                 <i data-lucide="arrow-left" style="width:14px;height:14px;"></i> Back
                             </button>
                             <div>
@@ -255,7 +255,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 <input type="hidden" name="items[${index}][item_id]" class="row-item-id" value="">
                 <input type="hidden" name="items[${index}][allocated_to]" class="row-allocated" value="">
                 <div class="destination-control">
-                    <button type="button" class="btn btn-sm btn-outline-primary btn-dest w-100">
+                    <button type="button" class="btn btn-sm btn-primary text-white btn-dest w-100">
                         <i data-lucide="map-pin"></i> Select Destination
                     </button>
                     <div class="dest-selection d-none">
@@ -266,7 +266,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 </div>
             </td>
             <td class="table-actions-cell">
-                <button type="button" class="btn btn-sm btn-outline-danger btn-remove" title="Remove"><i data-lucide="trash-2"></i></button>
+                <button type="button" class="btn btn-sm btn-danger btn-remove text-white" title="Remove"><i data-lucide="trash-2"></i></button>
             </td>
         `;
         return tr;

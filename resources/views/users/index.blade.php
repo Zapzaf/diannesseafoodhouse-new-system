@@ -134,7 +134,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <form action="{{ url('/users') }}/${u.id}" method="POST" class="d-inline" onsubmit="return confirm('Delete this user?')">
                         <input type="hidden" name="_token" value="${csrfToken}">
                         <input type="hidden" name="_method" value="DELETE">
-                        <button class="btn btn-sm btn-outline-danger" title="Delete"><i data-lucide="trash-2"></i></button>
+                        <button class="btn btn-sm btn-danger text-white" title="Delete"><i data-lucide="trash-2"></i></button>
                     </form>
                 `
                 : '';
@@ -148,7 +148,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td>${escapeHtml(branchName)}</td>
                     <td>${escapeHtml(joined)}</td>
                     <td class="table-actions-cell text-nowrap">
-                        ${canManageTarget ? `<a href="{{ url('/users') }}/${u.id}/edit" class="btn btn-sm btn-outline-primary" title="Edit"><i data-lucide="edit-2"></i></a>` : ''}
+                        ${canManageTarget ? `<a href="{{ url('/users') }}/${u.id}/edit" class="btn btn-sm btn-primary text-white" title="Edit"><i data-lucide="edit-2"></i></a>` : ''}
                         ${deleteAction}
                     </td>
                 </tr>

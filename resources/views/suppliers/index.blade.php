@@ -30,7 +30,7 @@
                     </select>
                     <div class="input-group input-group-sm" style="max-width: 250px;">
                         <input type="text" name="search" class="form-control" placeholder="Search suppliers..." value="{{ request('search') }}">
-                        <button class="btn btn-outline-secondary" type="submit"><i data-lucide="search" style="width: 14px; height: 14px;"></i></button>
+                        <button class="btn btn-secondary text-white" type="submit" aria-label="Search"><i data-lucide="search" style="width: 14px; height: 14px;"></i></button>
                     </div>
                 </form>
             </div>
@@ -66,15 +66,15 @@
                                 <td>{{ $supplier->email ?? '—' }}</td>
                                 <td class="text-muted small">{{ $supplier->address ?? '—' }}</td>
                                 <td class="table-actions-cell text-end text-nowrap">
-                                    <a href="{{ route('suppliers.show', $supplier) }}" class="btn btn-sm btn-outline-secondary" title="View supplier"><i data-lucide="eye"></i></a>
+                                    <a href="{{ route('suppliers.show', $supplier) }}" class="btn btn-sm btn-info text-white" title="View supplier"><i data-lucide="eye"></i></a>
                                     @can('update', $supplier)
-                                    <a href="{{ route('suppliers.edit', $supplier) }}" class="btn btn-sm btn-outline-primary" title="Edit supplier"><i data-lucide="edit-2"></i></a>
+                                    <a href="{{ route('suppliers.edit', $supplier) }}" class="btn btn-sm btn-primary text-white" title="Edit supplier"><i data-lucide="edit-2"></i></a>
                                     @endcan
                                     @can('delete', $supplier)
                                     <form action="{{ route('suppliers.destroy', $supplier) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete supplier {{ $supplier->name }}? This cannot be undone.');">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete supplier"><i data-lucide="trash-2"></i></button>
+                                        <button type="submit" class="btn btn-sm btn-danger text-white" title="Delete supplier"><i data-lucide="trash-2"></i></button>
                                     </form>
                                     @endcan
                                 </td>

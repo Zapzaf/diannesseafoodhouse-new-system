@@ -157,7 +157,7 @@
                             <i data-lucide="send" style="width: 17px; height: 17px;"></i>
                             <span>Submit for Review</span>
                         </button>
-                        <a href="{{ route('reports.costing.index') }}" class="btn btn-outline-secondary">Cancel</a>
+                        <a href="{{ route('reports.costing.index') }}" class="btn btn-secondary text-white">Cancel</a>
                         <div class="text-muted small text-center mt-1">The item price only changes after admin approval.</div>
                     </div>
                 </div>
@@ -346,7 +346,7 @@ document.addEventListener('DOMContentLoaded', function () {
             label.textContent = file.name + ' (' + sizeKb + ')';
             const remove = document.createElement('button');
             remove.type = 'button';
-            remove.className = 'btn btn-outline-danger p-0 d-inline-flex align-items-center justify-content-center flex-shrink-0';
+            remove.className = 'btn btn-danger text-white p-0 d-inline-flex align-items-center justify-content-center flex-shrink-0';
             remove.style.cssText = 'width: 22px; height: 22px; border-radius: 50%; font-size: .95rem; line-height: 1;';
             remove.innerHTML = '&times;';
             remove.setAttribute('aria-label', 'Remove ' + file.name);

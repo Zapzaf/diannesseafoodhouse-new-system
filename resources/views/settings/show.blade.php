@@ -292,8 +292,8 @@
                     @error('sidebar_bg_dark')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
                 </div>
                 <div class="col-md-4 d-flex gap-2">
-                    <button type="submit" class="btn btn-primary">Save Appearance</button>
-                    <button type="submit" name="reset" value="1" class="btn btn-outline-secondary"
+                    <button type="submit" class="btn btn-primary text-white">Save Appearance</button>
+                    <button type="submit" name="reset" value="1" class="btn btn-secondary text-white"
                             onclick="return confirm('Reset sidebar colors to the system defaults?')">Reset to Defaults</button>
                 </div>
                 <div class="col-12">

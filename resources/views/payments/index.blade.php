@@ -62,10 +62,10 @@ document.addEventListener('DOMContentLoaded', function() {
         renderRow: function(payment, ctx) {
             const typeLabel = payment.transaction_type === 'menu_order' ? 'Menu Order' : 'Check-in';
             const detailAction = payment.detail_url
-                ? `<a href="${payment.detail_url}" class="btn btn-sm btn-outline-secondary" title="View"><i data-lucide="eye"></i></a>`
+                ? `<a href="${payment.detail_url}" class="btn btn-sm btn-info text-white" title="View"><i data-lucide="eye"></i></a>`
                 : '';
             const receiptAction = payment.receipt_url
-                ? `<a href="${payment.receipt_url}" target="_blank" class="btn btn-sm btn-outline-secondary" title="Print Receipt"><i data-lucide="printer"></i></a>`
+                ? `<a href="${payment.receipt_url}" target="_blank" class="btn btn-sm btn-secondary text-white" title="Print Receipt"><i data-lucide="printer"></i></a>`
                 : '';
 
             return `

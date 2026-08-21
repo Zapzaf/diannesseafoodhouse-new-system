@@ -4,7 +4,7 @@
 
 @section('content')
     <x-page-header title="Create Location" subtitle="Add a new location for the selected branch" icon="map-pin">
-        <a href="{{ route('categories.all') }}" class="btn btn-outline-primary">
+        <a href="{{ route('categories.all') }}" class="btn btn-secondary text-white">
             <i data-lucide="arrow-left" class="me-1"></i> All Location Categories
         </a>
     </x-page-header>
