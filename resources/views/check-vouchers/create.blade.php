@@ -593,6 +593,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
         row.querySelector('.removeReceiptRow').addEventListener('click', function () {
             if (receiptsTableBody.querySelectorAll('.receipt-row').length > 1) {
+                if (window.SupplierPicker) window.SupplierPicker.destroy(row.querySelector('.supplier-combo'));
                 row.remove();
                 updateReceiptTotals();
             }
