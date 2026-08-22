@@ -211,17 +211,28 @@
                             @endif
                             @endforeach
                         </tbody>
-                        <tfoot>
-                            <tr class="table-light fw-bold">
-                                <td colspan="3" class="text-end">Sub-Total</td>
-                                <td class="text-end">₱{{ number_format($checkVoucher->receipts->sum('amount_w_vat'), 2) }}</td>
-                                <td class="text-end">₱{{ number_format($checkVoucher->receipts->sum('vat_exempt'), 2) }}</td>
-                                <td class="text-end">₱{{ number_format($checkVoucher->receipts->sum('non_vat_purchase'), 2) }}</td>
-                                <td class="text-end">₱{{ number_format($checkVoucher->receipts->sum('total'), 2) }}</td>
-                                @if($receiptsEditable)<td></td>@endif
-                            </tr>
-                        </tfoot>
                     </table>
+                </div>
+                {{-- Kept outside the scrollable table (rather than a <tfoot> row inside
+                    it) so the sub-total is always visible without having to scroll the
+                    table horizontally to see it. --}}
+                <div class="d-flex flex-wrap justify-content-end gap-4 border-top pt-2 mt-1">
+                    <div class="text-end">
+                        <div class="small text-muted">Sub-Total Amount w/ VAT</div>
+                        <div class="fw-semibold">₱{{ number_format($checkVoucher->receipts->sum('amount_w_vat'), 2) }}</div>
+                    </div>
+                    <div class="text-end">
+                        <div class="small text-muted">Sub-Total VAT-Exempt</div>
+                        <div class="fw-semibold">₱{{ number_format($checkVoucher->receipts->sum('vat_exempt'), 2) }}</div>
+                    </div>
+                    <div class="text-end">
+                        <div class="small text-muted">Sub-Total Non-VAT</div>
+                        <div class="fw-semibold">₱{{ number_format($checkVoucher->receipts->sum('non_vat_purchase'), 2) }}</div>
+                    </div>
+                    <div class="text-end">
+                        <div class="small text-muted">Grand Total</div>
+                        <div class="fw-bold">₱{{ number_format($checkVoucher->receipts->sum('total'), 2) }}</div>
+                    </div>
                 </div>
 
                 @if($receiptsEditable)

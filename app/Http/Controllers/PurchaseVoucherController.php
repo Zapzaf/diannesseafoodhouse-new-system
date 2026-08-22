@@ -22,6 +22,8 @@ class PurchaseVoucherController extends Controller
         $vouchers = PurchaseVoucher::with(['vendor', 'creditAccount', 'items', 'branch'])
             ->when($this->activeBranchId($request), fn ($q, $id) => $q->where('branch_id', $id))
             ->when($request->input('status'), fn ($q, $s) => $q->where('status', $s))
+            ->when($request->input('date_from'), fn ($q, $d) => $q->whereDate('date', '>=', $d))
+            ->when($request->input('date_to'), fn ($q, $d) => $q->whereDate('date', '<=', $d))
             ->when($request->input('search'), fn ($q, $s) => $q->where(function ($query) use ($s): void {
                 $query->where('apv_no', 'like', "%{$s}%")
                     ->orWhere('buyer', 'like', "%{$s}%")

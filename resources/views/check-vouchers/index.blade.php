@@ -17,9 +17,36 @@
             <div class="col-md-6 col-xl-3">
                 <div class="card shadow-sm h-100 detail-stat-card">
                     <div class="card-body">
+                        <span class="detail-stat-label">Total Disbursements</span>
+                        <div class="detail-stat-value">{{ number_format($vouchers->total()) }}</div>
+                        <div class="detail-stat-meta">{{ $vouchers->total() === 1 ? 'CV' : 'CVs' }} matching current filters</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-xl-3">
+                <div class="card shadow-sm h-100 detail-stat-card">
+                    <div class="card-body">
                         <span class="detail-stat-label">Sub-Total Amount</span>
                         <div class="detail-stat-value">₱{{ number_format((float) $totals->amount_w_vat, 2) }}</div>
-                        <div class="detail-stat-meta">{{ $vouchers->total() }} {{ $vouchers->total() === 1 ? 'CV' : 'CVs' }}</div>
+                        <div class="detail-stat-meta">Amount w/ VAT, across all matching CVs</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-xl-3">
+                <div class="card shadow-sm h-100 detail-stat-card">
+                    <div class="card-body">
+                        <span class="detail-stat-label">Total Amount Paid</span>
+                        <div class="detail-stat-value">₱{{ number_format((float) $totals->amount_paid, 2) }}</div>
+                        <div class="detail-stat-meta">Net of EWT withheld</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-xl-3">
+                <div class="card shadow-sm h-100 detail-stat-card">
+                    <div class="card-body">
+                        <span class="detail-stat-label">Total EWT Withheld</span>
+                        <div class="detail-stat-value">₱{{ number_format((float) $totals->ewt_amount, 2) }}</div>
+                        <div class="detail-stat-meta">Expanded withholding tax</div>
                     </div>
                 </div>
             </div>
@@ -30,11 +57,13 @@
                 <div><i class="me-1" data-lucide="banknote"></i> Disbursements</div>
             </div>
             <div class="card-body">
-                <form method="GET" class="row g-2 mb-3">
+                <form method="GET" class="row g-2 align-items-end mb-3 filter-form" id="cvFilterForm">
                     <div class="col-md-3">
+                        <label class="form-label small fw-semibold mb-1">Search</label>
                         <input type="text" name="search" class="form-control" placeholder="Search CV #, reference #, or payee" value="{{ request('search') }}">
                     </div>
                     <div class="col-md-3">
+                        <label class="form-label small fw-semibold mb-1">Disbursement Type</label>
                         <select name="type" class="form-select">
                             <option value="">All Types</option>
                             <option value="pcf_replenishment" {{ request('type') === 'pcf_replenishment' ? 'selected' : '' }}>PCF Replenishment</option>
@@ -47,6 +76,7 @@
                         </select>
                     </div>
                     <div class="col-md-3">
+                        <label class="form-label small fw-semibold mb-1">Status</label>
                         <select name="status" class="form-select">
                             <option value="">All Statuses</option>
                             <option value="draft" {{ request('status') === 'draft' ? 'selected' : '' }}>Draft</option>
@@ -55,8 +85,10 @@
                             <option value="voided" {{ request('status') === 'voided' ? 'selected' : '' }}>Voided</option>
                         </select>
                     </div>
-                    <div class="col-md-2">
+                    @include('reports.partials.period-filter', ['filters' => request()->only(['period', 'date_from', 'date_to'])])
+                    <div class="col-md-3 d-flex align-items-end gap-2">
                         <button type="submit" class="btn btn-primary w-100 text-white">Filter</button>
+                        <a href="{{ route('check-vouchers.index') }}" class="btn btn-secondary text-white text-nowrap">Reset</a>
                     </div>
                 </form>
 
@@ -182,4 +214,13 @@
     font-size: .88rem;
 }
 </style>
+@endpush
+
+@push('scripts')
+<script src="{{ asset('js/reports-init.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    ReportUtils.initPeriodFilter('#cvFilterForm');
+});
+</script>
 @endpush

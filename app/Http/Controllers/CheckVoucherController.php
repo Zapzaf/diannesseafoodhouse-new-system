@@ -28,6 +28,8 @@ class CheckVoucherController extends Controller
             ->when($this->activeBranchId($request), fn ($q, $id) => $q->where('branch_id', $id))
             ->when($request->input('type'), fn ($q, $t) => $q->where('type', $t))
             ->when($request->input('status'), fn ($q, $s) => $q->where('status', $s))
+            ->when($request->input('date_from'), fn ($q, $d) => $q->whereDate('date', '>=', $d))
+            ->when($request->input('date_to'), fn ($q, $d) => $q->whereDate('date', '<=', $d))
             ->when($request->input('search'), fn ($q, $s) => $q->where(function ($inner) use ($s): void {
                 $inner->where('cv_no', 'like', "%{$s}%")
                     ->orWhere('reference_no', 'like', "%{$s}%")
@@ -174,7 +176,13 @@ class CheckVoucherController extends Controller
             ];
         }
 
-        $validated = $request->validate($rules);
+        $validated = $request->validate($rules, [
+            // Laravel's default message names the field by its raw array path
+            // (e.g. "The receipts.8.cost_account_id field is required"), which
+            // doesn't tell anyone which receipt row that actually is. :position
+            // is the 1-based row number instead.
+            'receipts.*.cost_account_id.required' => 'Receipt #:position: please select a Cost Account.',
+        ]);
 
         $apv = null;
         if ($type === 'apv_payment') {

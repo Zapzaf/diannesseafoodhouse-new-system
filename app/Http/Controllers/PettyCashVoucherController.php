@@ -19,6 +19,8 @@ class PettyCashVoucherController extends Controller
             ->when($this->activeBranchId($request), fn ($q, $id) => $q->where('branch_id', $id))
             ->when($request->input('status') === 'replenished', fn ($q) => $q->whereNotNull('check_voucher_id'))
             ->when($request->input('status') === 'pending', fn ($q) => $q->whereNull('check_voucher_id'))
+            ->when($request->input('date_from'), fn ($q, $d) => $q->whereDate('date', '>=', $d))
+            ->when($request->input('date_to'), fn ($q, $d) => $q->whereDate('date', '<=', $d))
             ->when($request->input('search'), fn ($q, $s) => $q->where('pcv_no', 'like', "%{$s}%"))
             ->latest('date')
             ->paginate($this->perPage($request, 20))

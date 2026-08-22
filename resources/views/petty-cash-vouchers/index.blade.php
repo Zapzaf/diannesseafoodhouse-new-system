@@ -15,19 +15,23 @@
                 <div><i class="me-1" data-lucide="wallet"></i> Petty Cash Purchases</div>
             </div>
             <div class="card-body">
-                <form method="GET" class="row g-2 mb-3">
+                <form method="GET" class="row g-2 align-items-end mb-3 filter-form" id="pcvFilterForm">
                     <div class="col-md-4">
+                        <label class="form-label small fw-semibold mb-1">Search</label>
                         <input type="text" name="search" class="form-control" placeholder="Search PCV #" value="{{ request('search') }}">
                     </div>
                     <div class="col-md-3">
+                        <label class="form-label small fw-semibold mb-1">Status</label>
                         <select name="status" class="form-select">
                             <option value="">All</option>
                             <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Pending Replenishment</option>
                             <option value="replenished" {{ request('status') === 'replenished' ? 'selected' : '' }}>Replenished</option>
                         </select>
                     </div>
-                    <div class="col-md-2">
+                    @include('reports.partials.period-filter', ['filters' => request()->only(['period', 'date_from', 'date_to'])])
+                    <div class="col-md-3 d-flex gap-2">
                         <button type="submit" class="btn btn-primary w-100 text-white">Filter</button>
+                        <a href="{{ route('petty-cash-vouchers.index') }}" class="btn btn-secondary text-white text-nowrap">Reset</a>
                     </div>
                 </form>
 
@@ -83,3 +87,12 @@
         </div>
     </div>
 @endsection
+
+@push('scripts')
+<script src="{{ asset('js/reports-init.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    ReportUtils.initPeriodFilter('#pcvFilterForm');
+});
+</script>
+@endpush

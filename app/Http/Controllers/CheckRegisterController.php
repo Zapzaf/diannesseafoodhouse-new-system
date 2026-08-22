@@ -12,6 +12,8 @@ class CheckRegisterController extends Controller
         $checks = CheckRegister::with(['checkVoucher', 'branch'])
             ->when($this->activeBranchId($request), fn ($q, $id) => $q->where('branch_id', $id))
             ->when($request->input('status'), fn ($q, $s) => $q->where('status', $s))
+            ->when($request->input('date_from'), fn ($q, $d) => $q->whereDate('check_date', '>=', $d))
+            ->when($request->input('date_to'), fn ($q, $d) => $q->whereDate('check_date', '<=', $d))
             ->when($request->input('search'), fn ($q, $s) => $q->where(function ($query) use ($s): void {
                 $query->where('check_no', 'like', "%{$s}%")->orWhere('payee', 'like', "%{$s}%");
             }))

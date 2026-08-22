@@ -566,6 +566,16 @@ body {
 .form-select {
     padding-right: 2.5rem !important;
 }
+
+/* Buttons default to a taller padding (styles-old.css: --bs-btn-padding-y:
+   0.875rem) than .form-control/.form-select above (0.6rem) — normally not
+   noticeable, but obvious wherever a Filter/Reset/Apply button sits directly
+   beside date/search inputs in the same row, like the module filter bars.
+   Scoped to .filter-form rather than changing .btn globally, since buttons
+   elsewhere in the app are sized fine on their own. */
+.filter-form .btn {
+    padding: 0.6rem 0.9rem;
+}
 .form-select-sm {
     padding-right: 2rem !important;
 }

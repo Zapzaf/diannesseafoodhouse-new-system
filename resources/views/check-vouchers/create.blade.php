@@ -222,17 +222,28 @@
                                             </tr>
                                         </thead>
                                         <tbody id="receiptsTableBody"></tbody>
-                                        <tfoot>
-                                            <tr class="table-light fw-bold">
-                                                <td colspan="3" class="text-end">Sub-Total</td>
-                                                <td id="receiptTotalAmountWVat" class="text-end">₱0.00</td>
-                                                <td id="receiptTotalExempt" class="text-end">₱0.00</td>
-                                                <td id="receiptTotalNonVat" class="text-end">₱0.00</td>
-                                                <td id="receiptTotalGrand" class="text-end">₱0.00</td>
-                                                <td></td>
-                                            </tr>
-                                        </tfoot>
                                     </table>
+                                </div>
+                                {{-- Kept outside the scrollable table (rather than a <tfoot> row inside
+                                    it) so the sub-total is always visible without having to scroll the
+                                    table horizontally to see it. --}}
+                                <div class="d-flex flex-wrap justify-content-end gap-4 border-top pt-2 mt-1">
+                                    <div class="text-end">
+                                        <div class="small text-muted">Sub-Total Amount w/ VAT</div>
+                                        <div class="fw-semibold" id="receiptTotalAmountWVat">₱0.00</div>
+                                    </div>
+                                    <div class="text-end">
+                                        <div class="small text-muted">Sub-Total VAT-Exempt</div>
+                                        <div class="fw-semibold" id="receiptTotalExempt">₱0.00</div>
+                                    </div>
+                                    <div class="text-end">
+                                        <div class="small text-muted">Sub-Total Non-VAT</div>
+                                        <div class="fw-semibold" id="receiptTotalNonVat">₱0.00</div>
+                                    </div>
+                                    <div class="text-end">
+                                        <div class="small text-muted">Grand Total</div>
+                                        <div class="fw-bold" id="receiptTotalGrand">₱0.00</div>
+                                    </div>
                                 </div>
                                 <div class="small text-muted mt-1" id="standalonePreview">—</div>
                                 <template id="receiptRowTemplate">
@@ -588,6 +599,10 @@ document.addEventListener('DOMContentLoaded', function () {
         row.querySelector('.receipt-exempt').value = data.vat_exempt || '';
         row.querySelector('.receipt-nonvat').value = data.non_vat_purchase || '';
 
+        row.querySelector('.receipt-cost-account').addEventListener('change', function () {
+            this.classList.toggle('is-invalid', !this.value);
+        });
+
         row.querySelectorAll('input').forEach(function (input) {
             input.addEventListener('input', updateReceiptTotals);
         });
@@ -634,6 +649,32 @@ document.addEventListener('DOMContentLoaded', function () {
     } else {
         addReceiptRow();
     }
+
+    // Catch a missing per-receipt Cost Account before submitting, instead of
+    // a full round trip to the server for a generic "receipts.N.cost_account_id
+    // field is required" error — the select isn't HTML `required` (it's hidden
+    // for every other Disbursement Type, and a required-but-hidden field
+    // silently blocks submit in every browser), so this replaces that check
+    // with one that only runs when the receipts table is actually in play,
+    // and points straight at whichever row needs attention.
+    const cvForm = document.getElementById('cvForm');
+    cvForm?.addEventListener('submit', function (event) {
+        if (!['cod_purchase', 'other_disbursement'].includes(typeSelect.value)) return;
+
+        let firstInvalid = null;
+        receiptsTableBody.querySelectorAll('.receipt-row').forEach(function (row) {
+            const select = row.querySelector('.receipt-cost-account');
+            const invalid = !select.value;
+            select.classList.toggle('is-invalid', invalid);
+            if (invalid && !firstInvalid) firstInvalid = select;
+        });
+
+        if (firstInvalid) {
+            event.preventDefault();
+            firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            firstInvalid.focus();
+        }
+    });
 });
 </script>
 @endpush
