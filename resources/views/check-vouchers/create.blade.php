@@ -248,7 +248,11 @@
                                             ])
                                         </td>
                                         <td>
-                                            <select name="receipts[__INDEX__][cost_account_id]" class="form-select form-select-sm receipt-cost-account" required>
+                                            {{-- No HTML `required` here: this row exists in the DOM even when the
+                                                COD/Other section is hidden (display:none) for another Disbursement
+                                                Type — a required-but-invisible field silently blocks form submit
+                                                in every browser. Server-side validation still enforces this. --}}
+                                            <select name="receipts[__INDEX__][cost_account_id]" class="form-select form-select-sm receipt-cost-account">
                                                 <option value="">Select Account</option>
                                                 @foreach($costAccounts as $account)
                                                 <option value="{{ $account->id }}">{{ $account->name }}</option>
