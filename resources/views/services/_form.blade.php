@@ -32,11 +32,16 @@
                 <div class="row g-3 mb-3">
                     <div class="col-md-6">
                         <label class="form-label fw-semibold">Supplier <span class="text-danger">*</span></label>
+                        {{-- No HTML `required` here: the underlying <select> this widget
+                            drives is permanently d-none (a visible search box stands in
+                            for it), and this form has no `novalidate` — a required-but-
+                            invisible field silently blocks submit in every browser if the
+                            admin hasn't picked a supplier yet. Server-side validation
+                            already enforces this and surfaces the error below. --}}
                         @include('partials.supplier-picker', [
                             'name' => 'supplier_id',
                             'suppliers' => $suppliers,
                             'selected' => old('supplier_id', $service?->supplier_id),
-                            'required' => true,
                             'selectClass' => (($errors ?? null)?->has('supplier_id')) ? 'is-invalid' : '',
                         ])
                         <div class="form-text text-muted">The company providing the service, e.g. PLDT, Meralco.</div>
