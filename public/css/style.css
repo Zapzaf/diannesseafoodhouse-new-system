@@ -5112,3 +5112,27 @@ th.table-sortable {
     overflow: hidden;
     white-space: pre-line;
 }
+
+/* Top loading-progress bar — shown while a normal (full-page) navigation is
+   in flight, so clicking a nav link/form doesn't feel like the page just
+   silently froze before the new page arrives. Never reaches 100%: it eases
+   toward ~85% and simply gets wiped away when the new document replaces
+   this one, which is the standard trick for MPA "it's loading" affordances
+   (this app does real page loads on navigation, not client-side routing). */
+#navProgressBar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 3px;
+    width: 0%;
+    background: var(--primary-color);
+    z-index: 2000;
+    opacity: 0;
+    transition: width 0.4s ease-out, opacity 0.2s ease;
+    pointer-events: none;
+}
+#navProgressBar.is-active {
+    opacity: 1;
+    width: 85%;
+    transition: width 4s cubic-bezier(0.1, 0.7, 0.3, 1), opacity 0.2s ease;
+}

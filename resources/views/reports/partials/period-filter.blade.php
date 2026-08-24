@@ -4,6 +4,9 @@
     $periodStartDate = $filters['date_from'] ?? $filters['date'] ?? now()->toDateString();
     $periodEndDate = $filters['date_to'] ?? $filters['date'] ?? now()->toDateString();
     $isCustomPeriod = $selectedPeriod === 'custom';
+    // Opt-out for pages that only want Month/Day/Year/Custom (no Weekly) —
+    // defaults to showing all five so every existing call site is unaffected.
+    $hideWeekly = $hideWeekly ?? false;
 @endphp
 
 <div class="col-md-2">
@@ -11,7 +14,9 @@
     <select name="period" class="form-select" data-role="period-type">
         <option value="custom" {{ $selectedPeriod === 'custom' ? 'selected' : '' }}>Custom Range</option>
         <option value="daily" {{ $selectedPeriod === 'daily' ? 'selected' : '' }}>Daily</option>
+        @unless($hideWeekly)
         <option value="weekly" {{ $selectedPeriod === 'weekly' ? 'selected' : '' }}>Weekly</option>
+        @endunless
         <option value="monthly" {{ $selectedPeriod === 'monthly' ? 'selected' : '' }}>Monthly</option>
         <option value="yearly" {{ $selectedPeriod === 'yearly' ? 'selected' : '' }}>Yearly</option>
     </select>

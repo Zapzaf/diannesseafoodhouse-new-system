@@ -2,15 +2,18 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HandlesProfilePhotoUpload;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
 
 class AccountController extends Controller
 {
+    use HandlesProfilePhotoUpload;
+
     public function index()
     {
         return view('account.index');
@@ -24,7 +27,7 @@ class AccountController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
             'password' => ['nullable', 'string', 'min:8', 'confirmed'],
-            'profile_photo' => ['nullable', 'image', 'max:4096'],
+            'profile_photo' => ['nullable', 'image', 'max:5120'],
             // ~4 MB of image data becomes ~5.6 MB of base64; cap the payload accordingly.
             'profile_photo_cropped' => ['nullable', 'string', 'max:6000000'],
         ]);
@@ -38,25 +41,15 @@ class AccountController extends Controller
             $payload['password'] = Hash::make($validated['password']);
         }
 
-        if (! empty($validated['profile_photo_cropped']) && str_starts_with($validated['profile_photo_cropped'], 'data:image/')) {
-            $base64 = preg_replace('/^data:image\/(png|jpeg|jpg);base64,/', '', $validated['profile_photo_cropped']);
-            $binary = base64_decode((string) $base64, true);
-            $imageInfo = $binary !== false ? @getimagesizefromstring($binary) : false;
-
-            if ($imageInfo === false || ! in_array($imageInfo[2], [IMAGETYPE_JPEG, IMAGETYPE_PNG], true)) {
-                throw ValidationException::withMessages([
-                    'profile_photo_cropped' => 'The cropped photo must be a valid JPEG or PNG image.',
-                ]);
-            }
-
-            $path = 'profiles/' . $user->id . '-' . now()->timestamp . '.jpg';
-            Storage::disk('public')->put($path, $binary);
-            $payload['profile_photo_path'] = $path;
-        } elseif ($request->hasFile('profile_photo')) {
-            $payload['profile_photo_path'] = $request->file('profile_photo')->store('profiles', 'public');
-        }
+        $payload += $this->resolveProfilePhotoUpload($validated, $user, 'account.update');
 
         $user->update($payload);
+
+        Log::info('profile-photo: user record saved', [
+            'context' => 'account.update',
+            'user_id' => $user->id,
+            'profile_photo_path' => $user->fresh()->profile_photo_path,
+        ]);
 
         return back()->with('success', 'Account updated successfully.');
     }
@@ -67,6 +60,12 @@ class AccountController extends Controller
             abort(404);
         }
 
-        return response()->file(storage_path('app/public/' . $user->profile_photo_path));
+        // Every view of this URL passes a ?v=<updated_at timestamp> cache-buster
+        // (see layouts.app, account.index, users.edit), so it's safe to let the
+        // browser cache this response indefinitely — a new photo upload bumps
+        // updated_at and therefore the URL, rather than reusing this one.
+        return response()->file(storage_path('app/public/' . $user->profile_photo_path), [
+            'Cache-Control' => 'private, max-age=31536000, immutable',
+        ]);
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Exports\PurchaseDisbursementSummaryExport;
+use App\Models\CheckRegister;
 use App\Models\CheckVoucher;
 use App\Models\PettyCashVoucher;
 use App\Models\PurchaseVoucher;
@@ -12,6 +13,7 @@ use Dompdf\Dompdf;
 use Dompdf\Options;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Collection;
 use Illuminate\View\View;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -21,18 +23,33 @@ class PurchaseDisbursementReportController extends Controller
     {
         [$apvTotals, $pcvTotals, $cvTotals, $dateFrom, $dateTo] = $this->buildTotals($request);
         $serviceTotals = $this->buildServiceTotals($request, $dateFrom, $dateTo);
+        $checkRegisterTotal = $this->buildCheckRegisterTotal($request, $dateFrom, $dateTo);
 
-        return view('reports.purchase-disbursement.summary', compact('apvTotals', 'pcvTotals', 'cvTotals', 'serviceTotals', 'dateFrom', 'dateTo'));
+        $rows = $this->buildDetailedRows($request, $dateFrom, $dateTo);
+        $search = trim((string) $request->input('search', ''));
+
+        return view('reports.purchase-disbursement.summary', compact(
+            'apvTotals', 'pcvTotals', 'cvTotals', 'serviceTotals', 'checkRegisterTotal',
+            'dateFrom', 'dateTo', 'rows', 'search'
+        ));
     }
 
     public function exportSummary(Request $request)
     {
-        [$apvTotals, $pcvTotals, $cvTotals, $dateFrom, $dateTo] = $this->buildTotals($request);
+        [, , , $dateFrom, $dateTo] = $this->buildTotals($request);
+        $rows = $this->buildDetailedRows($request, $dateFrom, $dateTo);
 
         $filename = 'purchase-disbursement-summary-'.$dateFrom.'-to-'.$dateTo.'.xlsx';
 
         return Excel::download(
-            new PurchaseDisbursementSummaryExport($apvTotals, $pcvTotals, $cvTotals, $dateFrom, $dateTo),
+            new PurchaseDisbursementSummaryExport(
+                $rows->where('voucher_type', 'APV')->values(),
+                $rows->where('voucher_type', 'CV')->values(),
+                $rows->where('voucher_type', 'PCV')->values(),
+                $rows->where('voucher_type', 'Check Register')->values(),
+                $dateFrom,
+                $dateTo
+            ),
             $filename
         );
     }
@@ -42,16 +59,23 @@ class PurchaseDisbursementReportController extends Controller
         $dateFrom = $request->input('date_from', now()->startOfMonth()->toDateString());
         $dateTo = $request->input('date_to', now()->toDateString());
         $branchId = $this->activeBranchId($request);
+        $search = trim((string) $request->input('search', ''));
 
         $apvTotals = PurchaseVoucherItem::query()
             ->whereHas('purchaseVoucher', fn ($q) => $q->whereBetween('date', [$dateFrom, $dateTo])
-                ->when($branchId, fn ($inner, $id) => $inner->where('branch_id', $id)))
+                ->when($branchId, fn ($inner, $id) => $inner->where('branch_id', $id))
+                ->when($search, fn ($inner, $s) => $inner->where(fn ($w) => $w->where('apv_no', 'like', "%{$s}%")
+                    ->orWhere('buyer', 'like', "%{$s}%")
+                    ->orWhereHas('vendor', fn ($v) => $v->where('name', 'like', "%{$s}%")))))
             ->selectRaw('COALESCE(SUM(net_purchases),0) as net_purchases, COALESCE(SUM(vat),0) as vat, COALESCE(SUM(vat_exempt),0) as vat_exempt, COALESCE(SUM(non_vat_purchase),0) as non_vat_purchase, COALESCE(SUM(total_purchases),0) as total_purchases')
             ->first();
 
         $pcvTotals = PettyCashVoucher::query()
             ->whereBetween('date', [$dateFrom, $dateTo])
             ->when($branchId, fn ($q, $id) => $q->where('branch_id', $id))
+            ->when($search, fn ($q, $s) => $q->where(fn ($w) => $w->where('pcv_no', 'like', "%{$s}%")
+                ->orWhere('remarks', 'like', "%{$s}%")
+                ->orWhereHas('supplier', fn ($v) => $v->where('name', 'like', "%{$s}%"))))
             ->with('items')
             ->get()
             ->reduce(function (array $carry, PettyCashVoucher $pcv) {
@@ -69,6 +93,10 @@ class PurchaseDisbursementReportController extends Controller
         $cvTotals = CheckVoucher::query()
             ->whereBetween('date', [$dateFrom, $dateTo])
             ->when($branchId, fn ($q, $id) => $q->where('branch_id', $id))
+            ->when($search, fn ($q, $s) => $q->where(fn ($w) => $w->where('cv_no', 'like', "%{$s}%")
+                ->orWhere('payee_name', 'like', "%{$s}%")
+                ->orWhere('particulars', 'like', "%{$s}%")
+                ->orWhere('tin', 'like', "%{$s}%")))
             ->selectRaw('COALESCE(SUM(net_purchases),0) as net_purchases, COALESCE(SUM(vat),0) as vat, COALESCE(SUM(vat_exempt),0) as vat_exempt, COALESCE(SUM(non_vat_purchase),0) as non_vat_purchase, COALESCE(SUM(amount_paid),0) as amount_paid, COALESCE(SUM(ewt_amount),0) as ewt_amount')
             ->first();
 
@@ -78,12 +106,125 @@ class PurchaseDisbursementReportController extends Controller
     private function buildServiceTotals(Request $request, string $dateFrom, string $dateTo): object
     {
         $branchId = $this->activeBranchId($request);
+        $search = trim((string) $request->input('search', ''));
 
         return Service::query()
             ->whereBetween('date', [$dateFrom, $dateTo])
             ->when($branchId, fn ($q, $id) => $q->where('branch_id', $id))
+            ->when($search, fn ($q, $s) => $q->where(fn ($w) => $w->where('ref_no', 'like', "%{$s}%")
+                ->orWhere('payor', 'like', "%{$s}%")
+                ->orWhereHas('supplier', fn ($v) => $v->where('name', 'like', "%{$s}%"))))
             ->selectRaw('COALESCE(SUM(net_purchases),0) as net_purchases, COALESCE(SUM(vat),0) as vat, COALESCE(SUM(vat_exempt),0) as vat_exempt, COALESCE(SUM(non_vat_purchase),0) as non_vat_purchase, COALESCE(SUM(total_purchases),0) as total_purchases')
             ->first();
+    }
+
+    private function buildCheckRegisterTotal(Request $request, string $dateFrom, string $dateTo): float
+    {
+        $branchId = $this->activeBranchId($request);
+        $search = trim((string) $request->input('search', ''));
+
+        return (float) CheckRegister::query()
+            ->whereBetween('check_date', [$dateFrom, $dateTo])
+            ->when($branchId, fn ($q, $id) => $q->where('branch_id', $id))
+            ->when($search, fn ($q, $s) => $q->where(fn ($w) => $w->where('check_no', 'like', "%{$s}%")
+                ->orWhere('payee', 'like', "%{$s}%")
+                ->orWhere('particulars', 'like', "%{$s}%")))
+            ->sum('amount');
+    }
+
+    /**
+     * Unified, row-level listing across every disbursement source (APV, PCV,
+     * CV, Check Register) for the "detailed" report table and its matching
+     * Excel export — the client explicitly didn't want this report to stay
+     * a single totals row per ledger; every actual voucher shows here, each
+     * tagged with its own Voucher Type, sorted newest first.
+     */
+    private function buildDetailedRows(Request $request, string $dateFrom, string $dateTo): Collection
+    {
+        $branchId = $this->activeBranchId($request);
+        $search = trim((string) $request->input('search', ''));
+
+        $apv = PurchaseVoucher::with(['vendor', 'branch'])
+            ->whereBetween('date', [$dateFrom, $dateTo])
+            ->when($branchId, fn ($q, $id) => $q->where('branch_id', $id))
+            ->when($search, fn ($q, $s) => $q->where(fn ($w) => $w->where('apv_no', 'like', "%{$s}%")
+                ->orWhere('buyer', 'like', "%{$s}%")
+                ->orWhere('si_no', 'like', "%{$s}%")
+                ->orWhereHas('vendor', fn ($v) => $v->where('name', 'like', "%{$s}%"))))
+            ->get()
+            ->map(fn (PurchaseVoucher $v) => (object) [
+                'voucher_no' => $v->apv_no,
+                'voucher_type' => 'APV',
+                'date' => $v->date,
+                'payee' => $v->vendor?->name ?? $v->buyer ?? '—',
+                'tin' => $v->vendor?->tin,
+                'particulars' => trim(collect(['Buyer: '.$v->buyer, $v->si_no ? 'SI#: '.$v->si_no : null])->filter()->implode(' | ')) ?: '—',
+                'branch' => $v->branch?->name,
+                'status' => $v->status,
+                'amount' => (float) $v->payable_total,
+            ]);
+
+        $pcv = PettyCashVoucher::with(['supplier', 'branch'])
+            ->whereBetween('date', [$dateFrom, $dateTo])
+            ->when($branchId, fn ($q, $id) => $q->where('branch_id', $id))
+            ->when($search, fn ($q, $s) => $q->where(fn ($w) => $w->where('pcv_no', 'like', "%{$s}%")
+                ->orWhere('remarks', 'like', "%{$s}%")
+                ->orWhereHas('supplier', fn ($v) => $v->where('name', 'like', "%{$s}%"))))
+            ->get()
+            ->map(fn (PettyCashVoucher $v) => (object) [
+                'voucher_no' => $v->pcv_no,
+                'voucher_type' => 'PCV',
+                'date' => $v->date,
+                'payee' => $v->supplier?->name ?? '—',
+                'tin' => $v->supplier?->tin,
+                'particulars' => $v->remarks ?: '—',
+                'branch' => $v->branch?->name,
+                'status' => $v->check_voucher_id ? 'Replenished' : 'Pending Replenishment',
+                'amount' => (float) $v->total,
+            ]);
+
+        $cv = CheckVoucher::with(['supplier', 'branch'])
+            ->whereBetween('date', [$dateFrom, $dateTo])
+            ->when($branchId, fn ($q, $id) => $q->where('branch_id', $id))
+            ->when($search, fn ($q, $s) => $q->where(fn ($w) => $w->where('cv_no', 'like', "%{$s}%")
+                ->orWhere('payee_name', 'like', "%{$s}%")
+                ->orWhere('particulars', 'like', "%{$s}%")
+                ->orWhere('tin', 'like', "%{$s}%")))
+            ->get()
+            ->map(fn (CheckVoucher $v) => (object) [
+                'voucher_no' => $v->cv_no,
+                'voucher_type' => 'CV',
+                'date' => $v->date,
+                'payee' => $v->payee_name ?: ($v->supplier?->name ?? '—'),
+                'tin' => $v->tin ?: $v->supplier?->tin,
+                'particulars' => $v->particulars ?: '—',
+                'branch' => $v->branch?->name,
+                'status' => $v->status,
+                'amount' => (float) $v->amount_paid,
+            ]);
+
+        $checkRegister = CheckRegister::with(['checkVoucher.supplier', 'branch'])
+            ->whereBetween('check_date', [$dateFrom, $dateTo])
+            ->when($branchId, fn ($q, $id) => $q->where('branch_id', $id))
+            ->when($search, fn ($q, $s) => $q->where(fn ($w) => $w->where('check_no', 'like', "%{$s}%")
+                ->orWhere('payee', 'like', "%{$s}%")
+                ->orWhere('particulars', 'like', "%{$s}%")))
+            ->get()
+            ->map(fn (CheckRegister $v) => (object) [
+                'voucher_no' => $v->check_no,
+                'voucher_type' => 'Check Register',
+                'date' => $v->check_date,
+                'payee' => $v->payee ?: '—',
+                'tin' => $v->checkVoucher?->tin ?: $v->checkVoucher?->supplier?->tin,
+                'particulars' => $v->particulars ?: '—',
+                'branch' => $v->branch?->name,
+                'status' => $v->status,
+                'amount' => (float) $v->amount,
+            ]);
+
+        return $apv->concat($pcv)->concat($cv)->concat($checkRegister)
+            ->sortByDesc(fn ($row) => $row->date)
+            ->values();
     }
 
     public function unpaidApvAging(Request $request): View

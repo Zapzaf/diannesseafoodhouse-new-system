@@ -258,6 +258,7 @@ Route::middleware('auth')->group(function (): void {
     Route::prefix('menu-orders')->name('menu-orders.')->group(function (): void {
         Route::get('/', [MenuOrderController::class, 'index'])->name('index');
         Route::get('/data', [MenuOrderController::class, 'data'])->name('data');
+        Route::get('/menus-data', [MenuOrderController::class, 'menusData'])->name('menus-data');
         Route::get('/create', [MenuOrderController::class, 'create'])->name('create');
         Route::post('/', [MenuOrderController::class, 'store'])->name('store');
         Route::post('/{menuOrder}/items', [MenuOrderController::class, 'storeItem'])->name('items.store');

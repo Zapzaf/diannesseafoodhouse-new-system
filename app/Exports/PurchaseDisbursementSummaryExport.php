@@ -2,14 +2,21 @@
 
 namespace App\Exports;
 
+use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\WithMultipleSheets;
 
+/**
+ * Purchase & Disbursement Summary export — one detailed, row-per-voucher
+ * sheet per voucher type (not a single totals row), per the client's
+ * request: APV, CV, PCV, and Check Register each get their own tab.
+ */
 class PurchaseDisbursementSummaryExport implements WithMultipleSheets
 {
     public function __construct(
-        private readonly object $apvTotals,
-        private readonly array $pcvTotals,
-        private readonly object $cvTotals,
+        private readonly Collection $apvRows,
+        private readonly Collection $cvRows,
+        private readonly Collection $pcvRows,
+        private readonly Collection $checkRegisterRows,
         private readonly string $dateFrom,
         private readonly string $dateTo
     ) {
@@ -18,46 +25,10 @@ class PurchaseDisbursementSummaryExport implements WithMultipleSheets
     public function sheets(): array
     {
         return [
-            new PurchaseDisbursementSummarySheet(
-                'Purchase Vouchers (APV)',
-                ['Net Purchases', 'VAT', 'VAT-Exempt', 'Non-VAT', 'Total Purchases'],
-                [
-                    (float) $this->apvTotals->net_purchases,
-                    (float) $this->apvTotals->vat,
-                    (float) $this->apvTotals->vat_exempt,
-                    (float) $this->apvTotals->non_vat_purchase,
-                    (float) $this->apvTotals->total_purchases,
-                ],
-                $this->dateFrom,
-                $this->dateTo
-            ),
-            new PurchaseDisbursementSummarySheet(
-                'Petty Cash Vouchers (PCV)',
-                ['Net Purchases', 'VAT', 'VAT-Exempt', 'Non-VAT', 'Total Purchases'],
-                [
-                    (float) $this->pcvTotals['net_purchases'],
-                    (float) $this->pcvTotals['vat'],
-                    (float) $this->pcvTotals['vat_exempt'],
-                    (float) $this->pcvTotals['non_vat_purchase'],
-                    (float) $this->pcvTotals['total_purchases'],
-                ],
-                $this->dateFrom,
-                $this->dateTo
-            ),
-            new PurchaseDisbursementSummarySheet(
-                'Check Vouchers (CV)',
-                ['Net Purchases', 'VAT', 'VAT-Exempt', 'Non-VAT', 'EWT Withheld', 'Amount Paid'],
-                [
-                    (float) $this->cvTotals->net_purchases,
-                    (float) $this->cvTotals->vat,
-                    (float) $this->cvTotals->vat_exempt,
-                    (float) $this->cvTotals->non_vat_purchase,
-                    (float) $this->cvTotals->ewt_amount,
-                    (float) $this->cvTotals->amount_paid,
-                ],
-                $this->dateFrom,
-                $this->dateTo
-            ),
+            new DetailedVoucherSheet('APV', $this->apvRows, $this->dateFrom, $this->dateTo),
+            new DetailedVoucherSheet('CV', $this->cvRows, $this->dateFrom, $this->dateTo),
+            new DetailedVoucherSheet('PCV', $this->pcvRows, $this->dateFrom, $this->dateTo),
+            new DetailedVoucherSheet('Check Register', $this->checkRegisterRows, $this->dateFrom, $this->dateTo),
         ];
     }
 }

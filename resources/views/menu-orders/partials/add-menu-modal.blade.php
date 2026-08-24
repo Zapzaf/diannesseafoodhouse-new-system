@@ -19,52 +19,13 @@
                         </div>
                     </div>
                 </div>
-                <div class="p-3 p-md-4 menu-order-modal-grid" id="modalMenuGrid">
-                    <div class="row g-3">
-                        @foreach($menus as $menu)
-                        <div class="col-6 col-md-4 col-lg-3">
-                            <div class="card menu-modal-card h-100 border-0 shadow-sm" data-menu-id="{{ $menu->id }}"
-                                 data-menu-name="{{ $menu->name }}"
-                                 data-menu-price="{{ number_format((float) $menu->selling_price, 2, '.', '') }}"
-                                 data-menu-branch="{{ $menu->branch_id }}"
-                                 data-menu-image="{{ $menu->image ? asset('storage/' . $menu->image) : '' }}">
-                                <div class="position-relative menu-card-img-wrapper" title="Click to add to order">
-                                    @if($menu->image)
-                                    <img src="{{ asset('storage/' . $menu->image) }}" alt="{{ $menu->name }}" width="200" height="200" decoding="async">
-                                    @else
-                                    <div class="text-center text-muted">
-                                        <i data-lucide="image" style="width:32px; height:32px; opacity: 0.5; margin-bottom: 0.5rem;"></i>
-                                        <div class="small fw-medium">No Image</div>
-                                    </div>
-                                    @endif
-                                    <div class="position-absolute top-0 start-0 w-100 h-100 opacity-0 hover-overlay"></div>
-                                </div>
-
-                                <div class="card-body p-3 d-flex flex-column">
-                                    <div class="fw-bold text-dark text-truncate mb-1 menu-modal-name" title="{{ $menu->name }}">{{ $menu->name }}</div>
-                                    <div class="text-primary fw-bold mb-2">&#x20B1;{{ number_format((float) $menu->selling_price, 2) }}</div>
-
-                                    <div class="mb-3">
-                                        @if($menu->items->isNotEmpty())
-                                        <span class="badge bg-success-subtle text-success menu-availability-badge border border-success-subtle" data-menu-badge="{{ $menu->id }}">Recipe ready</span>
-                                        @else
-                                        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">No recipe</span>
-                                        @endif
-                                    </div>
-
-                                    <div class="mt-auto">
-                                        <div class="input-group input-group-sm">
-                                            <button class="btn btn-secondary px-2 btn-qty-minus text-white" type="button" aria-label="Decrease quantity"><i data-lucide="minus"></i></button>
-                                            <input type="number" class="form-control modal-item-qty text-center fw-bold" value="0" min="0" max="999">
-                                            <button class="btn btn-primary px-2 btn-qty-plus text-white" type="button" aria-label="Increase quantity"><i data-lucide="plus"></i></button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        @endforeach
+                <div class="text-center py-5" id="modalMenuGridSpinner">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading menu items...</span>
                     </div>
+                    <div class="text-muted small mt-2">Loading menu items...</div>
                 </div>
+                <div class="p-3 p-md-4 menu-order-modal-grid d-none" id="modalMenuGrid"></div>
                 <div class="px-3 pb-3">
                     <div id="modalError" class="alert alert-danger d-none mb-0">
                         <i data-lucide="alert-circle" class="me-2" style="width: 16px; height: 16px;"></i>Please enter a quantity of at least 1 for the selected items.

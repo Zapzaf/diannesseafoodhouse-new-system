@@ -309,7 +309,6 @@
 
     @if($canModifyItems)
         @include('menu-orders.partials.add-menu-modal', [
-            'menus' => $menus,
             'formAction' => route('menu-orders.items.store', $order),
             'formId' => 'addMenuItemsForm',
             'fieldsContainerId' => 'selectedMenuItemsFields',
@@ -320,16 +319,19 @@
 
 @push('scripts')
 @if($canModifyItems)
+<script src="{{ asset('js/menu-order-item-picker.js') }}"></script>
 <script>
 (function () {
     var modalSearch = document.getElementById('modalSearch');
     var modalGrid = document.getElementById('modalMenuGrid');
+    var modalGridSpinner = document.getElementById('modalMenuGridSpinner');
     var modalError = document.getElementById('modalError');
     var addMenuModal = document.getElementById('addMenuModal');
     var addSelectedItemsBtn = document.getElementById('addSelectedItemsBtn');
     var form = document.getElementById('addMenuItemsForm');
     var fields = document.getElementById('selectedMenuItemsFields');
     var branchId = {{ (int) $order->branch_id }};
+    var menusDataUrl = @json(route('menu-orders.menus-data', ['branch_id' => $order->branch_id]));
 
     function updateCardStyle(card, qty) {
         if (!card) return;
@@ -363,19 +365,29 @@
         });
     }
 
+    function resetModalCards() {
+        if (!modalGrid) return;
+        var activeCards = modalGrid.querySelectorAll('.menu-modal-card.border-primary');
+        activeCards.forEach(function (card) {
+            var input = card.querySelector('.modal-item-qty');
+            if (input) input.value = '0';
+            updateCardStyle(card, 0);
+        });
+        filterModal();
+    }
+
     if (addMenuModal) {
         addMenuModal.addEventListener('show.bs.modal', function () {
             if (modalError) modalError.classList.add('d-none');
             if (modalSearch && modalSearch.value) modalSearch.value = '';
             if (fields) fields.innerHTML = '';
             if (!modalGrid) return;
-            var activeCards = modalGrid.querySelectorAll('.menu-modal-card.border-primary');
-            activeCards.forEach(function (card) {
-                var input = card.querySelector('.modal-item-qty');
-                if (input) input.value = '0';
-                updateCardStyle(card, 0);
+            MenuOrderItemPicker.load({
+                grid: modalGrid,
+                spinner: modalGridSpinner,
+                url: menusDataUrl,
+                onDone: resetModalCards,
             });
-            filterModal();
         });
     }
 

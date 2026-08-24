@@ -2,15 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HandlesProfilePhotoUpload;
 use App\Models\Branch;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
 class UserController extends Controller
 {
+    use HandlesProfilePhotoUpload;
+
     public function index()
     {
         return view('users.index');
@@ -59,15 +63,28 @@ class UserController extends Controller
             'role' => ['required', Rule::in(['admin', 'branch_manager', 'regular_user', 'staff'])],
             'branch_id' => ['nullable', 'exists:branches,id'],
             'phone' => ['nullable', 'string', 'max:50'],
+            'profile_photo' => ['nullable', 'image', 'max:5120'],
+            // ~4 MB of image data becomes ~5.6 MB of base64; cap the payload accordingly.
+            'profile_photo_cropped' => ['nullable', 'string', 'max:6000000'],
         ]);
 
-        User::create([
+        $payload = [
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'role' => $validated['role'] === 'staff' ? 'regular_user' : $validated['role'],
             'branch_id' => $validated['role'] === 'admin' ? null : ($validated['branch_id'] ?? null),
             'phone' => $validated['phone'] ?? null,
+        ];
+
+        $payload += $this->resolveProfilePhotoUpload($validated, null, 'users.store');
+
+        $user = User::create($payload);
+
+        Log::info('profile-photo: user record saved', [
+            'context' => 'users.store',
+            'user_id' => $user->id,
+            'profile_photo_path' => $user->profile_photo_path,
         ]);
 
         return redirect()->route('users.index')->with('success', 'User created successfully.');
@@ -90,6 +107,9 @@ class UserController extends Controller
             'role' => ['required', Rule::in(['admin', 'branch_manager', 'regular_user', 'staff'])],
             'branch_id' => ['nullable', 'exists:branches,id'],
             'phone' => ['nullable', 'string', 'max:50'],
+            'profile_photo' => ['nullable', 'image', 'max:5120'],
+            // ~4 MB of image data becomes ~5.6 MB of base64; cap the payload accordingly.
+            'profile_photo_cropped' => ['nullable', 'string', 'max:6000000'],
         ]);
 
         $payload = [
@@ -104,7 +124,15 @@ class UserController extends Controller
             $payload['password'] = Hash::make($validated['password']);
         }
 
+        $payload += $this->resolveProfilePhotoUpload($validated, $user, 'users.update');
+
         $user->update($payload);
+
+        Log::info('profile-photo: user record saved', [
+            'context' => 'users.update',
+            'user_id' => $user->id,
+            'profile_photo_path' => $user->fresh()->profile_photo_path,
+        ]);
 
         return redirect()->route('users.index')->with('success', 'User updated successfully.');
     }

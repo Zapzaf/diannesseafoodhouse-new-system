@@ -278,12 +278,40 @@ class MenuOrderController extends Controller
         $this->authorizeBranch($menuOrder->branch_id);
         $menuOrder->load(['branch', 'items.menu', 'payments.receivedBy']);
 
-        $menus = Menu::with('items')
-            ->where('branch_id', $menuOrder->branch_id)
-            ->orderBy('name')
-            ->get();
+        return view('menu-orders.show', compact('menuOrder'));
+    }
 
-        return view('menu-orders.show', compact('menuOrder', 'menus'));
+    /**
+     * Menu items for the "Add Item" modal grid, fetched by the modal's own JS
+     * the first time it's opened rather than eager-loaded (with every item's
+     * image) into the page on every visit — that eager load, for every menu
+     * item and its picture, was the reported lag when opening the modal.
+     * Optionally scoped to one branch (Show/Edit, which are pinned to a
+     * single order's branch); omitted for Create, which preloads every
+     * branch once since the branch selector can change without a reload.
+     */
+    public function menusData(Request $request): JsonResponse
+    {
+        $branchId = $request->input('branch_id');
+
+        if ($branchId) {
+            $this->authorizeBranch((int) $branchId);
+        }
+
+        $menus = Menu::with('items')
+            ->when($branchId, fn ($q, $id) => $q->where('branch_id', $id))
+            ->orderBy('name')
+            ->get()
+            ->map(fn (Menu $menu): array => [
+                'id' => $menu->id,
+                'name' => $menu->name,
+                'price' => (float) $menu->selling_price,
+                'branch_id' => $menu->branch_id,
+                'image_url' => $menu->image ? asset('storage/'.$menu->image) : null,
+                'has_recipe' => $menu->items->isNotEmpty(),
+            ]);
+
+        return response()->json($menus);
     }
 
     public function edit(MenuOrder $menuOrder): View
@@ -312,12 +340,7 @@ class MenuOrderController extends Controller
             ->orderBy('table_number')
             ->get();
 
-        $menus = Menu::with('items')
-            ->where('branch_id', $menuOrder->branch_id)
-            ->orderBy('name')
-            ->get();
-
-        return view('menu-orders.edit', compact('branches', 'selectedBranchId', 'menuOrder', 'tables', 'menus'));
+        return view('menu-orders.edit', compact('branches', 'selectedBranchId', 'menuOrder', 'tables'));
     }
 
     public function update(Request $request, MenuOrder $menuOrder): RedirectResponse

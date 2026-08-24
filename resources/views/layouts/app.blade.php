@@ -100,6 +100,7 @@
         @stack('styles')
     </head>
     <body class="bg-body text-main">
+        <div id="navProgressBar"></div>
         <div class="wrapper">
             <!-- Sidebar Navigation -->
             <nav class="sidebar d-flex flex-column" id="sidebar">
@@ -115,8 +116,12 @@
 
                 @php
                     $authUser = auth()->user();
+                    // The ?v= cache-buster matters here: this URL is keyed by user id, not
+                    // filename, so it never changes on its own when someone uploads a new
+                    // photo — without it, every page (including this sidebar) keeps showing
+                    // whatever the browser cached under that same URL from before.
                     $profilePhotoUrl = $authUser && $authUser->profile_photo_path
-                        ? route('profile-photos.show', $authUser)
+                        ? route('profile-photos.show', $authUser) . '?v=' . $authUser->updated_at?->timestamp
                         : asset('assets/img/illustrations/profiles/profile-1.png');
                 @endphp
 
@@ -166,7 +171,7 @@
                 @endif
 
                 <!-- Navigation Links -->
-                <ul class="nav nav-pills flex-column mb-auto mt-2 px-2 gap-1" style="overflow-y: auto;">
+                <ul class="nav nav-pills flex-column mb-auto mt-2 px-2 gap-1" id="sidebarNav" style="overflow-y: auto;">
                     <!-- Core Section -->
                     <div class="sidenav-menu-heading text-uppercase px-3 py-2 small fw-bold text-white-50" style="font-size: 0.7rem; letter-spacing: 0.08em; opacity: 0.7;">Core</div>
                     <li class="nav-item">
@@ -816,6 +821,51 @@
                         sidebar.querySelectorAll('.nav-link.active').forEach((active) => active.classList.remove('active'));
                         link.classList.add('active');
                     });
+                });
+
+                // Every navigation here is a real page load (not an SPA), which is
+                // expected — but restoring the sidebar's own scroll position and
+                // showing a brief top progress bar makes that transition feel a
+                // lot less like the page just froze, without touching how
+                // navigation actually works (nothing here calls preventDefault).
+                const sidebarNav = document.getElementById('sidebarNav');
+                if (sidebarNav) {
+                    try {
+                        const savedScroll = sessionStorage.getItem('sidebarNavScrollTop');
+                        if (savedScroll !== null) sidebarNav.scrollTop = parseInt(savedScroll, 10) || 0;
+                    } catch (e) { /* sessionStorage unavailable — ignore */ }
+
+                    let scrollSaveTimer = null;
+                    sidebarNav.addEventListener('scroll', () => {
+                        clearTimeout(scrollSaveTimer);
+                        scrollSaveTimer = setTimeout(() => {
+                            try { sessionStorage.setItem('sidebarNavScrollTop', String(sidebarNav.scrollTop)); } catch (e) { /* ignore */ }
+                        }, 100);
+                    }, { passive: true });
+                }
+
+                const navProgressBar = document.getElementById('navProgressBar');
+                const startNavProgress = () => {
+                    if (navProgressBar) navProgressBar.classList.add('is-active');
+                };
+                // Any same-tab link to another page on this site, and any form
+                // submit — both trigger a full reload, so both get the bar.
+                document.addEventListener('click', (event) => {
+                    const link = event.target.closest('a[href]');
+                    if (!link || link.target === '_blank' || link.hasAttribute('download')) return;
+                    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                    const href = link.getAttribute('href');
+                    if (!href || href.startsWith('#') || href.startsWith('javascript:') || href.startsWith('mailto:') || href.startsWith('tel:')) return;
+                    if (link.origin !== window.location.origin) return;
+                    startNavProgress();
+                });
+                document.addEventListener('submit', (event) => {
+                    if (!event.defaultPrevented) startNavProgress();
+                });
+                window.addEventListener('pageshow', (event) => {
+                    // Bar reappearing on a bfcache restore (browser Back) would be
+                    // stuck mid-animation forever since no new load follows it.
+                    if (event.persisted && navProgressBar) navProgressBar.classList.remove('is-active');
                 });
 
                 // Theme Toggler logic

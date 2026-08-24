@@ -28,30 +28,58 @@
     </div>
 
     {{-- Formula summary: Beginning + Purchases − Ending = COGS --}}
-    <div class="card shadow-sm mb-4 border-0" style="background: linear-gradient(135deg,#fff7f5,#fff);">
+    <div class="card shadow-sm mb-4 cogs-formula-card">
         <div class="card-body">
-            <div class="row g-3 text-center align-items-center">
+            <div class="row g-3 align-items-center cogs-formula-row">
                 <div class="col-6 col-md">
-                    <div class="text-muted small">Beginning Inventory</div>
-                    <div class="fs-5 fw-bold">₱{{ number_format($totalBeginningValue, 2) }}</div>
+                    <div class="cogs-formula-figure">
+                        <div class="cogs-formula-icon bg-secondary bg-opacity-10 text-secondary">
+                            <i data-lucide="package" style="width:18px;height:18px;"></i>
+                        </div>
+                        <div>
+                            <div class="cogs-formula-label">Beginning Inventory</div>
+                            <div class="cogs-formula-value">₱{{ number_format($totalBeginningValue, 2) }}</div>
+                        </div>
+                    </div>
                 </div>
-                <div class="col-auto d-none d-md-block fs-4 text-muted">+</div>
+                <div class="col-auto d-none d-md-block cogs-formula-op">+</div>
                 <div class="col-6 col-md">
-                    <div class="text-muted small">Purchases</div>
-                    <div class="fs-5 fw-bold text-success">₱{{ number_format($totalPurchasesValue, 2) }}</div>
+                    <div class="cogs-formula-figure">
+                        <div class="cogs-formula-icon bg-success bg-opacity-10 text-success">
+                            <i data-lucide="trending-up" style="width:18px;height:18px;"></i>
+                        </div>
+                        <div>
+                            <div class="cogs-formula-label">Purchases</div>
+                            <div class="cogs-formula-value text-success">₱{{ number_format($totalPurchasesValue, 2) }}</div>
+                        </div>
+                    </div>
                 </div>
-                <div class="col-auto d-none d-md-block fs-4 text-muted">&minus;</div>
+                <div class="col-auto d-none d-md-block cogs-formula-op">&minus;</div>
                 <div class="col-6 col-md">
-                    <div class="text-muted small">Ending Inventory</div>
-                    <div class="fs-5 fw-bold">₱{{ number_format($totalEndingValue, 2) }}</div>
+                    <div class="cogs-formula-figure">
+                        <div class="cogs-formula-icon bg-secondary bg-opacity-10 text-secondary">
+                            <i data-lucide="package-check" style="width:18px;height:18px;"></i>
+                        </div>
+                        <div>
+                            <div class="cogs-formula-label">Ending Inventory</div>
+                            <div class="cogs-formula-value">₱{{ number_format($totalEndingValue, 2) }}</div>
+                        </div>
+                    </div>
                 </div>
-                <div class="col-auto d-none d-md-block fs-4 text-muted">=</div>
+                <div class="col-auto d-none d-md-block cogs-formula-op">=</div>
                 <div class="col-6 col-md">
-                    <div class="text-muted small">Cost of Goods Sold</div>
-                    <div class="fs-5 fw-bold text-danger">₱{{ number_format($totalCogsFormula, 2) }}</div>
+                    <div class="cogs-formula-figure">
+                        <div class="cogs-formula-icon bg-danger bg-opacity-10 text-danger">
+                            <i data-lucide="receipt" style="width:18px;height:18px;"></i>
+                        </div>
+                        <div>
+                            <div class="cogs-formula-label">Cost of Goods Sold</div>
+                            <div class="cogs-formula-value text-danger">₱{{ number_format($totalCogsFormula, 2) }}</div>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="form-text mt-2 mb-0 text-center">
+            <div class="form-text mt-3 mb-0 text-center">
                 Beginning Inventory + Purchases &minus; Ending Inventory = Cost of Goods Sold, for the selected period and branch. Beginning/Ending stock is valued at each item's latest purchase cost; Purchases are valued at the actual price paid on each stock-in.
             </div>
         </div>
@@ -158,3 +186,54 @@
     </div>
 </div>
 @endsection
+
+@push('styles')
+<style>
+/* Theme-aware version of the formula summary card — it previously used a
+   hardcoded light-only inline background (linear-gradient of near-white
+   colors) with no dark-mode override, while its value text just inherited
+   the page's normal (near-white in dark mode) text color. Light-on-light
+   in dark mode made the Beginning/Ending Inventory figures invisible. */
+.cogs-formula-card {
+    background: linear-gradient(135deg, rgba(var(--primary-color-rgb), 0.08), var(--bg-card) 55%);
+    border: 1px solid var(--border-color);
+}
+
+.cogs-formula-row {
+    row-gap: 1rem;
+}
+
+.cogs-formula-figure {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+}
+
+.cogs-formula-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.cogs-formula-label {
+    color: var(--text-muted);
+    font-size: .82rem;
+}
+
+.cogs-formula-value {
+    color: var(--text-main);
+    font-size: 1.15rem;
+    font-weight: 800;
+}
+
+.cogs-formula-op {
+    color: var(--text-muted);
+    font-size: 1.3rem;
+    font-weight: 700;
+}
+</style>
+@endpush
