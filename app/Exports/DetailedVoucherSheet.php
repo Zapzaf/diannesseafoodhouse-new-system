@@ -6,11 +6,15 @@ use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithColumnFormatting;
+use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Events\AfterSheet;
+use PhpOffice\PhpSpreadsheet\Cell\Cell;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
+use PhpOffice\PhpSpreadsheet\Cell\DefaultValueBinder;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
@@ -24,8 +28,32 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
  *
  * @property-read \Illuminate\Support\Collection<int, object{voucher_no:string,date:\Illuminate\Support\Carbon,payee:string,tin:?string,particulars:string,branch:?string,status:?string,linked_voucher:?string,amount:float}> $rows
  */
-class DetailedVoucherSheet implements FromCollection, WithHeadings, WithStyles, ShouldAutoSize, WithColumnFormatting, WithEvents, WithTitle
+class DetailedVoucherSheet implements FromCollection, WithHeadings, WithStyles, ShouldAutoSize, WithColumnFormatting, WithEvents, WithTitle, WithCustomValueBinder
 {
+    /** Every column is Amount except this one — kept in sync with headings()/columnFormats(). */
+    private const AMOUNT_COLUMN = 'I';
+
+    /**
+     * A column-level number format of "@" alone isn't reliable here: once
+     * Excel's writer has already auto-detected a long digit string (e.g. a
+     * 13-digit TIN with no leading zero) as a genuine NUMBER, Excel keeps
+     * rendering it in scientific notation regardless of what format the
+     * column is later given — that's exactly what was still happening.
+     * This forces the actual cell type to Text for every column except
+     * Amount, which bypasses PhpSpreadsheet's automatic type detection
+     * entirely instead of just asking Excel to redisplay a number as text.
+     */
+    public function bindValue(Cell $cell, $value): bool
+    {
+        if ($cell->getColumn() === self::AMOUNT_COLUMN) {
+            return (new DefaultValueBinder())->bindValue($cell, $value);
+        }
+
+        $cell->setValueExplicit((string) $value, DataType::TYPE_STRING);
+
+        return true;
+    }
+
     public function __construct(
         private readonly string $sheetTitle,
         private readonly Collection $rows,
