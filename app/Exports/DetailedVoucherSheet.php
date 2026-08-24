@@ -76,6 +76,13 @@ class DetailedVoucherSheet implements FromCollection, WithHeadings, WithStyles, 
     public function columnFormats(): array
     {
         return [
+            // Voucher # and TIN are long digit strings — left as General/Number
+            // format, Excel auto-converts them to scientific notation (e.g.
+            // "1.23457E+13") since they exceed its 15-significant-digit
+            // precision for numbers. Text format displays the digits as typed
+            // instead. Amount is the one column that should stay numeric.
+            'A' => '@',
+            'D' => '@',
             'H' => '"₱"#,##0.00',
         ];
     }

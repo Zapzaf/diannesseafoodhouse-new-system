@@ -25,12 +25,15 @@ class PurchaseDisbursementReportController extends Controller
         $serviceTotals = $this->buildServiceTotals($request, $dateFrom, $dateTo);
         $checkRegisterTotal = $this->buildCheckRegisterTotal($request, $dateFrom, $dateTo);
 
-        $rows = $this->buildDetailedRows($request, $dateFrom, $dateTo);
+        // Row counts/grand total for the header cards — the tables themselves
+        // are populated client-side (each paginated independently), so this
+        // is the one place that still needs every matching row up front.
+        $rowCounts = $this->buildDetailedRows($request, $dateFrom, $dateTo);
         $search = trim((string) $request->input('search', ''));
 
         return view('reports.purchase-disbursement.summary', compact(
             'apvTotals', 'pcvTotals', 'cvTotals', 'serviceTotals', 'checkRegisterTotal',
-            'dateFrom', 'dateTo', 'rows', 'search'
+            'dateFrom', 'dateTo', 'rowCounts', 'search'
         ));
     }
 
@@ -52,6 +55,61 @@ class PurchaseDisbursementReportController extends Controller
             ),
             $filename
         );
+    }
+
+    /**
+     * Paginated JSON feeds for the four "Detailed Disbursements" tables —
+     * same IndexTableBridge AJAX pattern (and the same per-table
+     * tbodyId/paginationId/infoId/stateKey override mechanism) already used
+     * on the Costing Report, so each table paginates independently instead
+     * of every row for every voucher type loading into the page at once.
+     */
+    public function summaryApvData(Request $request): \Illuminate\Http\JsonResponse
+    {
+        [, , , $dateFrom, $dateTo] = $this->buildTotals($request);
+
+        $vouchers = $this->apvDetailQuery($request, $dateFrom, $dateTo)
+            ->latest('date')
+            ->paginate($this->perPage($request, 15))
+            ->through(fn (PurchaseVoucher $v) => $this->mapDetailRowForJson('APV', $v));
+
+        return response()->json($vouchers);
+    }
+
+    public function summaryCvData(Request $request): \Illuminate\Http\JsonResponse
+    {
+        [, , , $dateFrom, $dateTo] = $this->buildTotals($request);
+
+        $vouchers = $this->cvDetailQuery($request, $dateFrom, $dateTo)
+            ->latest('date')
+            ->paginate($this->perPage($request, 15))
+            ->through(fn (CheckVoucher $v) => $this->mapDetailRowForJson('CV', $v));
+
+        return response()->json($vouchers);
+    }
+
+    public function summaryPcvData(Request $request): \Illuminate\Http\JsonResponse
+    {
+        [, , , $dateFrom, $dateTo] = $this->buildTotals($request);
+
+        $vouchers = $this->pcvDetailQuery($request, $dateFrom, $dateTo)
+            ->latest('date')
+            ->paginate($this->perPage($request, 15))
+            ->through(fn (PettyCashVoucher $v) => $this->mapDetailRowForJson('PCV', $v));
+
+        return response()->json($vouchers);
+    }
+
+    public function summaryCheckRegisterData(Request $request): \Illuminate\Http\JsonResponse
+    {
+        [, , , $dateFrom, $dateTo] = $this->buildTotals($request);
+
+        $checks = $this->checkRegisterDetailQuery($request, $dateFrom, $dateTo)
+            ->latest('check_date')
+            ->paginate($this->perPage($request, 15))
+            ->through(fn (CheckRegister $v) => $this->mapDetailRowForJson('Check Register', $v));
+
+        return response()->json($checks);
     }
 
     private function buildTotals(Request $request): array
@@ -132,27 +190,84 @@ class PurchaseDisbursementReportController extends Controller
             ->sum('amount');
     }
 
-    /**
-     * Unified, row-level listing across every disbursement source (APV, PCV,
-     * CV, Check Register) for the "detailed" report table and its matching
-     * Excel export — the client explicitly didn't want this report to stay
-     * a single totals row per ledger; every actual voucher shows here, each
-     * tagged with its own Voucher Type, sorted newest first.
-     */
-    private function buildDetailedRows(Request $request, string $dateFrom, string $dateTo): Collection
+    private function apvDetailQuery(Request $request, string $dateFrom, string $dateTo): \Illuminate\Database\Eloquent\Builder
     {
         $branchId = $this->activeBranchId($request);
         $search = trim((string) $request->input('search', ''));
 
-        $apv = PurchaseVoucher::with(['vendor', 'branch'])
+        return PurchaseVoucher::with(['vendor', 'branch'])
             ->whereBetween('date', [$dateFrom, $dateTo])
             ->when($branchId, fn ($q, $id) => $q->where('branch_id', $id))
             ->when($search, fn ($q, $s) => $q->where(fn ($w) => $w->where('apv_no', 'like', "%{$s}%")
                 ->orWhere('buyer', 'like', "%{$s}%")
                 ->orWhere('si_no', 'like', "%{$s}%")
-                ->orWhereHas('vendor', fn ($v) => $v->where('name', 'like', "%{$s}%"))))
-            ->get()
-            ->map(fn (PurchaseVoucher $v) => (object) [
+                ->orWhereHas('vendor', fn ($v) => $v->where('name', 'like', "%{$s}%"))));
+    }
+
+    private function pcvDetailQuery(Request $request, string $dateFrom, string $dateTo): \Illuminate\Database\Eloquent\Builder
+    {
+        $branchId = $this->activeBranchId($request);
+        $search = trim((string) $request->input('search', ''));
+
+        return PettyCashVoucher::with(['supplier', 'branch'])
+            ->whereBetween('date', [$dateFrom, $dateTo])
+            ->when($branchId, fn ($q, $id) => $q->where('branch_id', $id))
+            ->when($search, fn ($q, $s) => $q->where(fn ($w) => $w->where('pcv_no', 'like', "%{$s}%")
+                ->orWhere('remarks', 'like', "%{$s}%")
+                ->orWhereHas('supplier', fn ($v) => $v->where('name', 'like', "%{$s}%"))));
+    }
+
+    private function cvDetailQuery(Request $request, string $dateFrom, string $dateTo): \Illuminate\Database\Eloquent\Builder
+    {
+        $branchId = $this->activeBranchId($request);
+        $search = trim((string) $request->input('search', ''));
+
+        return CheckVoucher::with(['supplier', 'branch'])
+            ->whereBetween('date', [$dateFrom, $dateTo])
+            ->when($branchId, fn ($q, $id) => $q->where('branch_id', $id))
+            ->when($search, fn ($q, $s) => $q->where(fn ($w) => $w->where('cv_no', 'like', "%{$s}%")
+                ->orWhere('payee_name', 'like', "%{$s}%")
+                ->orWhere('particulars', 'like', "%{$s}%")
+                ->orWhere('tin', 'like', "%{$s}%")));
+    }
+
+    private function checkRegisterDetailQuery(Request $request, string $dateFrom, string $dateTo): \Illuminate\Database\Eloquent\Builder
+    {
+        $branchId = $this->activeBranchId($request);
+        $search = trim((string) $request->input('search', ''));
+
+        return CheckRegister::with(['checkVoucher.supplier', 'branch'])
+            ->whereBetween('check_date', [$dateFrom, $dateTo])
+            ->when($branchId, fn ($q, $id) => $q->where('branch_id', $id))
+            ->when($search, fn ($q, $s) => $q->where(fn ($w) => $w->where('check_no', 'like', "%{$s}%")
+                ->orWhere('payee', 'like', "%{$s}%")
+                ->orWhere('particulars', 'like', "%{$s}%")));
+    }
+
+    /**
+     * Same as mapDetailRow(), for the JSON pagination feeds specifically —
+     * formats the date to a plain display string server-side rather than
+     * shipping the raw Carbon instance, since JSON-encoding a Carbon date
+     * produces a full ISO datetime (e.g. "2026-08-01T00:00:00.000000Z")
+     * that would misleadingly look like it carries a time component.
+     */
+    private function mapDetailRowForJson(string $type, PurchaseVoucher|PettyCashVoucher|CheckVoucher|CheckRegister $v): object
+    {
+        $row = $this->mapDetailRow($type, $v);
+        $row->date = $row->date?->format('M d, Y');
+
+        return $row;
+    }
+
+    /**
+     * Maps one voucher/check-register model to the unified row shape used by
+     * the detailed table, the JSON pagination feeds, and the Excel export —
+     * one place so all three can never drift on what a "row" looks like.
+     */
+    private function mapDetailRow(string $type, PurchaseVoucher|PettyCashVoucher|CheckVoucher|CheckRegister $v): object
+    {
+        return match ($type) {
+            'APV' => (object) [
                 'voucher_no' => $v->apv_no,
                 'voucher_type' => 'APV',
                 'date' => $v->date,
@@ -162,16 +277,8 @@ class PurchaseDisbursementReportController extends Controller
                 'branch' => $v->branch?->name,
                 'status' => $v->status,
                 'amount' => (float) $v->payable_total,
-            ]);
-
-        $pcv = PettyCashVoucher::with(['supplier', 'branch'])
-            ->whereBetween('date', [$dateFrom, $dateTo])
-            ->when($branchId, fn ($q, $id) => $q->where('branch_id', $id))
-            ->when($search, fn ($q, $s) => $q->where(fn ($w) => $w->where('pcv_no', 'like', "%{$s}%")
-                ->orWhere('remarks', 'like', "%{$s}%")
-                ->orWhereHas('supplier', fn ($v) => $v->where('name', 'like', "%{$s}%"))))
-            ->get()
-            ->map(fn (PettyCashVoucher $v) => (object) [
+            ],
+            'PCV' => (object) [
                 'voucher_no' => $v->pcv_no,
                 'voucher_type' => 'PCV',
                 'date' => $v->date,
@@ -181,17 +288,8 @@ class PurchaseDisbursementReportController extends Controller
                 'branch' => $v->branch?->name,
                 'status' => $v->check_voucher_id ? 'Replenished' : 'Pending Replenishment',
                 'amount' => (float) $v->total,
-            ]);
-
-        $cv = CheckVoucher::with(['supplier', 'branch'])
-            ->whereBetween('date', [$dateFrom, $dateTo])
-            ->when($branchId, fn ($q, $id) => $q->where('branch_id', $id))
-            ->when($search, fn ($q, $s) => $q->where(fn ($w) => $w->where('cv_no', 'like', "%{$s}%")
-                ->orWhere('payee_name', 'like', "%{$s}%")
-                ->orWhere('particulars', 'like', "%{$s}%")
-                ->orWhere('tin', 'like', "%{$s}%")))
-            ->get()
-            ->map(fn (CheckVoucher $v) => (object) [
+            ],
+            'CV' => (object) [
                 'voucher_no' => $v->cv_no,
                 'voucher_type' => 'CV',
                 'date' => $v->date,
@@ -201,16 +299,8 @@ class PurchaseDisbursementReportController extends Controller
                 'branch' => $v->branch?->name,
                 'status' => $v->status,
                 'amount' => (float) $v->amount_paid,
-            ]);
-
-        $checkRegister = CheckRegister::with(['checkVoucher.supplier', 'branch'])
-            ->whereBetween('check_date', [$dateFrom, $dateTo])
-            ->when($branchId, fn ($q, $id) => $q->where('branch_id', $id))
-            ->when($search, fn ($q, $s) => $q->where(fn ($w) => $w->where('check_no', 'like', "%{$s}%")
-                ->orWhere('payee', 'like', "%{$s}%")
-                ->orWhere('particulars', 'like', "%{$s}%")))
-            ->get()
-            ->map(fn (CheckRegister $v) => (object) [
+            ],
+            'Check Register' => (object) [
                 'voucher_no' => $v->check_no,
                 'voucher_type' => 'Check Register',
                 'date' => $v->check_date,
@@ -220,7 +310,23 @@ class PurchaseDisbursementReportController extends Controller
                 'branch' => $v->branch?->name,
                 'status' => $v->status,
                 'amount' => (float) $v->amount,
-            ]);
+            ],
+        };
+    }
+
+    /**
+     * Unified, row-level listing across every disbursement source (APV, PCV,
+     * CV, Check Register) — used for the Excel export (which needs every
+     * matching row, not just one page) and for the header cards' counts and
+     * grand total on the report page. The four on-page tables themselves
+     * are paginated independently via summaryApvData()/summaryCvData()/etc.
+     */
+    private function buildDetailedRows(Request $request, string $dateFrom, string $dateTo): Collection
+    {
+        $apv = $this->apvDetailQuery($request, $dateFrom, $dateTo)->get()->map(fn ($v) => $this->mapDetailRow('APV', $v));
+        $pcv = $this->pcvDetailQuery($request, $dateFrom, $dateTo)->get()->map(fn ($v) => $this->mapDetailRow('PCV', $v));
+        $cv = $this->cvDetailQuery($request, $dateFrom, $dateTo)->get()->map(fn ($v) => $this->mapDetailRow('CV', $v));
+        $checkRegister = $this->checkRegisterDetailQuery($request, $dateFrom, $dateTo)->get()->map(fn ($v) => $this->mapDetailRow('Check Register', $v));
 
         return $apv->concat($pcv)->concat($cv)->concat($checkRegister)
             ->sortByDesc(fn ($row) => $row->date)

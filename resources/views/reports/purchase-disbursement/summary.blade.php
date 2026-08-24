@@ -15,7 +15,7 @@
                 <form method="GET" class="row g-2 align-items-end" id="summaryFilterForm">
                     <div class="col-md-3">
                         <label class="form-label fw-bold">Search</label>
-                        <input type="text" name="search" class="form-control" placeholder="Voucher #, payee, TIN, particulars..." value="{{ $search }}">
+                        <input type="text" name="search" id="summarySearchFilter" class="form-control" placeholder="Voucher #, payee, TIN, particulars..." value="{{ $search }}">
                     </div>
                     @include('reports.partials.period-filter', ['filters' => request()->only(['period', 'date_from', 'date_to']), 'hideWeekly' => true])
                     <div class="col-md-3 d-flex gap-2">
@@ -80,7 +80,7 @@
                 <div class="card border-0 shadow-sm h-100">
                     <div class="card-body">
                         <div class="text-muted small fw-semibold text-uppercase mb-2">Total Vouchers</div>
-                        <div class="fs-5 fw-bold">{{ number_format($rows->count()) }}</div>
+                        <div class="fs-5 fw-bold">{{ number_format($rowCounts->count()) }}</div>
                         <div class="text-muted small mt-1">Matching the current filters</div>
                     </div>
                 </div>
@@ -89,7 +89,7 @@
                 <div class="card border-0 shadow-sm h-100">
                     <div class="card-body">
                         <div class="text-muted small fw-semibold text-uppercase mb-2">Grand Total</div>
-                        <div class="fs-5 fw-bold text-primary">₱{{ number_format($rows->sum('amount'), 2) }}</div>
+                        <div class="fs-5 fw-bold text-primary">₱{{ number_format($rowCounts->sum('amount'), 2) }}</div>
                         <div class="text-muted small mt-1">Sum of every row below</div>
                     </div>
                 </div>
@@ -104,19 +104,31 @@
             </div>
         </div>
 
-        {{-- Detailed, row-per-voucher listing across every source --}}
-        <div class="card shadow-sm">
+        {{-- Detailed, row-per-voucher listing — a separate, independently paginated
+             table per voucher type/register, same AJAX pattern (IndexTableBridge)
+             already used on the Costing Report's two tables. --}}
+        @php
+            $voucherSections = [
+                'apv' => ['label' => 'Purchase Vouchers (APV)', 'icon' => 'file-text'],
+                'cv' => ['label' => 'Check Vouchers (CV)', 'icon' => 'banknote'],
+                'pcv' => ['label' => 'Petty Cash Vouchers (PCV)', 'icon' => 'wallet'],
+                'check-register' => ['label' => 'Check Register', 'icon' => 'check-square'],
+            ];
+        @endphp
+
+        @foreach($voucherSections as $slug => $section)
+        @php $tableId = 'summary'.str()->studly($slug).'Table'; @endphp
+        <div class="card shadow-sm mb-4">
             <div class="card-header d-flex align-items-center justify-content-between gap-2 flex-wrap">
-                <div><i class="me-1" data-lucide="list"></i> Detailed Disbursements</div>
-                <div class="text-muted small">{{ number_format($rows->count()) }} {{ $rows->count() === 1 ? 'record' : 'records' }}</div>
+                <div><i class="me-1" data-lucide="{{ $section['icon'] }}"></i> {{ $section['label'] }}</div>
+                <div class="text-muted small" id="{{ $tableId }}Info"></div>
             </div>
             <div class="card-body">
                 <div class="table-responsive">
-                    <table class="table table-bordered table-striped table-sm align-middle mb-0">
+                    <table class="table table-bordered table-striped table-sm align-middle mb-0" id="{{ $tableId }}">
                         <thead class="table-dark">
                             <tr>
                                 <th>Voucher #</th>
-                                <th>Type</th>
                                 <th>Date</th>
                                 <th>Supplier / Payee</th>
                                 <th>TIN</th>
@@ -126,56 +138,105 @@
                                 <th class="text-end">Amount</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            @forelse($rows as $row)
-                            <tr>
-                                <td class="fw-semibold text-nowrap">{{ $row->voucher_no ?? '—' }}</td>
-                                <td class="text-nowrap">
-                                    @php
-                                        $typeBadge = match($row->voucher_type) {
-                                            'APV' => 'bg-primary-soft text-primary',
-                                            'CV' => 'bg-danger-soft text-danger',
-                                            'PCV' => 'bg-warning-soft text-warning',
-                                            'Check Register' => 'bg-success-soft text-success',
-                                            default => 'bg-secondary-soft text-secondary',
-                                        };
-                                    @endphp
-                                    <span class="badge {{ $typeBadge }}">{{ $row->voucher_type }}</span>
-                                </td>
-                                <td class="text-nowrap text-muted small">{{ $row->date?->format('M d, Y') ?? '—' }}</td>
-                                <td>{{ $row->payee ?? '—' }}</td>
-                                <td class="text-muted small">{{ $row->tin ?? '—' }}</td>
-                                <td class="text-muted small" style="max-width: 260px;">
-                                    <span class="d-inline-block text-truncate" style="max-width: 260px;" title="{{ $row->particulars }}">{{ $row->particulars ?? '—' }}</span>
-                                </td>
-                                <td class="text-muted small">{{ $row->branch ?? '—' }}</td>
-                                <td class="text-muted small">{{ $row->status ? ucwords(str_replace('_', ' ', $row->status)) : '—' }}</td>
-                                <td class="text-end fw-semibold text-nowrap">₱{{ number_format($row->amount, 2) }}</td>
-                            </tr>
-                            @empty
-                            <tr><td colspan="9" class="text-center text-muted py-4">No disbursement records for this period.</td></tr>
-                            @endforelse
-                        </tbody>
-                        @if($rows->isNotEmpty())
-                        <tfoot>
-                            <tr class="table-light fw-bold">
-                                <td colspan="8" class="text-end">Grand Total</td>
-                                <td class="text-end">₱{{ number_format($rows->sum('amount'), 2) }}</td>
-                            </tr>
-                        </tfoot>
-                        @endif
+                        <tbody id="{{ $tableId }}Body"><tr><td colspan="8" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></td></tr></tbody>
                     </table>
                 </div>
             </div>
+            <div class="card-footer d-flex justify-content-center">
+                <nav aria-label="{{ $section['label'] }} pagination">
+                    <ul id="{{ $tableId }}Pagination" class="pagination pagination-sm mb-0"></ul>
+                </nav>
+            </div>
         </div>
+        @endforeach
     </div>
 @endsection
 
 @push('scripts')
 <script src="{{ asset('js/reports-init.js') }}"></script>
+<script src="{{ asset('js/index-table-bridge.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     ReportUtils.initPeriodFilter('#summaryFilterForm');
+
+    const sharedFilters = [
+        { inputId: 'periodResolvedDateFrom', param: 'date_from' },
+        { inputId: 'periodResolvedDateTo', param: 'date_to' },
+    ];
+
+    function renderVoucherRow(row, ctx) {
+        const statusLabel = row.status ? String(row.status).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : '—';
+        return `
+            <tr>
+                <td class="fw-semibold text-nowrap">${ctx.escapeHtml(row.voucher_no || '—')}</td>
+                <td class="text-nowrap text-muted small">${ctx.escapeHtml(row.date || '—')}</td>
+                <td>${ctx.escapeHtml(row.payee || '—')}</td>
+                <td class="text-muted small">${ctx.escapeHtml(row.tin || '—')}</td>
+                <td class="text-muted small" style="max-width: 260px;">
+                    <span class="d-inline-block text-truncate" style="max-width: 260px;" title="${ctx.escapeHtml(row.particulars || '')}">${ctx.escapeHtml(row.particulars || '—')}</span>
+                </td>
+                <td class="text-muted small">${ctx.escapeHtml(row.branch || '—')}</td>
+                <td class="text-muted small">${ctx.escapeHtml(statusLabel)}</td>
+                <td class="text-end fw-semibold text-nowrap">₱${Number(row.amount || 0).toFixed(2)}</td>
+            </tr>
+        `;
+    }
+
+    IndexTableBridge.init({
+        tableId: 'summaryApvTable',
+        tbodyId: 'summaryApvTableBody',
+        paginationId: 'summaryApvTablePagination',
+        infoId: 'summaryApvTableInfo',
+        stateKey: 'summaryApvTable',
+        dataUrl: @json(route('reports.purchase-disbursement.summary.apv-data')),
+        searchInputId: 'summarySearchFilter',
+        filters: sharedFilters,
+        emptyMessage: 'No Purchase Voucher (APV) records for this period.',
+        colspan: 8,
+        renderRow: renderVoucherRow,
+    });
+
+    IndexTableBridge.init({
+        tableId: 'summaryCvTable',
+        tbodyId: 'summaryCvTableBody',
+        paginationId: 'summaryCvTablePagination',
+        infoId: 'summaryCvTableInfo',
+        stateKey: 'summaryCvTable',
+        dataUrl: @json(route('reports.purchase-disbursement.summary.cv-data')),
+        searchInputId: 'summarySearchFilter',
+        filters: sharedFilters,
+        emptyMessage: 'No Check Voucher (CV) records for this period.',
+        colspan: 8,
+        renderRow: renderVoucherRow,
+    });
+
+    IndexTableBridge.init({
+        tableId: 'summaryPcvTable',
+        tbodyId: 'summaryPcvTableBody',
+        paginationId: 'summaryPcvTablePagination',
+        infoId: 'summaryPcvTableInfo',
+        stateKey: 'summaryPcvTable',
+        dataUrl: @json(route('reports.purchase-disbursement.summary.pcv-data')),
+        searchInputId: 'summarySearchFilter',
+        filters: sharedFilters,
+        emptyMessage: 'No Petty Cash Voucher (PCV) records for this period.',
+        colspan: 8,
+        renderRow: renderVoucherRow,
+    });
+
+    IndexTableBridge.init({
+        tableId: 'summaryCheckRegisterTable',
+        tbodyId: 'summaryCheckRegisterTableBody',
+        paginationId: 'summaryCheckRegisterTablePagination',
+        infoId: 'summaryCheckRegisterTableInfo',
+        stateKey: 'summaryCheckRegisterTable',
+        dataUrl: @json(route('reports.purchase-disbursement.summary.check-register-data')),
+        searchInputId: 'summarySearchFilter',
+        filters: sharedFilters,
+        emptyMessage: 'No Check Register records for this period.',
+        colspan: 8,
+        renderRow: renderVoucherRow,
+    });
 });
 </script>
 @endpush

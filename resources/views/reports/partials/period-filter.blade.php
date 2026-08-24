@@ -45,8 +45,8 @@
     <label class="form-label fw-bold">End Date</label>
     <input type="date" data-role="end-date" class="form-control" value="{{ $periodEndDate }}">
 </div>
-<input type="hidden" name="date_from" data-role="resolved-date-from" value="{{ $periodStartDate }}">
-<input type="hidden" name="date_to" data-role="resolved-date-to" value="{{ $periodEndDate }}">
+<input type="hidden" name="date_from" id="periodResolvedDateFrom" data-role="resolved-date-from" value="{{ $periodStartDate }}">
+<input type="hidden" name="date_to" id="periodResolvedDateTo" data-role="resolved-date-to" value="{{ $periodEndDate }}">
 @if(!empty($targetDateFieldName))
 <input type="hidden" name="{{ $targetDateFieldName }}" data-role="resolved-target-date" value="{{ $filters['date'] ?? $periodEndDate }}">
 @endif
