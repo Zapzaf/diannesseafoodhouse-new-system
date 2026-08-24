@@ -209,7 +209,7 @@ class PurchaseDisbursementReportController extends Controller
         $branchId = $this->activeBranchId($request);
         $search = trim((string) $request->input('search', ''));
 
-        return PettyCashVoucher::with(['supplier', 'branch'])
+        return PettyCashVoucher::with(['supplier', 'branch', 'checkVoucher'])
             ->whereBetween('date', [$dateFrom, $dateTo])
             ->when($branchId, fn ($q, $id) => $q->where('branch_id', $id))
             ->when($search, fn ($q, $s) => $q->where(fn ($w) => $w->where('pcv_no', 'like', "%{$s}%")
@@ -276,6 +276,7 @@ class PurchaseDisbursementReportController extends Controller
                 'particulars' => trim(collect(['Buyer: '.$v->buyer, $v->si_no ? 'SI#: '.$v->si_no : null])->filter()->implode(' | ')) ?: '—',
                 'branch' => $v->branch?->name,
                 'status' => $v->status,
+                'linked_voucher' => '—',
                 'amount' => (float) $v->payable_total,
             ],
             'PCV' => (object) [
@@ -287,6 +288,9 @@ class PurchaseDisbursementReportController extends Controller
                 'particulars' => $v->remarks ?: '—',
                 'branch' => $v->branch?->name,
                 'status' => $v->check_voucher_id ? 'Replenished' : 'Pending Replenishment',
+                // Which CV actually reimbursed this PCV — the client wanted this
+                // cross-reference visible instead of having to look it up separately.
+                'linked_voucher' => $v->checkVoucher?->cv_no ?: 'Not yet replenished',
                 'amount' => (float) $v->total,
             ],
             'CV' => (object) [
@@ -298,6 +302,7 @@ class PurchaseDisbursementReportController extends Controller
                 'particulars' => $v->particulars ?: '—',
                 'branch' => $v->branch?->name,
                 'status' => $v->status,
+                'linked_voucher' => '—',
                 'amount' => (float) $v->amount_paid,
             ],
             'Check Register' => (object) [
@@ -309,6 +314,7 @@ class PurchaseDisbursementReportController extends Controller
                 'particulars' => $v->particulars ?: '—',
                 'branch' => $v->branch?->name,
                 'status' => $v->status,
+                'linked_voucher' => '—',
                 'amount' => (float) $v->amount,
             ],
         };

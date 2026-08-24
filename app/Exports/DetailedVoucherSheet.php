@@ -22,7 +22,7 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
  * row-per-voucher listing for a single voucher type (APV / CV / PCV /
  * Check Register), rather than a single aggregated totals row.
  *
- * @property-read \Illuminate\Support\Collection<int, object{voucher_no:string,date:\Illuminate\Support\Carbon,payee:string,tin:?string,particulars:string,branch:?string,status:?string,amount:float}> $rows
+ * @property-read \Illuminate\Support\Collection<int, object{voucher_no:string,date:\Illuminate\Support\Carbon,payee:string,tin:?string,particulars:string,branch:?string,status:?string,linked_voucher:?string,amount:float}> $rows
  */
 class DetailedVoucherSheet implements FromCollection, WithHeadings, WithStyles, ShouldAutoSize, WithColumnFormatting, WithEvents, WithTitle
 {
@@ -44,11 +44,12 @@ class DetailedVoucherSheet implements FromCollection, WithHeadings, WithStyles, 
             $row->particulars ?? '—',
             $row->branch ?? '—',
             $row->status ? strtoupper((string) $row->status) : '—',
+            $row->linked_voucher ?? '—',
             (float) $row->amount,
         ]);
 
         if ($rows->isNotEmpty()) {
-            $rows->push(['', '', '', '', '', '', 'TOTAL', (float) $this->rows->sum('amount')]);
+            $rows->push(['', '', '', '', '', '', 'TOTAL', '', (float) $this->rows->sum('amount')]);
         }
 
         return $rows;
@@ -64,6 +65,7 @@ class DetailedVoucherSheet implements FromCollection, WithHeadings, WithStyles, 
             'Particulars',
             'Branch',
             'Status',
+            'Replenished By (CV #)',
             'Amount',
         ];
     }
@@ -75,15 +77,20 @@ class DetailedVoucherSheet implements FromCollection, WithHeadings, WithStyles, 
 
     public function columnFormats(): array
     {
+        // Every column is Text except Amount: numeric-looking values (long
+        // Voucher #/TIN digit strings especially) otherwise get silently
+        // rewritten by Excel into scientific notation (e.g. "1.23457E+13")
+        // since they exceed its 15-significant-digit precision for numbers.
         return [
-            // Voucher # and TIN are long digit strings — left as General/Number
-            // format, Excel auto-converts them to scientific notation (e.g.
-            // "1.23457E+13") since they exceed its 15-significant-digit
-            // precision for numbers. Text format displays the digits as typed
-            // instead. Amount is the one column that should stay numeric.
             'A' => '@',
+            'B' => '@',
+            'C' => '@',
             'D' => '@',
-            'H' => '"₱"#,##0.00',
+            'E' => '@',
+            'F' => '@',
+            'G' => '@',
+            'H' => '@',
+            'I' => '"₱"#,##0.00',
         ];
     }
 
@@ -153,12 +160,12 @@ class DetailedVoucherSheet implements FromCollection, WithHeadings, WithStyles, 
                     ->setLeft(0.25);
 
                 $sheet->getPageSetup()->setRowsToRepeatAtTopByStartAndEnd(1, 1);
-                $sheet->getStyle('A:H')->getAlignment()->setVertical(Alignment::VERTICAL_TOP);
-                $sheet->getStyle('H:H')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+                $sheet->getStyle('A:I')->getAlignment()->setVertical(Alignment::VERTICAL_TOP);
+                $sheet->getStyle('I:I')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
 
                 if ($sheet->getHighestDataRow() <= 1) {
                     $sheet->setCellValue('A2', 'No records for this period.');
-                    $sheet->mergeCells('A2:H2');
+                    $sheet->mergeCells('A2:I2');
                     $sheet->getStyle('A2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
                     $sheet->getStyle('A2')->getFont()->setItalic(true);
                 }

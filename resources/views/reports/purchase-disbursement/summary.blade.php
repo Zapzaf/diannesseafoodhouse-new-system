@@ -117,7 +117,10 @@
         @endphp
 
         @foreach($voucherSections as $slug => $section)
-        @php $tableId = 'summary'.str()->studly($slug).'Table'; @endphp
+        @php
+            $tableId = 'summary'.str()->studly($slug).'Table';
+            $colCount = $slug === 'pcv' ? 9 : 8;
+        @endphp
         <div class="card shadow-sm mb-4">
             <div class="card-header d-flex align-items-center justify-content-between gap-2 flex-wrap">
                 <div><i class="me-1" data-lucide="{{ $section['icon'] }}"></i> {{ $section['label'] }}</div>
@@ -135,10 +138,13 @@
                                 <th>Particulars</th>
                                 <th>Branch</th>
                                 <th>Status</th>
+                                @if($slug === 'pcv')
+                                <th>Replenished By (CV #)</th>
+                                @endif
                                 <th class="text-end">Amount</th>
                             </tr>
                         </thead>
-                        <tbody id="{{ $tableId }}Body"><tr><td colspan="8" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></td></tr></tbody>
+                        <tbody id="{{ $tableId }}Body"><tr><td colspan="{{ $colCount }}" class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></td></tr></tbody>
                     </table>
                 </div>
             </div>
@@ -182,6 +188,28 @@ document.addEventListener('DOMContentLoaded', function () {
         `;
     }
 
+    // PCV-only variant: adds the "Replenished By (CV #)" cross-reference
+    // column so it's clear at a glance which Check Voucher reimbursed each
+    // Petty Cash Voucher, without having to look it up separately.
+    function renderPcvRow(row, ctx) {
+        const statusLabel = row.status ? String(row.status).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : '—';
+        return `
+            <tr>
+                <td class="fw-semibold text-nowrap">${ctx.escapeHtml(row.voucher_no || '—')}</td>
+                <td class="text-nowrap text-muted small">${ctx.escapeHtml(row.date || '—')}</td>
+                <td>${ctx.escapeHtml(row.payee || '—')}</td>
+                <td class="text-muted small">${ctx.escapeHtml(row.tin || '—')}</td>
+                <td class="text-muted small" style="max-width: 260px;">
+                    <span class="d-inline-block text-truncate" style="max-width: 260px;" title="${ctx.escapeHtml(row.particulars || '')}">${ctx.escapeHtml(row.particulars || '—')}</span>
+                </td>
+                <td class="text-muted small">${ctx.escapeHtml(row.branch || '—')}</td>
+                <td class="text-muted small">${ctx.escapeHtml(statusLabel)}</td>
+                <td class="text-muted small">${ctx.escapeHtml(row.linked_voucher || '—')}</td>
+                <td class="text-end fw-semibold text-nowrap">₱${Number(row.amount || 0).toFixed(2)}</td>
+            </tr>
+        `;
+    }
+
     IndexTableBridge.init({
         tableId: 'summaryApvTable',
         tbodyId: 'summaryApvTableBody',
@@ -220,8 +248,8 @@ document.addEventListener('DOMContentLoaded', function () {
         searchInputId: 'summarySearchFilter',
         filters: sharedFilters,
         emptyMessage: 'No Petty Cash Voucher (PCV) records for this period.',
-        colspan: 8,
-        renderRow: renderVoucherRow,
+        colspan: 9,
+        renderRow: renderPcvRow,
     });
 
     IndexTableBridge.init({
