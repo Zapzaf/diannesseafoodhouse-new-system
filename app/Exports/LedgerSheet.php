@@ -3,7 +3,7 @@
 namespace App\Exports;
 
 use Illuminate\Support\Collection;
-use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithColumnFormatting;
 use Maatwebsite\Excel\Concerns\WithCustomValueBinder;
@@ -22,30 +22,44 @@ use PhpOffice\PhpSpreadsheet\Worksheet\PageSetup;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 /**
- * One tab of the Purchase & Disbursement Summary export — the detailed,
- * row-per-voucher listing for a single voucher type (APV / CV / PCV /
- * Check Register), rather than a single aggregated totals row.
- *
- * @property-read \Illuminate\Support\Collection<int, object{voucher_no:string,date:\Illuminate\Support\Carbon,payee:string,tin:?string,particulars:string,branch:?string,status:?string,linked_voucher:?string,amount:float}> $rows
+ * One tab of a detailed accounting ledger export (Purchase & Disbursement
+ * Summary) — built generically so APV, CV, PCV, and Check Register can each
+ * have their own real column layout (matching the client's own manual
+ * bookkeeping spreadsheet) instead of forcing all four into one shared
+ * shape. Every row here is already a plain, fully-ordered array matching
+ * $headings — all the domain-specific "what does a row look like for this
+ * voucher type" logic lives in the controller, not in this class.
  */
-class DetailedVoucherSheet implements FromCollection, WithHeadings, WithStyles, ShouldAutoSize, WithColumnFormatting, WithEvents, WithTitle, WithCustomValueBinder
+class LedgerSheet implements FromArray, WithHeadings, WithStyles, ShouldAutoSize, WithColumnFormatting, WithEvents, WithTitle, WithCustomValueBinder
 {
-    /** Every column is Amount except this one — kept in sync with headings()/columnFormats(). */
-    private const AMOUNT_COLUMN = 'I';
+    /**
+     * @param string $sheetTitle Excel tab name (max 31 chars, truncated).
+     * @param array<int, string> $headings Column headers, left-to-right.
+     * @param array<int, array<int, mixed>> $rows Row data, one array per row, same order as $headings.
+     * @param array<string, string> $numericFormats Column letter => number format code, for every column that should stay a real number (everything else is forced to Text — long digit strings like TIN/SI# otherwise get mangled into scientific notation by Excel).
+     * @param array<string, string>|null $totals Column letter => SUM formula target, rendered as a bold totals row under the data (e.g. ['F' => 'Amount']). Null/empty skips the totals row.
+     */
+    public function __construct(
+        private readonly string $sheetTitle,
+        private readonly array $headings,
+        private readonly array $rows,
+        private readonly array $numericFormats,
+        private readonly array $totals,
+        private readonly string $dateFrom,
+        private readonly string $dateTo
+    ) {
+    }
 
     /**
-     * A column-level number format of "@" alone isn't reliable here: once
-     * Excel's writer has already auto-detected a long digit string (e.g. a
-     * 13-digit TIN with no leading zero) as a genuine NUMBER, Excel keeps
-     * rendering it in scientific notation regardless of what format the
-     * column is later given — that's exactly what was still happening.
-     * This forces the actual cell type to Text for every column except
-     * Amount, which bypasses PhpSpreadsheet's automatic type detection
-     * entirely instead of just asking Excel to redisplay a number as text.
+     * Every column is Text except the ones explicitly marked numeric —
+     * forces the actual cell type, not just its display format, since a
+     * column-level "@" format alone doesn't reliably stop Excel from having
+     * already auto-detected a long digit string (TIN, SI#, etc.) as a real
+     * number and rendering it in scientific notation regardless.
      */
     public function bindValue(Cell $cell, $value): bool
     {
-        if ($cell->getColumn() === self::AMOUNT_COLUMN) {
+        if (array_key_exists($cell->getColumn(), $this->numericFormats) && is_numeric($value)) {
             return (new DefaultValueBinder())->bindValue($cell, $value);
         }
 
@@ -54,30 +68,21 @@ class DetailedVoucherSheet implements FromCollection, WithHeadings, WithStyles, 
         return true;
     }
 
-    public function __construct(
-        private readonly string $sheetTitle,
-        private readonly Collection $rows,
-        private readonly string $dateFrom,
-        private readonly string $dateTo
-    ) {
-    }
-
-    public function collection(): Collection
+    public function array(): array
     {
-        $rows = $this->rows->map(fn (object $row): array => [
-            $row->voucher_no ?? '—',
-            $row->date?->format('Y-m-d') ?? '',
-            $row->payee ?? '—',
-            $row->tin ?? '—',
-            $row->particulars ?? '—',
-            $row->branch ?? '—',
-            $row->status ? strtoupper((string) $row->status) : '—',
-            $row->linked_voucher ?? '—',
-            (float) $row->amount,
-        ]);
+        $rows = $this->rows;
 
-        if ($rows->isNotEmpty()) {
-            $rows->push(['', '', '', '', '', '', 'TOTAL', '', (float) $this->rows->sum('amount')]);
+        if (! empty($this->totals) && count($rows) > 0) {
+            $totalsRow = array_fill(0, count($this->headings), '');
+            $totalsRow[0] = 'TOTAL';
+
+            foreach (array_keys($this->totals) as $column) {
+                $index = $this->columnIndex($column);
+                $sum = array_sum(array_map(fn (array $row) => is_numeric($row[$index] ?? null) ? (float) $row[$index] : 0.0, $rows));
+                $totalsRow[$index] = $sum;
+            }
+
+            $rows[] = $totalsRow;
         }
 
         return $rows;
@@ -85,17 +90,7 @@ class DetailedVoucherSheet implements FromCollection, WithHeadings, WithStyles, 
 
     public function headings(): array
     {
-        return [
-            'Voucher #',
-            'Date',
-            'Supplier / Payee',
-            'TIN',
-            'Particulars',
-            'Branch',
-            'Status',
-            'Replenished By (CV #)',
-            'Amount',
-        ];
+        return $this->headings;
     }
 
     public function title(): string
@@ -105,21 +100,7 @@ class DetailedVoucherSheet implements FromCollection, WithHeadings, WithStyles, 
 
     public function columnFormats(): array
     {
-        // Every column is Text except Amount: numeric-looking values (long
-        // Voucher #/TIN digit strings especially) otherwise get silently
-        // rewritten by Excel into scientific notation (e.g. "1.23457E+13")
-        // since they exceed its 15-significant-digit precision for numbers.
-        return [
-            'A' => '@',
-            'B' => '@',
-            'C' => '@',
-            'D' => '@',
-            'E' => '@',
-            'F' => '@',
-            'G' => '@',
-            'H' => '@',
-            'I' => '"₱"#,##0.00',
-        ];
+        return $this->numericFormats;
     }
 
     public function styles(Worksheet $sheet): array
@@ -156,7 +137,7 @@ class DetailedVoucherSheet implements FromCollection, WithHeadings, WithStyles, 
             ],
         ];
 
-        if ($lastRow > 1 && $this->rows->isNotEmpty()) {
+        if ($lastRow > 1 && ! empty($this->totals) && count($this->rows) > 0) {
             $styles[$lastRow] = [
                 'font' => ['bold' => true],
                 'fill' => [
@@ -174,6 +155,7 @@ class DetailedVoucherSheet implements FromCollection, WithHeadings, WithStyles, 
         return [
             AfterSheet::class => function (AfterSheet $event): void {
                 $sheet = $event->sheet->getDelegate();
+                $lastColumn = $sheet->getHighestDataColumn();
 
                 $sheet->getPageSetup()
                     ->setOrientation(PageSetup::ORIENTATION_LANDSCAPE)
@@ -188,16 +170,24 @@ class DetailedVoucherSheet implements FromCollection, WithHeadings, WithStyles, 
                     ->setLeft(0.25);
 
                 $sheet->getPageSetup()->setRowsToRepeatAtTopByStartAndEnd(1, 1);
-                $sheet->getStyle('A:I')->getAlignment()->setVertical(Alignment::VERTICAL_TOP);
-                $sheet->getStyle('I:I')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+                $sheet->getStyle("A:{$lastColumn}")->getAlignment()->setVertical(Alignment::VERTICAL_TOP);
+
+                foreach (array_keys($this->numericFormats) as $column) {
+                    $sheet->getStyle("{$column}:{$column}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+                }
 
                 if ($sheet->getHighestDataRow() <= 1) {
                     $sheet->setCellValue('A2', 'No records for this period.');
-                    $sheet->mergeCells('A2:I2');
+                    $sheet->mergeCells("A2:{$lastColumn}2");
                     $sheet->getStyle('A2')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
                     $sheet->getStyle('A2')->getFont()->setItalic(true);
                 }
             },
         ];
+    }
+
+    private function columnIndex(string $column): int
+    {
+        return \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($column) - 1;
     }
 }

@@ -6,6 +6,7 @@ use App\Exports\PurchaseDisbursementSummaryExport;
 use App\Models\CheckRegister;
 use App\Models\CheckVoucher;
 use App\Models\PettyCashVoucher;
+use App\Models\PettyCashVoucherItem;
 use App\Models\PurchaseVoucher;
 use App\Models\PurchaseVoucherItem;
 use App\Models\Service;
@@ -37,24 +38,273 @@ class PurchaseDisbursementReportController extends Controller
         ));
     }
 
+    /**
+     * The Excel export is a proper itemized accounting ledger — one row per
+     * line item/cost allocation rather than one row per voucher — matching
+     * the client's own manual bookkeeping spreadsheet layout (APV/PCV items
+     * broken out by quantity+cost account, CV disbursements broken out by
+     * each receipt's own cost account, plus the APV#/EWT/credit-account
+     * columns their accountant already works with).
+     */
     public function exportSummary(Request $request)
     {
         [, , , $dateFrom, $dateTo] = $this->buildTotals($request);
-        $rows = $this->buildDetailedRows($request, $dateFrom, $dateTo);
+
+        $sheets = [
+            $this->buildApvLedgerSheet($request, $dateFrom, $dateTo),
+            $this->buildCvLedgerSheet($request, $dateFrom, $dateTo),
+            $this->buildPcvLedgerSheet($request, $dateFrom, $dateTo),
+            $this->buildCheckRegisterLedgerSheet($request, $dateFrom, $dateTo),
+        ];
 
         $filename = 'purchase-disbursement-summary-'.$dateFrom.'-to-'.$dateTo.'.xlsx';
 
-        return Excel::download(
-            new PurchaseDisbursementSummaryExport(
-                $rows->where('voucher_type', 'APV')->values(),
-                $rows->where('voucher_type', 'CV')->values(),
-                $rows->where('voucher_type', 'PCV')->values(),
-                $rows->where('voucher_type', 'Check Register')->values(),
-                $dateFrom,
-                $dateTo
-            ),
-            $filename
-        );
+        return Excel::download(new PurchaseDisbursementSummaryExport($sheets, $dateFrom, $dateTo), $filename);
+    }
+
+    private const CURRENCY_FORMAT = '"₱"#,##0.00';
+
+    private function buildApvLedgerSheet(Request $request, string $dateFrom, string $dateTo): array
+    {
+        $items = $this->apvItemsQuery($request, $dateFrom, $dateTo)->get();
+
+        $rows = $items->map(function (PurchaseVoucherItem $item) {
+            $apv = $item->purchaseVoucher;
+
+            return [
+                $apv->date?->format('Y-m-d') ?? '',
+                $apv->apv_no ?? '—',
+                (float) $item->quantity,
+                $item->unit ?? '—',
+                $item->particulars ?? '—',
+                $item->costAccount?->name ?? '—',
+                $apv->creditAccount?->name ?? '—',
+                $apv->vendor?->name ?? '—',
+                $apv->vendor?->address ?? '—',
+                $apv->si_no ?? '—',
+                $apv->vendor?->tin ?? '—',
+                (float) $item->amount_w_vat,
+                (float) $item->vat,
+                (float) $item->net_purchases,
+                (float) $item->vat_exempt,
+                (float) $item->non_vat_purchase,
+                (float) $item->payable_amount,
+                $apv->branch?->name ?? '—',
+            ];
+        })->all();
+
+        return [
+            'title' => 'APV',
+            'headings' => [
+                'Date', 'APV #', 'Quantity', 'Unit', 'Particulars',
+                'Cost/Expense Account', 'Credit Account', "Vendor's Name", 'Address',
+                'SI/No.', 'TIN', 'Amount w/ VAT', 'VAT', 'Net Purchases',
+                'VAT Exempt', 'Non-VAT Purchase', 'Total Purchases', 'Branch',
+            ],
+            'rows' => $rows,
+            'numericFormats' => [
+                'C' => '#,##0.00',
+                'L' => self::CURRENCY_FORMAT,
+                'M' => self::CURRENCY_FORMAT,
+                'N' => self::CURRENCY_FORMAT,
+                'O' => self::CURRENCY_FORMAT,
+                'P' => self::CURRENCY_FORMAT,
+                'Q' => self::CURRENCY_FORMAT,
+            ],
+            'totals' => ['Q' => 'Total Purchases'],
+        ];
+    }
+
+    private function buildPcvLedgerSheet(Request $request, string $dateFrom, string $dateTo): array
+    {
+        $items = $this->pcvItemsQuery($request, $dateFrom, $dateTo)->get();
+
+        $rows = $items->map(function (PettyCashVoucherItem $item) {
+            $pcv = $item->pettyCashVoucher;
+
+            return [
+                $pcv->date?->format('Y-m-d') ?? '',
+                $pcv->pcv_no ?? '—',
+                (float) $item->quantity,
+                $item->unit ?? '—',
+                $item->particulars ?? '—',
+                $item->costAccount?->name ?? '—',
+                $pcv->supplier?->name ?? '—',
+                $pcv->supplier?->tin ?? '—',
+                (float) $item->amount_w_vat,
+                (float) $item->vat,
+                (float) $item->net_purchases,
+                (float) $item->vat_exempt,
+                (float) $item->non_vat_purchase,
+                (float) $item->total_purchases,
+                $pcv->checkVoucher?->cv_no ?: 'Not yet replenished',
+                $pcv->branch?->name ?? '—',
+            ];
+        })->all();
+
+        return [
+            'title' => 'PCV',
+            'headings' => [
+                'Date', 'PCV #', 'Quantity', 'Unit', 'Particulars',
+                'Cost/Expense Account', "Payee's Name", 'TIN', 'Amount w/ VAT', 'VAT',
+                'Net Purchases', 'VAT Exempt', 'Non-VAT Purchase', 'Total Purchases',
+                'Replenished By (CV #)', 'Branch',
+            ],
+            'rows' => $rows,
+            'numericFormats' => [
+                'C' => '#,##0.00',
+                'I' => self::CURRENCY_FORMAT,
+                'J' => self::CURRENCY_FORMAT,
+                'K' => self::CURRENCY_FORMAT,
+                'L' => self::CURRENCY_FORMAT,
+                'M' => self::CURRENCY_FORMAT,
+                'N' => self::CURRENCY_FORMAT,
+            ],
+            'totals' => ['N' => 'Total Purchases'],
+        ];
+    }
+
+    private function buildCvLedgerSheet(Request $request, string $dateFrom, string $dateTo): array
+    {
+        $vouchers = $this->cvDetailQuery($request, $dateFrom, $dateTo)
+            ->with(['receipts.costAccount', 'costAccount', 'advanceAccount', 'purchaseVoucher'])
+            ->get();
+
+        $rows = [];
+
+        foreach ($vouchers as $cv) {
+            $apvNo = $cv->purchaseVoucher?->apv_no ?? '—';
+            $branchName = $cv->branch?->name ?? '—';
+            $payee = $cv->payee_name ?: ($cv->supplier?->name ?? '—');
+            $address = $cv->address ?: ($cv->supplier?->address ?? '—');
+            $tin = $cv->tin ?: ($cv->supplier?->tin ?? '—');
+
+            // Standalone CVs (COD/Other) can split across several cost
+            // accounts — one row per receipt, so each allocation's own
+            // amounts are visible instead of only the voucher's grand total.
+            if ($cv->receipts->isNotEmpty()) {
+                foreach ($cv->receipts as $index => $receipt) {
+                    $rows[] = [
+                        $cv->date?->format('Y-m-d') ?? '',
+                        $cv->cv_no ?? '—',
+                        $apvNo,
+                        $cv->particulars ?: '—',
+                        $receipt->costAccount?->name ?? '—',
+                        $payee,
+                        $address,
+                        $receipt->si_no ?: '—',
+                        $tin,
+                        (float) $receipt->amount_w_vat,
+                        (float) $receipt->vat,
+                        (float) $receipt->net_purchases,
+                        (float) $receipt->vat_exempt,
+                        (float) $receipt->non_vat_purchase,
+                        // EWT is one figure for the whole CV, not per receipt —
+                        // shown once on the first line so summing this column
+                        // in Excel doesn't count it once per receipt.
+                        $index === 0 ? (float) $cv->ewt_rate * 100 : '',
+                        $index === 0 ? (float) $cv->ewt_amount : '',
+                        $branchName,
+                    ];
+                }
+
+                continue;
+            }
+
+            $rows[] = [
+                $cv->date?->format('Y-m-d') ?? '',
+                $cv->cv_no ?? '—',
+                $apvNo,
+                $cv->particulars ?: '—',
+                $cv->costAccount?->name ?? $cv->advanceAccount?->name ?? '—',
+                $payee,
+                $address,
+                $cv->si_no ?: '—',
+                $tin,
+                (float) $cv->amount_w_vat,
+                (float) $cv->vat,
+                (float) $cv->net_purchases,
+                (float) $cv->vat_exempt,
+                (float) $cv->non_vat_purchase,
+                (float) $cv->ewt_rate * 100,
+                (float) $cv->ewt_amount,
+                $branchName,
+            ];
+        }
+
+        return [
+            'title' => 'CV',
+            'headings' => [
+                'Date', 'CV #', 'APV #', 'Particulars', 'Cost/Expense Account (Debit)',
+                "Payee's Name", 'Address', 'SI/No.', 'TIN', 'Amount w/ VAT', 'VAT',
+                'Net Purchases', 'VAT Exempt', 'Non-VAT Purchase', 'EWT Rate (%)',
+                'EWT Amount', 'Branch',
+            ],
+            'rows' => $rows,
+            'numericFormats' => [
+                'J' => self::CURRENCY_FORMAT,
+                'K' => self::CURRENCY_FORMAT,
+                'L' => self::CURRENCY_FORMAT,
+                'M' => self::CURRENCY_FORMAT,
+                'N' => self::CURRENCY_FORMAT,
+                'O' => '#,##0.00',
+                'P' => self::CURRENCY_FORMAT,
+            ],
+            'totals' => ['J' => 'Amount w/ VAT', 'P' => 'EWT Amount'],
+        ];
+    }
+
+    private function buildCheckRegisterLedgerSheet(Request $request, string $dateFrom, string $dateTo): array
+    {
+        $checks = $this->checkRegisterDetailQuery($request, $dateFrom, $dateTo)->get();
+
+        $rows = $checks->map(fn (CheckRegister $check) => [
+            $check->check_date?->format('Y-m-d') ?? '',
+            $check->checkVoucher?->cv_no ?? '—',
+            $check->check_no ?? '—',
+            $check->payee ?: '—',
+            $check->particulars ?: '—',
+            (float) $check->amount,
+            $check->branch?->name ?? '—',
+        ])->all();
+
+        return [
+            'title' => 'Check Register',
+            'headings' => ['Check Date', 'CV #', 'Check #', 'Payee', 'Particulars', 'Amount', 'Branch'],
+            'rows' => $rows,
+            'numericFormats' => ['F' => self::CURRENCY_FORMAT],
+            'totals' => ['F' => 'Amount'],
+        ];
+    }
+
+    private function apvItemsQuery(Request $request, string $dateFrom, string $dateTo): \Illuminate\Database\Eloquent\Builder
+    {
+        $branchId = $this->activeBranchId($request);
+        $search = trim((string) $request->input('search', ''));
+
+        return PurchaseVoucherItem::with(['purchaseVoucher.vendor', 'purchaseVoucher.branch', 'purchaseVoucher.creditAccount', 'costAccount'])
+            ->whereHas('purchaseVoucher', fn ($q) => $q->whereBetween('date', [$dateFrom, $dateTo])
+                ->when($branchId, fn ($inner, $id) => $inner->where('branch_id', $id))
+                ->when($search, fn ($inner, $s) => $inner->where(fn ($w) => $w->where('apv_no', 'like', "%{$s}%")
+                    ->orWhere('buyer', 'like', "%{$s}%")
+                    ->orWhereHas('vendor', fn ($v) => $v->where('name', 'like', "%{$s}%")))))
+            ->orderBy('purchase_voucher_id')
+            ->orderBy('id');
+    }
+
+    private function pcvItemsQuery(Request $request, string $dateFrom, string $dateTo): \Illuminate\Database\Eloquent\Builder
+    {
+        $branchId = $this->activeBranchId($request);
+        $search = trim((string) $request->input('search', ''));
+
+        return PettyCashVoucherItem::with(['pettyCashVoucher.supplier', 'pettyCashVoucher.branch', 'pettyCashVoucher.checkVoucher', 'costAccount'])
+            ->whereHas('pettyCashVoucher', fn ($q) => $q->whereBetween('date', [$dateFrom, $dateTo])
+                ->when($branchId, fn ($inner, $id) => $inner->where('branch_id', $id))
+                ->when($search, fn ($inner, $s) => $inner->where(fn ($w) => $w->where('pcv_no', 'like', "%{$s}%")
+                    ->orWhere('remarks', 'like', "%{$s}%")
+                    ->orWhereHas('supplier', fn ($v) => $v->where('name', 'like', "%{$s}%")))))
+            ->orderBy('petty_cash_voucher_id')
+            ->orderBy('id');
     }
 
     /**
