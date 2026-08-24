@@ -64,6 +64,37 @@ class PurchaseDisbursementReportController extends Controller
 
     private const CURRENCY_FORMAT = '"₱"#,##0.00';
 
+    /**
+     * Blanks the given columns on every row after the first in a run of
+     * consecutive rows sharing the same group key — matches the client's own
+     * ledger format, where the Date/Voucher # is only written once per
+     * voucher (its first line item), not repeated on every line beneath it.
+     * Rows must already be ordered by voucher so each voucher's lines are
+     * consecutive.
+     *
+     * @param array<int, array> $rows
+     * @param array<int, mixed> $groupKeys One key per row, e.g. the underlying model's id — not necessarily a displayed column, since something like cv_no isn't guaranteed unique across disbursement types.
+     * @param array<int, int> $blankColumnIndexes
+     */
+    private function blankRepeatedGroupColumns(array $rows, array $groupKeys, array $blankColumnIndexes): array
+    {
+        $previous = null;
+
+        foreach ($rows as $i => &$row) {
+            $current = $groupKeys[$i];
+
+            if ($previous !== null && $current === $previous) {
+                foreach ($blankColumnIndexes as $index) {
+                    $row[$index] = '';
+                }
+            }
+
+            $previous = $current;
+        }
+
+        return $rows;
+    }
+
     private function buildApvLedgerSheet(Request $request, string $dateFrom, string $dateTo): array
     {
         $items = $this->apvItemsQuery($request, $dateFrom, $dateTo)->get();
@@ -92,6 +123,9 @@ class PurchaseDisbursementReportController extends Controller
                 $apv->branch?->name ?? '—',
             ];
         })->all();
+
+        // Date/APV # shown once per voucher, blank on the rest of its lines.
+        $rows = $this->blankRepeatedGroupColumns($rows, $items->pluck('purchase_voucher_id')->all(), [0, 1]);
 
         return [
             'title' => 'APV',
@@ -142,6 +176,9 @@ class PurchaseDisbursementReportController extends Controller
             ];
         })->all();
 
+        // Date/PCV # shown once per voucher, blank on the rest of its lines.
+        $rows = $this->blankRepeatedGroupColumns($rows, $items->pluck('petty_cash_voucher_id')->all(), [0, 1]);
+
         return [
             'title' => 'PCV',
             'headings' => [
@@ -167,45 +204,45 @@ class PurchaseDisbursementReportController extends Controller
     private function buildCvLedgerSheet(Request $request, string $dateFrom, string $dateTo): array
     {
         $vouchers = $this->cvDetailQuery($request, $dateFrom, $dateTo)
-            ->with(['receipts.costAccount', 'costAccount', 'advanceAccount', 'purchaseVoucher'])
+            ->with(['receipts.costAccount', 'receipts.supplier', 'costAccount', 'advanceAccount', 'purchaseVoucher'])
             ->get();
 
         $rows = [];
+        $groupKeys = [];
 
         foreach ($vouchers as $cv) {
             $apvNo = $cv->purchaseVoucher?->apv_no ?? '—';
             $branchName = $cv->branch?->name ?? '—';
-            $payee = $cv->payee_name ?: ($cv->supplier?->name ?? '—');
-            $address = $cv->address ?: ($cv->supplier?->address ?? '—');
-            $tin = $cv->tin ?: ($cv->supplier?->tin ?? '—');
+            $fallbackPayee = $cv->payee_name ?: ($cv->supplier?->name ?? '—');
+            $fallbackAddress = $cv->address ?: ($cv->supplier?->address ?? '—');
+            $fallbackTin = $cv->tin ?: ($cv->supplier?->tin ?? '—');
 
             // Standalone CVs (COD/Other) can split across several cost
-            // accounts — one row per receipt, so each allocation's own
-            // amounts are visible instead of only the voucher's grand total.
+            // accounts and suppliers — one row per receipt, each with its
+            // own payee, so a single check covering several different
+            // suppliers still shows who each portion was actually for.
             if ($cv->receipts->isNotEmpty()) {
-                foreach ($cv->receipts as $index => $receipt) {
+                foreach ($cv->receipts as $receipt) {
                     $rows[] = [
                         $cv->date?->format('Y-m-d') ?? '',
                         $cv->cv_no ?? '—',
                         $apvNo,
                         $cv->particulars ?: '—',
                         $receipt->costAccount?->name ?? '—',
-                        $payee,
-                        $address,
+                        $receipt->supplier?->name ?? $fallbackPayee,
+                        $receipt->supplier?->address ?? $fallbackAddress,
                         $receipt->si_no ?: '—',
-                        $tin,
+                        $receipt->supplier?->tin ?? $fallbackTin,
                         (float) $receipt->amount_w_vat,
                         (float) $receipt->vat,
                         (float) $receipt->net_purchases,
                         (float) $receipt->vat_exempt,
                         (float) $receipt->non_vat_purchase,
-                        // EWT is one figure for the whole CV, not per receipt —
-                        // shown once on the first line so summing this column
-                        // in Excel doesn't count it once per receipt.
-                        $index === 0 ? (float) $cv->ewt_rate * 100 : '',
-                        $index === 0 ? (float) $cv->ewt_amount : '',
+                        (float) $cv->ewt_rate * 100,
+                        (float) $cv->ewt_amount,
                         $branchName,
                     ];
+                    $groupKeys[] = $cv->id;
                 }
 
                 continue;
@@ -217,10 +254,10 @@ class PurchaseDisbursementReportController extends Controller
                 $apvNo,
                 $cv->particulars ?: '—',
                 $cv->costAccount?->name ?? $cv->advanceAccount?->name ?? '—',
-                $payee,
-                $address,
+                $fallbackPayee,
+                $fallbackAddress,
                 $cv->si_no ?: '—',
-                $tin,
+                $fallbackTin,
                 (float) $cv->amount_w_vat,
                 (float) $cv->vat,
                 (float) $cv->net_purchases,
@@ -230,7 +267,14 @@ class PurchaseDisbursementReportController extends Controller
                 (float) $cv->ewt_amount,
                 $branchName,
             ];
+            $groupKeys[] = $cv->id;
         }
+
+        // Date/CV #/APV #/EWT shown once per voucher, blank on the rest of
+        // its lines — cv_no alone isn't a safe group key (it's only unique
+        // within its own disbursement type), so this groups by the CV's
+        // actual id instead.
+        $rows = $this->blankRepeatedGroupColumns($rows, $groupKeys, [0, 1, 2, 14, 15]);
 
         return [
             'title' => 'CV',
