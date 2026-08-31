@@ -186,6 +186,9 @@ Route::middleware('auth')->group(function (): void {
 		Route::get('/', [DeliveryManagementController::class, 'index'])->name('index');
 		Route::get('/create', [DeliveryManagementController::class, 'create'])->name('create');
 		Route::post('/', [DeliveryManagementController::class, 'store'])->name('store');
+		Route::get('/{delivery}/edit', [DeliveryManagementController::class, 'edit'])->name('edit');
+		Route::put('/{delivery}', [DeliveryManagementController::class, 'update'])->name('update');
+		Route::post('/{delivery}/reject', [DeliveryManagementController::class, 'reject'])->name('reject');
 		Route::get('/{delivery}', [DeliveryManagementController::class, 'show'])->name('show');
 		Route::post('/{delivery}/approve', [DeliveryManagementController::class, 'approve'])->name('approve');
 		Route::post('/{delivery}/prices', [DeliveryManagementController::class, 'updatePrices'])->name('prices.update');

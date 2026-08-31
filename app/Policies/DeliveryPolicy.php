@@ -37,11 +37,22 @@ class DeliveryPolicy
     }
 
     /**
-     * Determine whether the user can update the model.
+     * Determine whether the user can update the model — only while it's
+     * still pending review, and only the person who encoded it (Aileen,
+     * say) or someone who could approve it. Once Jessica (or whoever)
+     * approves or rejects it, the record is locked; this is what actually
+     * enforces that — previously update() only checked the reviewer's
+     * role/branch and never the delivery's own status, and delegated
+     * entirely to approve() with no way for the original encoder to fix
+     * their own mistake before handing the receipts over for review.
      */
     public function update(User $user, Delivery $delivery): bool
     {
-        return $this->approve($user, $delivery);
+        if (! $delivery->isPending()) {
+            return false;
+        }
+
+        return (int) $user->id === (int) $delivery->created_by || $this->approve($user, $delivery);
     }
 
     /**
@@ -70,7 +81,7 @@ class DeliveryPolicy
 
     public function approve(User $user, Delivery $delivery): bool
     {
-        if ($user->isAdmin()) {
+        if ($user->isAdmin() || $user->can_approve_deliveries) {
             return true;
         }
 

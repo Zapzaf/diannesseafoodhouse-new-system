@@ -26,6 +26,7 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'can_approve_deliveries',
         'branch_id',
         'phone',
         'profile_photo_path',
@@ -51,6 +52,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'can_approve_deliveries' => 'boolean',
         ];
     }
 
@@ -77,5 +79,17 @@ class User extends Authenticatable
     public function isRegularUser(): bool
     {
         return $this->role === 'regular_user';
+    }
+
+    /**
+     * Whether this account can approve/reject Delivery records — either by
+     * role (admin always can) or via the standalone can_approve_deliveries
+     * flag, which lets a specific person (e.g. a designated reviewer) be
+     * granted delivery-approval rights without giving them full
+     * admin/branch_manager access.
+     */
+    public function canApproveDeliveries(): bool
+    {
+        return $this->isAdmin() || (bool) $this->can_approve_deliveries;
     }
 }

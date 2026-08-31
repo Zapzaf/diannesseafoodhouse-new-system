@@ -67,6 +67,14 @@
                         </select>
                         @endif
                     </div>
+                    @if(auth()->user()->isAdmin())
+                    <div class="mb-3 form-check">
+                        <input type="hidden" name="can_approve_deliveries" value="0">
+                        <input type="checkbox" name="can_approve_deliveries" value="1" class="form-check-input" id="canApproveDeliveries" {{ old('can_approve_deliveries', $user->can_approve_deliveries) ? 'checked' : '' }}>
+                        <label class="form-check-label fw-semibold" for="canApproveDeliveries">Can Approve Deliveries</label>
+                        <div class="form-text text-muted">Lets this account approve/reject Delivery records for review, regardless of branch.</div>
+                    </div>
+                    @endif
                     <div class="mb-3" id="branchField" style="{{ old('role', $user->role) === 'admin' ? 'display:none' : '' }}">
                         <label class="form-label fw-semibold">Branch</label>
                         @if(auth()->user()->isBranchManager())

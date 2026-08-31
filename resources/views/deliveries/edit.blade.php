@@ -1,11 +1,11 @@
 @extends('layouts.app')
 
-@section('page_title', 'Log Delivery - Dianne Seafood House')
+@section('page_title', 'Edit Delivery - Dianne Seafood House')
 
 @section('content')
-    <x-page-header title="Log Incoming Delivery" subtitle="Record a delivery from an external supplier" icon="truck">
-        <a href="{{ route('deliveries.index') }}" class="btn btn-secondary text-white">
-            <i data-lucide="arrow-left" class="me-1"></i> All Deliveries
+    <x-page-header title="Edit Delivery" subtitle="Fix the encoded delivery before it goes to review" icon="truck">
+        <a href="{{ route('deliveries.show', $delivery) }}" class="btn btn-secondary text-white">
+            <i data-lucide="arrow-left" class="me-1"></i> Back to Delivery
         </a>
     </x-page-header>
 
@@ -20,27 +20,28 @@
                             <i data-lucide="truck" style="width: 20px; height: 20px;"></i>
                             <span>Delivery Details</span>
                         </h5>
-                        <div class="small text-muted">Add each delivered item, then choose where it should go.</div>
+                        <div class="small text-muted">{{ $delivery->reference_number }} — editable while Pending Review only.</div>
                     </div>
-                    <span class="badge bg-primary px-3 py-2">Destination required per row</span>
+                    <span class="badge bg-warning text-dark px-3 py-2">Pending Review</span>
                 </div>
-                <form method="POST" action="{{ route('deliveries.store') }}" id="delivery-form">
+                <form method="POST" action="{{ route('deliveries.update', $delivery) }}" id="delivery-form">
                     @csrf
+                    @method('PUT')
 
-                    {{-- Hidden source branch (used by controller for branch-transfer flow) --}}
-                    <input type="hidden" name="source_branch_id" id="hiddenSourceBranchId" value="{{ old('source_branch_id', request('source_branch_id', '')) }}">
-                    <input type="hidden" name="source_item_id" id="hiddenSourceItemId" value="{{ old('source_item_id', request('source_item_id', '')) }}">
+                    <input type="hidden" name="source_branch_id" id="hiddenSourceBranchId" value="{{ old('source_branch_id', $delivery->source_branch_id) }}">
+                    <input type="hidden" name="source_item_id" id="hiddenSourceItemId" value="">
 
                     <div class="row g-3">
-                        @php($requiresBranchSelection = auth()->user()?->isAdmin() && empty($selectedBranchId))
+                        @php
+                            $requiresBranchSelection = auth()->user()?->isAdmin() && empty($selectedBranchId);
+                        @endphp
 
-                        {{-- Supplier --}}
-        <div class="{{ $requiresBranchSelection ? 'col-md-4' : 'col-md-8' }}">
-                            <label class="form-label fw-semibold">Supplier <span class="text-danger">*</span></label>
-                            <select name="supplier_id" class="form-select" id="supplierSelect" required>
+                        <div class="{{ $requiresBranchSelection ? 'col-md-4' : 'col-md-8' }}">
+                            <label class="form-label fw-semibold">Supplier @if(!$delivery->source_branch_id)<span class="text-danger">*</span>@endif</label>
+                            <select name="supplier_id" class="form-select" id="supplierSelect" {{ $delivery->source_branch_id ? 'disabled' : 'required' }}>
                                 <option value="">Select supplier</option>
                                 @foreach($suppliers as $s)
-                                <option value="{{ $s->id }}" data-tin="{{ e($s->tin) }}" data-address="{{ e($s->address) }}" {{ old('supplier_id') == $s->id ? 'selected' : '' }}>
+                                <option value="{{ $s->id }}" data-tin="{{ e($s->tin) }}" data-address="{{ e($s->address) }}" {{ old('supplier_id', $delivery->supplier_id) == $s->id ? 'selected' : '' }}>
                                     {{ $s->name }}@if($s->contact_person) - {{ $s->contact_person }}@endif
                                 </option>
                                 @endforeach
@@ -53,9 +54,8 @@
                             <input type="date"
                                    name="delivery_date"
                                    class="form-control"
-                                   value="{{ old('delivery_date', now()->toDateString()) }}"
+                                   value="{{ old('delivery_date', $delivery->delivery_date?->toDateString()) }}"
                                    required>
-                            <div class="form-text">Use the actual date the items were received.</div>
                             @error('delivery_date') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                         </div>
 
@@ -65,17 +65,15 @@
                             <select name="destination_branch_id" class="form-select" id="destinationBranchSelect" required>
                                 <option value="">Select Branch</option>
                                 @foreach($branches as $branch)
-                                <option value="{{ $branch->id }}" {{ old('destination_branch_id') == $branch->id ? 'selected' : '' }}>
+                                <option value="{{ $branch->id }}" {{ old('destination_branch_id', $delivery->destination_branch_id) == $branch->id ? 'selected' : '' }}>
                                     {{ $branch->name }}
                                 </option>
                                 @endforeach
                             </select>
-                            <div class="form-text">Choose the branch before selecting item destinations.</div>
                             @error('destination_branch_id') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                         </div>
                         @else
-                        {{-- Non-admin or Admin with an active branch: branch is fixed to selected branch --}}
-                        <input type="hidden" name="destination_branch_id" id="destinationBranchSelect" value="{{ old('destination_branch_id', $selectedBranchId ?? '') }}">
+                        <input type="hidden" name="destination_branch_id" id="destinationBranchSelect" value="{{ old('destination_branch_id', $selectedBranchId ?? $delivery->destination_branch_id) }}">
                         @error('destination_branch_id') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                         @endif
                     </div>
@@ -90,42 +88,45 @@
                         <div class="row g-3">
                             <div class="col-md-4">
                                 <label class="form-label fw-semibold">Supplier TIN</label>
-                                <input type="text" name="tin" id="tinInput" class="form-control" value="{{ old('tin') }}">
+                                <input type="text" name="tin" id="tinInput" class="form-control" value="{{ old('tin', $delivery->tin) }}">
                                 @error('tin') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                             </div>
                             <div class="col-md-8">
                                 <label class="form-label fw-semibold">Supplier Address</label>
-                                <input type="text" name="address" id="addressInput" class="form-control" value="{{ old('address') }}">
+                                <input type="text" name="address" id="addressInput" class="form-control" value="{{ old('address', $delivery->address) }}">
                                 @error('address') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label fw-semibold">Invoice / Receipt No.</label>
-                                <input type="text" name="si_no" class="form-control" value="{{ old('si_no') }}">
+                                <input type="text" name="si_no" class="form-control" value="{{ old('si_no', $delivery->si_no) }}">
                                 @error('si_no') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label fw-semibold">Amount w/ VAT</label>
-                                <input type="number" step="0.01" min="0" name="amount_w_vat" id="amountWVat" class="form-control" value="{{ old('amount_w_vat') }}">
+                                <input type="number" step="0.01" min="0" name="amount_w_vat" id="amountWVat" class="form-control" value="{{ old('amount_w_vat', $delivery->amount_w_vat) }}">
                                 @error('amount_w_vat') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label fw-semibold">EWT Rate</label>
+                                @php
+                                    $ewtRateOld = old('ewt_rate', rtrim(rtrim(number_format((float) $delivery->ewt_rate, 2, '.', ''), '0'), '.') ?: '0');
+                                @endphp
                                 <select name="ewt_rate" id="ewtRate" class="form-select">
-                                    <option value="0" {{ old('ewt_rate', '0') === '0' ? 'selected' : '' }}>None</option>
-                                    <option value="0.01" {{ old('ewt_rate') === '0.01' ? 'selected' : '' }}>1%</option>
-                                    <option value="0.02" {{ old('ewt_rate') === '0.02' ? 'selected' : '' }}>2%</option>
-                                    <option value="0.05" {{ old('ewt_rate') === '0.05' ? 'selected' : '' }}>5%</option>
-                                    <option value="0.10" {{ old('ewt_rate') === '0.10' ? 'selected' : '' }}>10%</option>
+                                    <option value="0" {{ (float) $ewtRateOld === 0.0 ? 'selected' : '' }}>None</option>
+                                    <option value="0.01" {{ (float) $ewtRateOld === 0.01 ? 'selected' : '' }}>1%</option>
+                                    <option value="0.02" {{ (float) $ewtRateOld === 0.02 ? 'selected' : '' }}>2%</option>
+                                    <option value="0.05" {{ (float) $ewtRateOld === 0.05 ? 'selected' : '' }}>5%</option>
+                                    <option value="0.10" {{ (float) $ewtRateOld === 0.10 ? 'selected' : '' }}>10%</option>
                                 </select>
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label fw-semibold">VAT-Exempt Amount</label>
-                                <input type="number" step="0.01" min="0" name="vat_exempt" id="vatExempt" class="form-control" value="{{ old('vat_exempt') }}">
+                                <input type="number" step="0.01" min="0" name="vat_exempt" id="vatExempt" class="form-control" value="{{ old('vat_exempt', $delivery->vat_exempt) }}">
                                 @error('vat_exempt') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label fw-semibold">Non-VAT Purchase</label>
-                                <input type="number" step="0.01" min="0" name="non_vat_purchase" id="nonVatPurchase" class="form-control" value="{{ old('non_vat_purchase') }}">
+                                <input type="number" step="0.01" min="0" name="non_vat_purchase" id="nonVatPurchase" class="form-control" value="{{ old('non_vat_purchase', $delivery->non_vat_purchase) }}">
                                 @error('non_vat_purchase') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                             </div>
                         </div>
@@ -175,10 +176,10 @@
                     </div>
 
                     <div class="mt-4 d-flex justify-content-end gap-3">
-                        <a href="{{ route('deliveries.index') }}" class="btn btn-secondary text-white px-4">Cancel</a>
+                        <a href="{{ route('deliveries.show', $delivery) }}" class="btn btn-secondary text-white px-4">Cancel</a>
                         <button type="submit" class="btn btn-primary px-4 d-flex align-items-center gap-2">
                             <i data-lucide="save" style="width: 18px; height: 18px;"></i>
-                            <span>Save Delivery</span>
+                            <span>Save Changes</span>
                         </button>
                     </div>
                 </form>
@@ -198,7 +199,6 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    {{-- Step 1: Choose Production or Inventory Storage --}}
                     <div id="stepChoose">
                         <p class="text-muted mb-3">Where should this delivery item go?</p>
                         <div class="destination-choice-grid">
@@ -217,7 +217,6 @@
                         </div>
                     </div>
 
-                    {{-- Step 2: Search & pick inventory item (only shown when Inventory Storage chosen) --}}
                     <div id="stepSearch" class="d-none">
                         <div class="destination-search-header">
                             <button type="button" class="btn btn-sm btn-secondary text-white" id="backToChoose">
@@ -277,48 +276,54 @@ document.addEventListener('DOMContentLoaded', function () {
     let rowCount  = 0;
     let activeRow = null;
 
+    @php
+        $existingDeliveryItems = $delivery->items->map(fn ($i) => [
+            'description' => $i->description,
+            'quantity' => (float) $i->quantity,
+            'unit' => $i->unit,
+            'price' => $i->price !== null ? (float) $i->price : null,
+            'item_id' => $i->item_id,
+            'allocated_to' => $i->allocated_to,
+            'item_name' => $i->item?->name,
+        ]);
+    @endphp
     const UNITS = @json($deliveryUnitOptions);
+    const itemsData = @json($itemsForModal);
+    const existingItems = @json($existingDeliveryItems);
 
-    const itemsData         = @json($itemsForModal);
     const branchSelect = document.getElementById('destinationBranchSelect');
     let selectedBranchId = parseInt(branchSelect ? branchSelect.value : @json($selectedBranchId ?? 0)) || 0;
-    const transferSourceItemId = parseInt(@json(request('source_item_id'))) || 0;
-    const transferQty = parseFloat(@json(request('quantity'))) || 0;
-    const transferReason = @json(request('reason', ''));
-    const transferDestinationItemId = parseInt(@json(request('destination_item_id'))) || 0;
 
-    // Admin: branch dropdown removed, relying on session branch
-
-    // ── Row builder ───────────────────────────────────────────────────────────
-    function unitOptions() {
+    function unitOptions(selected) {
         return '<option value="">Select Unit</option>'
-            + Object.entries(UNITS).map(([value, label]) => `<option value="${value}">${label}</option>`).join('');
+            + Object.entries(UNITS).map(([value, label]) => `<option value="${value}" ${value === selected ? 'selected' : ''}>${label}</option>`).join('');
     }
 
-    function buildRow(index) {
+    function buildRow(index, prefill) {
+        prefill = prefill || {};
         const tr = document.createElement('tr');
         tr.dataset.rowIndex = index;
         tr.innerHTML = `
             <td>
                 <input type="text" name="items[${index}][description]"
-                       class="form-control" placeholder="e.g. Tuna in brine 185g" required>
+                       class="form-control" placeholder="e.g. Tuna in brine 185g" value="${esc(prefill.description || '')}" required>
             </td>
             <td>
                 <input type="number" name="items[${index}][quantity]"
-                       class="form-control" step="0.01" min="0.01" placeholder="0.00" required>
+                       class="form-control" step="0.01" min="0.01" placeholder="0.00" value="${prefill.quantity != null ? prefill.quantity : ''}" required>
             </td>
             <td>
                 <select name="items[${index}][unit]" class="form-select row-unit" required>
-                    ${unitOptions()}
+                    ${unitOptions(prefill.unit || '')}
                 </select>
             </td>
             <td>
                 <input type="number" name="items[${index}][price]"
-                       class="form-control" step="0.01" min="0" placeholder="0.00">
+                       class="form-control" step="0.01" min="0" placeholder="0.00" value="${prefill.price != null ? prefill.price : ''}">
             </td>
             <td>
-                <input type="hidden" name="items[${index}][item_id]" class="row-item-id" value="">
-                <input type="hidden" name="items[${index}][allocated_to]" class="row-allocated" value="">
+                <input type="hidden" name="items[${index}][item_id]" class="row-item-id" value="${prefill.item_id || ''}">
+                <input type="hidden" name="items[${index}][allocated_to]" class="row-allocated" value="${prefill.allocated_to || ''}">
                 <div class="destination-control">
                     <button type="button" class="btn btn-sm btn-primary text-white btn-dest w-100">
                         <i data-lucide="map-pin"></i> Select Destination
@@ -334,16 +339,31 @@ document.addEventListener('DOMContentLoaded', function () {
                 <button type="button" class="btn btn-sm btn-danger btn-remove text-white" title="Remove"><i data-lucide="trash-2"></i></button>
             </td>
         `;
+
+        if (prefill.allocated_to) {
+            const badge = tr.querySelector('.dest-label');
+            if (prefill.allocated_to === 'inventory') {
+                badge.textContent = `Inventory (${prefill.item_name || ('#' + prefill.item_id)})`;
+            } else {
+                badge.textContent = 'Production';
+            }
+            queueMicrotask(() => showDestination(tr, prefill.allocated_to));
+        }
+
         return tr;
     }
 
-    function addRow() {
-        const row = buildRow(rowCount++);
+    function addRow(prefill) {
+        const row = buildRow(rowCount++, prefill);
         tbody.appendChild(row);
         if (typeof window.refreshLucideIcons === 'function') window.refreshLucideIcons();
     }
 
-    addRow();
+    if (existingItems.length) {
+        existingItems.forEach(item => addRow(item));
+    } else {
+        addRow();
+    }
 
     if (branchSelect) {
         branchSelect.addEventListener('change', function () {
@@ -358,53 +378,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Transfer flow: lock supplier; prefill qty/description; force item selection from modal
-    if (transferSourceItemId) {
-        const hiddenSourceItem = document.getElementById('hiddenSourceItemId');
-        const hiddenSourceBranch = document.getElementById('hiddenSourceBranchId');
-        if (hiddenSourceItem) hiddenSourceItem.value = String(transferSourceItemId);
-        if (hiddenSourceBranch) hiddenSourceBranch.value = String(selectedBranchId || '');
-
-        const supplierSelect = document.getElementById('supplierSelect');
-        if (supplierSelect) {
-            supplierSelect.required = false;
-            supplierSelect.disabled = true;
-        }
-
-        const firstRow = tbody.querySelector('tr');
-        if (firstRow) {
-            const qtyInput = firstRow.querySelector('input[name$="[quantity]"]');
-            const descInput = firstRow.querySelector('input[name$="[description]"]');
-            if (qtyInput && transferQty > 0) qtyInput.value = transferQty.toFixed(2);
-            if (descInput && transferReason) descInput.value = transferReason;
-
-            if (transferDestinationItemId) {
-                const itemIdInput = firstRow.querySelector('input[name$="[item_id]"]');
-                const allocInput = firstRow.querySelector('input[name$="[allocated_to]"]');
-                const badge = firstRow.querySelector('.dest-label');
-                if (itemIdInput) itemIdInput.value = String(transferDestinationItemId);
-                if (allocInput) allocInput.value = 'inventory';
-
-                const matched = itemsData.find(i => parseInt(i.id) === transferDestinationItemId);
-                const label = matched ? matched.name : ('#' + transferDestinationItemId);
-                if (badge) {
-                    badge.textContent = `Inventory (${label})`;
-                    showDestination(firstRow, 'inventory');
-                }
-
-                // If we can, auto-fill price: destination unit_price × qty
-                if (matched && matched.unit_price !== null) {
-                    const qty = parseFloat(qtyInput?.value || '') || 0;
-                    const unitPrice = parseFloat(matched.unit_price);
-                    const priceInput = firstRow.querySelector('input[name$="[price]"]');
-                    if (priceInput && qty > 0 && !isNaN(unitPrice) && unitPrice > 0) {
-                        priceInput.value = (unitPrice * qty).toFixed(2);
-                    }
-                }
-            }
-        }
-    }
-    addBtn.addEventListener('click', addRow);
+    addBtn.addEventListener('click', function () { addRow(); });
 
     // ── BIR / Tax section ───────────────────────────────────────────────────
     const supplierSelectForBir = document.getElementById('supplierSelect');
@@ -450,9 +424,6 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!selectedBranchId) {
             e.preventDefault();
             alert('Please select a branch before proceeding.');
-            if (branchSelect && typeof branchSelect.focus === 'function') {
-                branchSelect.focus();
-            }
             return;
         }
 
@@ -468,7 +439,7 @@ document.addEventListener('DOMContentLoaded', function () {
         rows.forEach((row, i) => {
             const alloc = row.querySelector('.row-allocated').value;
             const itemId = row.querySelector('.row-item-id').value;
-            
+
             if (!alloc) {
                 hasError = true;
                 missingDescriptions.push(row.querySelector('input[name$="[description]"]').value.trim() || `Item ${i + 1}`);
@@ -503,9 +474,6 @@ document.addEventListener('DOMContentLoaded', function () {
             selectedBranchId = parseInt(branchSelect ? branchSelect.value : selectedBranchId) || 0;
             if (!selectedBranchId) {
                 alert('Please select a branch before choosing a destination.');
-                if (branchSelect && typeof branchSelect.focus === 'function') {
-                    branchSelect.focus();
-                }
                 return;
             }
 
@@ -564,7 +532,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }, { once: true });
     }
 
-    // Step 1 — Production (save immediately, no item needed)
     document.getElementById('chooseProduction').addEventListener('click', function () {
         if (!activeRow) return;
         activeRow.querySelector('input[name$="[item_id]"]').value      = '';
@@ -575,7 +542,6 @@ document.addEventListener('DOMContentLoaded', function () {
         destModal.hide();
     });
 
-    // Step 1 — Inventory Storage → go to search
     document.getElementById('chooseInventory').addEventListener('click', function () {
         showStep('search');
         searchInput.focus();
@@ -626,7 +592,6 @@ document.addEventListener('DOMContentLoaded', function () {
         noResultsMsg.style.display = (q || destBranchId) ? 'none' : 'block';
     }
 
-    // Step 2 — pick an inventory item and save
     itemsTableBody.addEventListener('click', function (e) {
         const btn = e.target.closest('.btn-pick-item');
         if (!btn || !activeRow) return;
@@ -643,14 +608,13 @@ document.addEventListener('DOMContentLoaded', function () {
         activeRow.querySelector('input[name$="[item_id]"]').value      = pendingItemId;
         activeRow.querySelector('input[name$="[allocated_to]"]').value = 'inventory';
 
-            // Auto-fill price: unit_price × qty entered by user
-            const unitPrice = parseFloat(btn.dataset.unitPrice);
-            if (!isNaN(unitPrice) && unitPrice > 0) {
-                const qtyInput   = activeRow.querySelector('input[name$="[quantity]"]');
-                const priceInput = activeRow.querySelector('input[name$="[price]"]');
-                const qty        = parseFloat(qtyInput.value) || 1;
-                priceInput.value = (unitPrice * qty).toFixed(2);
-            }
+        const unitPrice = parseFloat(btn.dataset.unitPrice);
+        if (!isNaN(unitPrice) && unitPrice > 0) {
+            const qtyInput   = activeRow.querySelector('input[name$="[quantity]"]');
+            const priceInput = activeRow.querySelector('input[name$="[price]"]');
+            const qty        = parseFloat(qtyInput.value) || 1;
+            priceInput.value = (unitPrice * qty).toFixed(2);
+        }
 
         const badge = activeRow.querySelector('.dest-label');
         badge.textContent = `Inventory (${pendingItemName})`;

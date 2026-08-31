@@ -63,6 +63,7 @@ class UserController extends Controller
             'role' => ['required', Rule::in(['admin', 'branch_manager', 'regular_user', 'staff'])],
             'branch_id' => ['nullable', 'exists:branches,id'],
             'phone' => ['nullable', 'string', 'max:50'],
+            'can_approve_deliveries' => ['nullable', 'boolean'],
             'profile_photo' => ['nullable', 'image', 'max:5120'],
             // ~4 MB of image data becomes ~5.6 MB of base64; cap the payload accordingly.
             'profile_photo_cropped' => ['nullable', 'string', 'max:6000000'],
@@ -76,6 +77,10 @@ class UserController extends Controller
             'branch_id' => $validated['role'] === 'admin' ? null : ($validated['branch_id'] ?? null),
             'phone' => $validated['phone'] ?? null,
         ];
+
+        if ($request->user()?->isAdmin()) {
+            $payload['can_approve_deliveries'] = (bool) ($validated['can_approve_deliveries'] ?? false);
+        }
 
         $payload += $this->resolveProfilePhotoUpload($validated, null, 'users.store');
 
@@ -107,6 +112,7 @@ class UserController extends Controller
             'role' => ['required', Rule::in(['admin', 'branch_manager', 'regular_user', 'staff'])],
             'branch_id' => ['nullable', 'exists:branches,id'],
             'phone' => ['nullable', 'string', 'max:50'],
+            'can_approve_deliveries' => ['nullable', 'boolean'],
             'profile_photo' => ['nullable', 'image', 'max:5120'],
             // ~4 MB of image data becomes ~5.6 MB of base64; cap the payload accordingly.
             'profile_photo_cropped' => ['nullable', 'string', 'max:6000000'],
@@ -119,6 +125,10 @@ class UserController extends Controller
             'branch_id' => $validated['role'] === 'admin' ? null : ($validated['branch_id'] ?? null),
             'phone' => $validated['phone'] ?? null,
         ];
+
+        if ($request->user()?->isAdmin()) {
+            $payload['can_approve_deliveries'] = (bool) ($validated['can_approve_deliveries'] ?? false);
+        }
 
         if (! empty($validated['password'])) {
             $payload['password'] = Hash::make($validated['password']);

@@ -26,7 +26,11 @@
         <div class="card shadow-sm mb-4">
             <div class="card-header fw-semibold d-flex justify-content-between align-items-center">
                 <span>Delivery Information</span>
-                <span class="badge-status badge-{{ $delivery->status }}">{{ strtoupper($delivery->status) }}</span>
+                @php
+                    $statusLabels = ['pending' => 'PENDING REVIEW', 'received' => 'APPROVED', 'rejected' => 'REJECTED'];
+                    $statusClass = $delivery->status === 'rejected' ? 'badge-expired' : 'badge-'.$delivery->status;
+                @endphp
+                <span class="badge-status {{ $statusClass }}">{{ $statusLabels[$delivery->status] ?? strtoupper($delivery->status) }}</span>
             </div>
             <div class="card-body">
                 <div class="row g-3">
@@ -67,8 +71,67 @@
                     </div>
                     @endif
                 </div>
+                @if($delivery->status === 'rejected' && $delivery->rejection_remarks)
+                <div class="alert alert-danger mt-3 mb-0">
+                    <div class="fw-semibold">Rejection Remarks</div>
+                    <div>{{ $delivery->rejection_remarks }}</div>
+                </div>
+                @endif
+                @if($delivery->approval_remarks)
+                <div class="alert alert-secondary mt-3 mb-0">
+                    <div class="fw-semibold">Approval Remarks</div>
+                    <div>{{ $delivery->approval_remarks }}</div>
+                </div>
+                @endif
             </div>
         </div>
+
+        {{-- BIR / Tax Details Card --}}
+        @if($delivery->tin || $delivery->address || $delivery->si_no || (float) $delivery->amount_w_vat > 0)
+        <div class="card shadow-sm mb-4">
+            <div class="card-header fw-semibold">BIR / Tax Details</div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <div class="small text-muted">Supplier TIN</div>
+                        <div>{{ $delivery->tin ?: '—' }}</div>
+                    </div>
+                    <div class="col-md-5">
+                        <div class="small text-muted">Supplier Address</div>
+                        <div>{{ $delivery->address ?: '—' }}</div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="small text-muted">Invoice / Receipt No.</div>
+                        <div>{{ $delivery->si_no ?: '—' }}</div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="small text-muted">Amount w/ VAT</div>
+                        <div>&#8369;{{ number_format((float) $delivery->amount_w_vat, 2) }}</div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="small text-muted">Net Purchases</div>
+                        <div>&#8369;{{ number_format((float) $delivery->net_purchases, 2) }}</div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="small text-muted">VAT</div>
+                        <div>&#8369;{{ number_format((float) $delivery->vat, 2) }}</div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="small text-muted">EWT Amount</div>
+                        <div>&#8369;{{ number_format((float) $delivery->ewt_amount, 2) }} ({{ number_format((float) $delivery->ewt_rate * 100, 0) }}%)</div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="small text-muted">VAT-Exempt</div>
+                        <div>&#8369;{{ number_format((float) $delivery->vat_exempt, 2) }}</div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="small text-muted">Non-VAT Purchase</div>
+                        <div>&#8369;{{ number_format((float) $delivery->non_vat_purchase, 2) }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        @endif
 
         {{-- Items Card --}}
         <div class="card shadow-sm mb-4">
@@ -169,11 +232,32 @@
             </div>
         </div>
 
-        {{-- Approve form (pending deliveries only) --}}
+        {{-- Edit (pending deliveries the creator/approver can still fix) --}}
+        @if($delivery->status === 'pending')
+            @can('update', $delivery)
+            <div class="card shadow-sm mb-4">
+                <div class="card-body d-flex justify-content-end">
+                    <a href="{{ route('deliveries.edit', $delivery) }}" class="btn btn-outline-primary">
+                        <i data-lucide="pencil" class="me-1"></i> Edit Delivery
+                    </a>
+                </div>
+            </div>
+            @endcan
+        @endif
+
+        {{-- Approve / Reject (pending deliveries only, approvers only) --}}
         @if($delivery->status === 'pending')
             @can('approve', $delivery)
             <div class="card shadow-sm mb-4">
-                <div class="card-body d-flex justify-content-end">
+                <div class="card-header fw-semibold">Review This Delivery</div>
+                <div class="card-body d-flex justify-content-end gap-2 flex-wrap">
+                    <form method="POST" action="{{ route('deliveries.reject', $delivery) }}" id="reject-form" class="d-inline">
+                        @csrf
+                        <input type="hidden" name="rejection_remarks" id="rejectionRemarksInput">
+                        <button type="button" class="btn btn-outline-danger" id="rejectBtn">
+                            <i data-lucide="x-circle" class="me-1"></i> Reject
+                        </button>
+                    </form>
                     <form method="POST" action="{{ route('deliveries.approve', $delivery) }}">
                         @csrf
                         @foreach($delivery->items as $index => $item)
@@ -185,8 +269,29 @@
                         </button>
                     </form>
                 </div>
+                @error('rejection_remarks') <div class="alert alert-danger py-2 mx-3 mb-3">{{ $message }}</div> @enderror
             </div>
             @endcan
         @endif
     </div>
 @endsection
+
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const rejectBtn = document.getElementById('rejectBtn');
+    if (rejectBtn) {
+        rejectBtn.addEventListener('click', function () {
+            const remarks = prompt('Please enter the reason for rejecting this delivery:');
+            if (remarks === null) return;
+            if (!remarks.trim()) {
+                alert('Rejection remarks are required.');
+                return;
+            }
+            document.getElementById('rejectionRemarksInput').value = remarks.trim();
+            document.getElementById('reject-form').submit();
+        });
+    }
+});
+</script>
+@endpush

@@ -74,7 +74,11 @@
                             <td class="fw-semibold">&#8369;{{ number_format($delivery->items->sum(fn($i) => (float) ($i->price ?? 0)), 2) }}</td>
                             <td class="text-muted small">{{ $delivery->created_at->format('M d, Y H:i') }}</td>
                             <td>
-                                <span class="badge-status badge-{{ $delivery->status }}">{{ strtoupper($delivery->status) }}</span>
+                                @php
+                                    $statusLabels = ['pending' => 'PENDING REVIEW', 'received' => 'APPROVED', 'rejected' => 'REJECTED'];
+                                    $statusClass = $delivery->status === 'rejected' ? 'badge-expired' : 'badge-'.$delivery->status;
+                                @endphp
+                                <span class="badge-status {{ $statusClass }}">{{ $statusLabels[$delivery->status] ?? strtoupper($delivery->status) }}</span>
                             </td>
                             <td class="table-actions-cell text-nowrap">
                                 <a href="{{ route('deliveries.show', $delivery) }}" class="btn btn-sm btn-info text-white">

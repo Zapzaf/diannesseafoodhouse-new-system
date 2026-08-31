@@ -21,6 +21,18 @@ class Delivery extends Model
         'approved_by',
         'approved_at',
         'created_by',
+        'tin',
+        'address',
+        'si_no',
+        'amount_w_vat',
+        'vat',
+        'net_purchases',
+        'vat_exempt',
+        'non_vat_purchase',
+        'ewt_rate',
+        'ewt_amount',
+        'approval_remarks',
+        'rejection_remarks',
     ];
 
     protected function casts(): array
@@ -28,7 +40,39 @@ class Delivery extends Model
         return [
             'delivery_date' => 'date',
             'approved_at' => 'datetime',
+            'amount_w_vat' => 'decimal:2',
+            'vat' => 'decimal:2',
+            'net_purchases' => 'decimal:2',
+            'vat_exempt' => 'decimal:2',
+            'non_vat_purchase' => 'decimal:2',
+            'ewt_rate' => 'decimal:4',
+            'ewt_amount' => 'decimal:2',
         ];
+    }
+
+    public function isPending(): bool
+    {
+        return $this->status === 'pending';
+    }
+
+    public function isReceived(): bool
+    {
+        return $this->status === 'received';
+    }
+
+    public function isRejected(): bool
+    {
+        return $this->status === 'rejected';
+    }
+
+    /**
+     * Same convention as CheckVoucher::applyEwt() — EWT is withheld on the
+     * Net Purchases amount (VAT stripped out), never on the VAT-exempt or
+     * Non-VAT portions, and never on the gross VAT-inclusive amount.
+     */
+    public function applyEwt(): void
+    {
+        $this->ewt_amount = round((float) $this->net_purchases * (float) $this->ewt_rate, 2);
     }
 
     public function supplier(): BelongsTo

@@ -14,6 +14,7 @@ use App\Models\Supplier;
 use App\Models\Transfer;
 use App\Services\InventoryService;
 use App\Support\InventoryUnit;
+use App\Support\VatCalculator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -179,6 +180,9 @@ class DeliveryManagementController extends Controller
             $transferSourceItemId = $request->integer('source_item_id') ?: null;
             $sourceItem = $transferSourceItemId ? Item::query()->find($transferSourceItemId) : null;
 
+            $amountWVat = (float) ($validated['amount_w_vat'] ?? 0);
+            $split = VatCalculator::split($amountWVat);
+
             $delivery = Delivery::create([
                 'reference_number' => 'DLV-'.now()->format('YmdHis').'-'.random_int(100, 999),
                 'delivery_date' => $validated['delivery_date'] ?? now()->toDateString(),
@@ -189,7 +193,18 @@ class DeliveryManagementController extends Controller
                 'created_by' => $request->user()->id,
                 'approved_by' => $isAutoApprove ? $request->user()->id : null,
                 'approved_at' => $isAutoApprove ? now() : null,
+                'tin' => $validated['tin'] ?? null,
+                'address' => $validated['address'] ?? null,
+                'si_no' => $validated['si_no'] ?? null,
+                'amount_w_vat' => $amountWVat,
+                'vat' => $split['vat'],
+                'net_purchases' => $split['net_purchases'],
+                'vat_exempt' => (float) ($validated['vat_exempt'] ?? 0),
+                'non_vat_purchase' => (float) ($validated['non_vat_purchase'] ?? 0),
+                'ewt_rate' => (float) ($validated['ewt_rate'] ?? 0),
             ]);
+            $delivery->applyEwt();
+            $delivery->save();
 
             $transactionDate = $delivery->delivery_date?->copy()->startOfDay();
 
@@ -258,6 +273,140 @@ class DeliveryManagementController extends Controller
         $delivery->loadMissing(['items.item.category', 'supplier', 'destinationBranch', 'sourceBranch', 'creator', 'approver']);
 
         return view('deliveries.view', compact('delivery'));
+    }
+
+    public function edit(Request $request, Delivery $delivery): View
+    {
+        Gate::authorize('update', $delivery);
+
+        $delivery->loadMissing('items.item');
+
+        $items = Item::query()
+            ->with(['category.location', 'branch'])
+            ->orderBy('name')
+            ->get();
+
+        return view('deliveries.edit', [
+            'delivery' => $delivery,
+            'user' => $request->user(),
+            'branches' => Branch::query()->where('is_active', true)->orderBy('name')->get(),
+            'suppliers' => Supplier::query()->orderBy('name')->get(),
+            'itemsForModal' => $items->map(fn (Item $i) => [
+                'id' => $i->id,
+                'name' => $i->name,
+                'unit' => $i->unit,
+                'unit_key' => InventoryUnit::normalize($i->unit),
+                'quantity' => (float) $i->quantity,
+                'unit_price' => $i->unit_price ? (float) $i->unit_price : null,
+                'location' => $i->category?->location?->name ?? 'N/A',
+                'category' => $i->category?->name ?? 'N/A',
+                'branch_id' => $i->branch_id,
+            ])->values(),
+            'selectedBranchId' => (int) $delivery->destination_branch_id,
+            'deliveryUnitOptions' => InventoryUnit::options(),
+        ]);
+    }
+
+    public function update(StoreDeliveryRequest $request, Delivery $delivery): RedirectResponse
+    {
+        Gate::authorize('update', $delivery);
+        $validated = $request->validated();
+
+        $inventoryItemIds = collect($validated['items'])
+            ->where('allocated_to', 'inventory')
+            ->pluck('item_id')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique();
+
+        if ($inventoryItemIds->isNotEmpty()) {
+            $validInventoryItems = Item::query()
+                ->whereIn('id', $inventoryItemIds)
+                ->where('branch_id', $validated['destination_branch_id'])
+                ->get()
+                ->keyBy('id');
+
+            if ($validInventoryItems->count() !== $inventoryItemIds->count()) {
+                throw ValidationException::withMessages([
+                    'items' => 'Inventory destination items must belong to the delivery destination branch.',
+                ]);
+            }
+        }
+
+        DB::transaction(function () use ($validated, $delivery): void {
+            $delivery = Delivery::query()->lockForUpdate()->findOrFail($delivery->id);
+
+            if (! $delivery->isPending()) {
+                throw ValidationException::withMessages([
+                    'delivery' => 'This delivery is no longer pending and can no longer be edited.',
+                ]);
+            }
+
+            $amountWVat = (float) ($validated['amount_w_vat'] ?? 0);
+            $split = VatCalculator::split($amountWVat);
+
+            $delivery->update([
+                'delivery_date' => $validated['delivery_date'] ?? $delivery->delivery_date,
+                'supplier_id' => $validated['supplier_id'] ?? $delivery->supplier_id,
+                'destination_branch_id' => $validated['destination_branch_id'],
+                'tin' => $validated['tin'] ?? null,
+                'address' => $validated['address'] ?? null,
+                'si_no' => $validated['si_no'] ?? null,
+                'amount_w_vat' => $amountWVat,
+                'vat' => $split['vat'],
+                'net_purchases' => $split['net_purchases'],
+                'vat_exempt' => (float) ($validated['vat_exempt'] ?? 0),
+                'non_vat_purchase' => (float) ($validated['non_vat_purchase'] ?? 0),
+                'ewt_rate' => (float) ($validated['ewt_rate'] ?? 0),
+            ]);
+            $delivery->applyEwt();
+            $delivery->save();
+
+            // No inventory has been posted yet for a pending delivery, so the
+            // item rows can simply be replaced wholesale.
+            $delivery->items()->delete();
+            foreach ($validated['items'] as $row) {
+                DeliveryItem::create([
+                    'delivery_id' => $delivery->id,
+                    'item_id' => ! empty($row['item_id']) ? $row['item_id'] : null,
+                    'description' => $row['description'],
+                    'quantity' => $row['quantity'],
+                    'unit' => $row['unit'],
+                    'price' => $row['price'] ?? null,
+                    'allocated_to' => $row['allocated_to'],
+                ]);
+            }
+        });
+
+        return redirect()->route('deliveries.show', $delivery)->with('success', 'Delivery updated successfully.');
+    }
+
+    public function reject(Request $request, Delivery $delivery): RedirectResponse
+    {
+        Gate::authorize('approve', $delivery);
+
+        $validated = $request->validate([
+            'rejection_remarks' => ['required', 'string', 'max:2000'],
+        ]);
+
+        DB::transaction(function () use ($delivery, $validated, $request): void {
+            $delivery = Delivery::query()->lockForUpdate()->findOrFail($delivery->id);
+
+            if (! $delivery->isPending()) {
+                throw ValidationException::withMessages([
+                    'delivery' => 'Only a pending delivery can be rejected.',
+                ]);
+            }
+
+            $delivery->update([
+                'status' => 'rejected',
+                'approved_by' => $request->user()->id,
+                'approved_at' => now(),
+                'rejection_remarks' => $validated['rejection_remarks'],
+            ]);
+        });
+
+        return redirect()->route('deliveries.index')->with('success', 'Delivery rejected.');
     }
 
     public function updatePrices(Request $request, Delivery $delivery): RedirectResponse

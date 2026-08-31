@@ -41,6 +41,17 @@ class StoreDeliveryRequest extends FormRequest
             'items.*.unit' => ['required', 'string', 'max:32'],
             'items.*.price' => ['nullable', 'numeric', 'min:0'],
             'items.*.allocated_to' => ['required', 'in:inventory,production'],
+
+            // BIR/Tax fields — header-level, same shape as CheckVoucher, all
+            // optional since not every delivery (e.g. a branch transfer) has
+            // an external supplier invoice to encode.
+            'tin' => ['nullable', 'string', 'max:255'],
+            'address' => ['nullable', 'string', 'max:255'],
+            'si_no' => ['nullable', 'string', 'max:255'],
+            'amount_w_vat' => ['nullable', 'numeric', 'min:0'],
+            'vat_exempt' => ['nullable', 'numeric', 'min:0'],
+            'non_vat_purchase' => ['nullable', 'numeric', 'min:0'],
+            'ewt_rate' => ['nullable', 'numeric', 'min:0', 'max:1'],
         ];
     }
 

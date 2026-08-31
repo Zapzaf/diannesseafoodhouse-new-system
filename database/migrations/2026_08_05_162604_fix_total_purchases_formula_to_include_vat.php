@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
@@ -16,23 +17,34 @@ return new class extends Migration
      */
     public function up(): void
     {
-        if (Schema::hasColumn('purchase_voucher_items', 'total_purchases')) {
-            DB::statement('ALTER TABLE purchase_voucher_items MODIFY total_purchases DECIMAL(14,2) AS (net_purchases + vat + vat_exempt + non_vat_purchase) STORED');
-        }
-
-        if (Schema::hasColumn('services', 'total_purchases')) {
-            DB::statement('ALTER TABLE services MODIFY total_purchases DECIMAL(14,2) AS (net_purchases + vat + vat_exempt + non_vat_purchase) STORED');
-        }
+        $this->redefine('net_purchases + vat + vat_exempt + non_vat_purchase');
     }
 
     public function down(): void
     {
-        if (Schema::hasColumn('purchase_voucher_items', 'total_purchases')) {
-            DB::statement('ALTER TABLE purchase_voucher_items MODIFY total_purchases DECIMAL(14,2) AS (net_purchases + vat_exempt + non_vat_purchase) STORED');
-        }
+        $this->redefine('net_purchases + vat_exempt + non_vat_purchase');
+    }
 
-        if (Schema::hasColumn('services', 'total_purchases')) {
-            DB::statement('ALTER TABLE services MODIFY total_purchases DECIMAL(14,2) AS (net_purchases + vat_exempt + non_vat_purchase) STORED');
+    private function redefine(string $formula): void
+    {
+        // SQLite (used by the test suite) can't ALTER MODIFY a generated
+        // column's expression — the column has to be dropped and re-added.
+        // MySQL supports the in-place MODIFY this migration originally used.
+        $isSqlite = Schema::getConnection()->getDriverName() === 'sqlite';
+
+        foreach (['purchase_voucher_items', 'services'] as $table) {
+            if (! Schema::hasColumn($table, 'total_purchases')) {
+                continue;
+            }
+
+            if ($isSqlite) {
+                Schema::table($table, fn (Blueprint $t) => $t->dropColumn('total_purchases'));
+                Schema::table($table, fn (Blueprint $t) => $t->decimal('total_purchases', 14, 2)->storedAs($formula));
+
+                continue;
+            }
+
+            DB::statement("ALTER TABLE {$table} MODIFY total_purchases DECIMAL(14,2) AS ({$formula}) STORED");
         }
     }
 };

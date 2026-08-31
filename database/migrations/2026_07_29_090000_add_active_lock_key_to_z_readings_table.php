@@ -19,10 +19,17 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('z_readings', function (Blueprint $table) {
+        // CONCAT() is MySQL-only; SQLite (used for the test suite) needs the
+        // '||' concatenation operator for the same expression instead.
+        $isSqlite = Schema::getConnection()->getDriverName() === 'sqlite';
+        $concat = $isSqlite
+            ? "pos_terminal_id || '-' || business_date"
+            : "CONCAT(pos_terminal_id, '-', business_date)";
+
+        Schema::table('z_readings', function (Blueprint $table) use ($concat) {
             $table->string('active_lock_key', 150)
                 ->nullable()
-                ->virtualAs("CASE WHEN status = 'locked' THEN CONCAT(pos_terminal_id, '-', business_date) ELSE NULL END")
+                ->virtualAs("CASE WHEN status = 'locked' THEN {$concat} ELSE NULL END")
                 ->after('status');
         });
 

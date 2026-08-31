@@ -22,12 +22,31 @@ return new class extends Migration
             $table->foreignId('cost_account_id')->nullable()->after('supplier_id')->constrained('chart_of_accounts')->nullOnDelete();
         });
 
-        DB::statement('
-            UPDATE check_voucher_receipts
-            INNER JOIN check_vouchers ON check_vouchers.id = check_voucher_receipts.check_voucher_id
-            SET check_voucher_receipts.cost_account_id = check_vouchers.cost_account_id
-            WHERE check_vouchers.cost_account_id IS NOT NULL
-        ');
+        // Backfill existing rows from their parent CV. MySQL's UPDATE...JOIN
+        // syntax isn't portable to SQLite (used by the test suite), which
+        // needs UPDATE...FROM instead — same effect, different grammar.
+        if (Schema::getConnection()->getDriverName() === 'sqlite') {
+            DB::statement('
+                UPDATE check_voucher_receipts
+                SET cost_account_id = (
+                    SELECT check_vouchers.cost_account_id
+                    FROM check_vouchers
+                    WHERE check_vouchers.id = check_voucher_receipts.check_voucher_id
+                )
+                WHERE EXISTS (
+                    SELECT 1 FROM check_vouchers
+                    WHERE check_vouchers.id = check_voucher_receipts.check_voucher_id
+                    AND check_vouchers.cost_account_id IS NOT NULL
+                )
+            ');
+        } else {
+            DB::statement('
+                UPDATE check_voucher_receipts
+                INNER JOIN check_vouchers ON check_vouchers.id = check_voucher_receipts.check_voucher_id
+                SET check_voucher_receipts.cost_account_id = check_vouchers.cost_account_id
+                WHERE check_vouchers.cost_account_id IS NOT NULL
+            ');
+        }
     }
 
     /**

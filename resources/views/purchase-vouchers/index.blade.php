@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('page_title', 'Purchase Vouchers (APV)')
 @section('content')
-    <x-page-header title="Purchase Vouchers (APV)" subtitle="Credit purchases not yet paid to a vendor" icon="file-text">
+    <x-page-header title="Purchase Vouchers (APV)" subtitle="For non-stock purchases and services only — use the Delivery module for inventory/stock items" icon="file-text">
         <a href="{{ route('purchase-vouchers.create') }}" class="btn btn-primary">
             <i data-lucide="plus-circle" class="me-1"></i> New Purchase Voucher
         </a>
