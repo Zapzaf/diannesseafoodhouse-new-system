@@ -203,7 +203,12 @@ class PurchaseDisbursementReportController extends Controller
 
     private function buildCvLedgerSheet(Request $request, string $dateFrom, string $dateTo): array
     {
+        // PCF Replenishment CVs are excluded here and rebuilt below from
+        // their replenished PCVs instead — see the loop after this one for
+        // why (a single check can reimburse petty cash spent across more
+        // than one month).
         $vouchers = $this->cvDetailQuery($request, $dateFrom, $dateTo)
+            ->where('type', '!=', 'pcf_replenishment')
             ->with(['receipts.costAccount', 'receipts.supplier', 'costAccount', 'advanceAccount', 'purchaseVoucher'])
             ->get();
 
@@ -268,6 +273,57 @@ class PurchaseDisbursementReportController extends Controller
                 $branchName,
             ];
             $groupKeys[] = $cv->id;
+        }
+
+        // PCF Replenishment CVs: classified by each replenished PCV's own
+        // date (the receipt date) rather than the CV's own issue date — one
+        // check can reimburse petty cash spent across more than one month
+        // (e.g. a receipt dated July 31 paid back by a CV dated in August),
+        // so each portion must book to the month it was actually spent in,
+        // not the month the reimbursement check was cut. This mirrors the
+        // PCV sheet's own date-based classification exactly; the CV # here
+        // is only a cross-reference to which check reimbursed it.
+        $branchId = $this->activeBranchId($request);
+        $search = trim((string) $request->input('search', ''));
+
+        $pcfItemsByPcv = PettyCashVoucherItem::with(['costAccount', 'pettyCashVoucher.checkVoucher', 'pettyCashVoucher.supplier', 'pettyCashVoucher.branch'])
+            ->whereHas('pettyCashVoucher', fn ($q) => $q->whereNotNull('check_voucher_id')
+                ->whereBetween('date', [$dateFrom, $dateTo])
+                ->when($branchId, fn ($inner, $id) => $inner->where('branch_id', $id))
+                ->when($search, fn ($inner, $s) => $inner->whereHas('checkVoucher', fn ($cvq) => $cvq->where('cv_no', 'like', "%{$s}%"))))
+            ->get()
+            ->groupBy('petty_cash_voucher_id')
+            ->sortBy(fn ($items) => $items->first()->pettyCashVoucher->date);
+
+        foreach ($pcfItemsByPcv as $items) {
+            $pcv = $items->first()->pettyCashVoucher;
+            $cv = $pcv->checkVoucher;
+
+            $netPurchases = (float) $items->sum('net_purchases');
+            $ewtAmount = round($netPurchases * (float) ($cv?->ewt_rate ?? 0), 2);
+
+            $rows[] = [
+                $pcv->date?->format('Y-m-d') ?? '',
+                $cv?->cv_no ?? '—',
+                '—',
+                'PCF Replenishment — PCV #'.$pcv->pcv_no,
+                $items->pluck('costAccount.name')->filter()->unique()->implode(', ') ?: '—',
+                $pcv->supplier?->name ?? '—',
+                $pcv->supplier?->address ?? '—',
+                '—',
+                $pcv->supplier?->tin ?? '—',
+                (float) $items->sum('amount_w_vat'),
+                (float) $items->sum('vat'),
+                $netPurchases,
+                (float) $items->sum('vat_exempt'),
+                (float) $items->sum('non_vat_purchase'),
+                (float) ($cv?->ewt_rate ?? 0) * 100,
+                $ewtAmount,
+                $pcv->branch?->name ?? '—',
+            ];
+            // Each PCV is its own row with its own date — never blanked
+            // against a neighbor, even when they share the same CV #.
+            $groupKeys[] = 'pcv-'.$pcv->id;
         }
 
         // Date/CV #/APV #/EWT shown once per voucher, blank on the rest of
