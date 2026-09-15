@@ -108,7 +108,10 @@ class PettyCashVoucherController extends Controller
     private function validateVoucher(Request $request, ?PettyCashVoucher $pettyCashVoucher = null): array
     {
         $validated = $request->validate([
-            'date' => ['required', 'date'],
+            // date_format:Y-m-d (native <input type="date"> always sends this)
+            // plus sane year bounds — a bare 'date' rule happily accepts a
+            // mistyped 2-digit year like "0026-08-20" as a valid date 26 AD.
+            'date' => ['required', 'date_format:Y-m-d', 'after:2000-01-01', 'before:2100-01-01'],
             'branch_id' => [
                 Rule::requiredIf(fn () => $request->user()->isAdmin() && ! $request->session()->get('selected_branch_id')),
                 'nullable', 'exists:branches,id',
