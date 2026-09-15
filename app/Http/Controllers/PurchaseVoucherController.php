@@ -22,8 +22,14 @@ class PurchaseVoucherController extends Controller
         $vouchers = PurchaseVoucher::with(['vendor', 'creditAccount', 'items', 'branch'])
             ->when($this->activeBranchId($request), fn ($q, $id) => $q->where('branch_id', $id))
             ->when($request->input('status'), fn ($q, $s) => $q->where('status', $s))
-            ->when($request->input('date_from'), fn ($q, $d) => $q->whereDate('date', '>=', $d))
-            ->when($request->input('date_to'), fn ($q, $d) => $q->whereDate('date', '<=', $d))
+            // The period-filter widget always submits a date_from/date_to
+            // (it defaults to today when the user never touched it), so
+            // honoring it while a search term is present made searching for
+            // an older APV number silently return nothing — a targeted
+            // number search should win over an incidental default date range.
+            ->when(! $request->filled('search'), fn ($q) => $q
+                ->when($request->input('date_from'), fn ($qq, $d) => $qq->whereDate('date', '>=', $d))
+                ->when($request->input('date_to'), fn ($qq, $d) => $qq->whereDate('date', '<=', $d)))
             ->when($request->input('search'), fn ($q, $s) => $q->where(function ($query) use ($s): void {
                 $query->where('apv_no', 'like', "%{$s}%")
                     ->orWhere('buyer', 'like', "%{$s}%")

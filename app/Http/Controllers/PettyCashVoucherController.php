@@ -19,8 +19,14 @@ class PettyCashVoucherController extends Controller
             ->when($this->activeBranchId($request), fn ($q, $id) => $q->where('branch_id', $id))
             ->when($request->input('status') === 'replenished', fn ($q) => $q->whereNotNull('check_voucher_id'))
             ->when($request->input('status') === 'pending', fn ($q) => $q->whereNull('check_voucher_id'))
-            ->when($request->input('date_from'), fn ($q, $d) => $q->whereDate('date', '>=', $d))
-            ->when($request->input('date_to'), fn ($q, $d) => $q->whereDate('date', '<=', $d))
+            // The period-filter widget always submits a date_from/date_to
+            // (it defaults to today when the user never touched it), so
+            // honoring it while a search term is present made searching for
+            // an older PCV number silently return nothing — a targeted
+            // number search should win over an incidental default date range.
+            ->when(! $request->filled('search'), fn ($q) => $q
+                ->when($request->input('date_from'), fn ($qq, $d) => $qq->whereDate('date', '>=', $d))
+                ->when($request->input('date_to'), fn ($qq, $d) => $qq->whereDate('date', '<=', $d)))
             ->when($request->input('search'), fn ($q, $s) => $q->where('pcv_no', 'like', "%{$s}%"))
             ->latest('date')
             ->paginate($this->perPage($request, 20))
