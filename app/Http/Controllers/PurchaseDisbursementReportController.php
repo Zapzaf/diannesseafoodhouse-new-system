@@ -171,6 +171,7 @@ class PurchaseDisbursementReportController extends Controller
                 (float) $item->vat_exempt,
                 (float) $item->non_vat_purchase,
                 (float) $item->total_purchases,
+                $pcv->isReplenished() ? 'Paid' : 'Unpaid',
                 $pcv->checkVoucher?->cv_no ?: 'Not yet replenished',
                 $pcv->branch?->name ?? '—',
             ];
@@ -185,7 +186,7 @@ class PurchaseDisbursementReportController extends Controller
                 'Date', 'PCV #', 'Quantity', 'Unit', 'Particulars',
                 'Cost/Expense Account', "Payee's Name", 'TIN', 'Amount w/ VAT', 'VAT',
                 'Net Purchases', 'VAT Exempt', 'Non-VAT Purchase', 'Total Purchases',
-                'Replenished By (CV #)', 'Branch',
+                'Status', 'Replenished By (CV #)', 'Branch',
             ],
             'rows' => $rows,
             'numericFormats' => [
