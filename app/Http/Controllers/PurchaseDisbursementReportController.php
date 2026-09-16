@@ -120,6 +120,11 @@ class PurchaseDisbursementReportController extends Controller
                 (float) $item->vat_exempt,
                 (float) $item->non_vat_purchase,
                 (float) $item->payable_amount,
+                match ($apv->status) {
+                    'paid' => 'Paid',
+                    'partially_paid' => 'Partially Paid',
+                    default => 'Unpaid',
+                },
                 $apv->branch?->name ?? '—',
             ];
         })->all();
@@ -133,7 +138,7 @@ class PurchaseDisbursementReportController extends Controller
                 'Date', 'APV #', 'Quantity', 'Unit', 'Particulars',
                 'Cost/Expense Account', 'Credit Account', "Vendor's Name", 'Address',
                 'SI/No.', 'TIN', 'Amount w/ VAT', 'VAT', 'Net Purchases',
-                'VAT Exempt', 'Non-VAT Purchase', 'Total Purchases', 'Branch',
+                'VAT Exempt', 'Non-VAT Purchase', 'Total Purchases', 'Status', 'Branch',
             ],
             'rows' => $rows,
             'numericFormats' => [
