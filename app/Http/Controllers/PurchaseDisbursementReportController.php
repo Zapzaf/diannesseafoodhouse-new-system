@@ -276,29 +276,33 @@ class PurchaseDisbursementReportController extends Controller
             $groupKeys[] = $cv->id;
         }
 
-        // PCF Replenishment CVs: classified by each replenished PCV's own
-        // date (the receipt date) rather than the CV's own issue date — one
-        // check can reimburse petty cash spent across more than one month
-        // (e.g. a receipt dated July 31 paid back by a CV dated in August),
-        // so each portion must book to the month it was actually spent in,
-        // not the month the reimbursement check was cut. This mirrors the
-        // PCV sheet's own date-based classification exactly; the CV # here
-        // is only a cross-reference to which check reimbursed it.
+        // PCF Replenishment CVs: which CVs qualify for this period is decided
+        // by the CV's own date (the check's issue/replenishment date) — but
+        // once a CV qualifies, EVERY PCV it replenishes is included, even if
+        // an individual PCV's own date falls in a different month (e.g. a
+        // receipt dated July 31 reimbursed by a CV dated in August). The
+        // check is one disbursement event; splitting it by each PCV's own
+        // date previously made some of its PCVs "disappear" from the CV's
+        // own reporting period. One row per PCV, so the full ₱ breakdown of
+        // what the check covered still shows, just no longer date-filtered
+        // per PCV.
         $branchId = $this->activeBranchId($request);
         $search = trim((string) $request->input('search', ''));
 
-        $pcfItemsByPcv = PettyCashVoucherItem::with(['costAccount', 'pettyCashVoucher.checkVoucher', 'pettyCashVoucher.supplier', 'pettyCashVoucher.branch'])
-            ->whereHas('pettyCashVoucher', fn ($q) => $q->whereNotNull('check_voucher_id')
-                ->whereBetween('date', [$dateFrom, $dateTo])
-                ->when($branchId, fn ($inner, $id) => $inner->where('branch_id', $id))
-                ->when($search, fn ($inner, $s) => $inner->whereHas('checkVoucher', fn ($cvq) => $cvq->where('cv_no', 'like', "%{$s}%"))))
-            ->get()
-            ->groupBy('petty_cash_voucher_id')
-            ->sortBy(fn ($items) => $items->first()->pettyCashVoucher->date);
+        $pcfCvs = CheckVoucher::query()
+            ->where('type', 'pcf_replenishment')
+            ->whereBetween('date', [$dateFrom, $dateTo])
+            ->when($branchId, fn ($q, $id) => $q->where('branch_id', $id))
+            ->when($search, fn ($q, $s) => $q->where('cv_no', 'like', "%{$s}%"))
+            ->with(['pettyCashVouchers.items.costAccount', 'pettyCashVouchers.supplier', 'pettyCashVouchers.branch'])
+            ->get();
 
-        foreach ($pcfItemsByPcv as $items) {
-            $pcv = $items->first()->pettyCashVoucher;
-            $cv = $pcv->checkVoucher;
+        $pcfPvcRows = $pcfCvs
+            ->flatMap(fn (CheckVoucher $cv) => $cv->pettyCashVouchers->map(fn (PettyCashVoucher $pcv) => [$cv, $pcv]))
+            ->sortBy(fn (array $pair) => $pair[1]->date);
+
+        foreach ($pcfPvcRows as [$cv, $pcv]) {
+            $items = $pcv->items;
 
             $netPurchases = (float) $items->sum('net_purchases');
             $ewtAmount = round($netPurchases * (float) ($cv?->ewt_rate ?? 0), 2);
