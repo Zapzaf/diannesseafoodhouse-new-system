@@ -19,7 +19,22 @@
             <div class="card-header"><i class="me-1" data-lucide="info"></i> Voucher Details</div>
             <div class="card-body">
                 <div class="row g-3">
-                    <div class="col-md-3"><div class="small text-muted">Date</div><div class="fw-semibold">{{ $pettyCashVoucher->date->format('M d, Y') }}</div></div>
+                    <div class="col-md-3">
+                        <div class="small text-muted">Date</div>
+                        @if(auth()->user()?->isAdmin())
+                            <form action="{{ route('petty-cash-vouchers.update-date', $pettyCashVoucher) }}" method="POST" class="d-flex align-items-center gap-2">
+                                @csrf
+                                @method('PUT')
+                                <input type="date" name="date" class="form-control form-control-sm" style="max-width: 160px;" value="{{ $pettyCashVoucher->date->toDateString() }}" required>
+                                <button type="submit" class="btn btn-sm btn-outline-primary">Save</button>
+                            </form>
+                            @if($pettyCashVoucher->isReplenished())
+                                <div class="form-text text-muted">Admin override — this PCV is already replenished; only the date can be corrected here.</div>
+                            @endif
+                        @else
+                            <div class="fw-semibold">{{ $pettyCashVoucher->date->format('M d, Y') }}</div>
+                        @endif
+                    </div>
                     <div class="col-md-3"><div class="small text-muted">Status</div><div>
                         <span class="badge {{ $pettyCashVoucher->isReplenished() ? 'bg-success-soft text-success' : 'bg-warning-soft text-warning' }}">
                             {{ $pettyCashVoucher->isReplenished() ? 'Replenished' : 'Pending' }}

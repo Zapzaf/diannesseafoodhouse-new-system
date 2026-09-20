@@ -102,6 +102,30 @@ class PettyCashVoucherController extends Controller
         return redirect()->route('petty-cash-vouchers.index')->with('success', 'Petty Cash Voucher (PCV) deleted successfully.');
     }
 
+    /**
+     * Admin-only correction of a PCV's own date — deliberately separate from
+     * update()/ensureNotReplenished(), which stay locked once a PCV is
+     * replenished so its reconciled amounts/items can't be touched. The date
+     * is different: it's what the Purchase & Disbursement export uses to
+     * classify a PCV into a reporting month (its issue date, independent of
+     * when it was replenished), and a mis-typed date here has no other way
+     * to be fixed once the PCV is paid — the export logic is already
+     * correct, it just needs the underlying date to be correct too.
+     */
+    public function updateDate(Request $request, PettyCashVoucher $pettyCashVoucher)
+    {
+        abort_unless($request->user()?->isAdmin(), 403);
+        $this->authorizeBranchRecord($request, $pettyCashVoucher->branch_id);
+
+        $validated = $request->validate([
+            'date' => ['required', 'date_format:Y-m-d', 'after:2000-01-01', 'before:2100-01-01'],
+        ]);
+
+        $pettyCashVoucher->update(['date' => $validated['date']]);
+
+        return back()->with('success', 'PCV date updated to '.$pettyCashVoucher->date->format('M d, Y').'.');
+    }
+
     private function ensureNotReplenished(PettyCashVoucher $pettyCashVoucher): void
     {
         if ($pettyCashVoucher->isReplenished()) {

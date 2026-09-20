@@ -393,7 +393,16 @@ class PurchaseDisbursementReportController extends Controller
         $search = trim((string) $request->input('search', ''));
 
         return PurchaseVoucherItem::with(['purchaseVoucher.vendor', 'purchaseVoucher.branch', 'purchaseVoucher.creditAccount', 'costAccount'])
-            ->whereHas('purchaseVoucher', fn ($q) => $q->whereBetween('date', [$dateFrom, $dateTo])
+            ->whereHas('purchaseVoucher', fn ($q) => $q
+                // An APV qualifies for this period either by its own issue
+                // date, or by having been paid via a CV issued this period —
+                // an APV can be issued in an earlier month than the CV that
+                // eventually settles it, and it still needs to show up
+                // alongside that CV's payment in the month the check itself
+                // was cut, not just in its own issue month.
+                ->where(fn ($dateMatch) => $dateMatch
+                    ->whereBetween('date', [$dateFrom, $dateTo])
+                    ->orWhereHas('checkVouchers', fn ($cv) => $cv->whereBetween('date', [$dateFrom, $dateTo])))
                 ->when($branchId, fn ($inner, $id) => $inner->where('branch_id', $id))
                 ->when($search, fn ($inner, $s) => $inner->where(fn ($w) => $w->where('apv_no', 'like', "%{$s}%")
                     ->orWhere('buyer', 'like', "%{$s}%")
@@ -408,7 +417,16 @@ class PurchaseDisbursementReportController extends Controller
         $search = trim((string) $request->input('search', ''));
 
         return PettyCashVoucherItem::with(['pettyCashVoucher.supplier', 'pettyCashVoucher.branch', 'pettyCashVoucher.checkVoucher', 'costAccount'])
-            ->whereHas('pettyCashVoucher', fn ($q) => $q->whereBetween('date', [$dateFrom, $dateTo])
+            ->whereHas('pettyCashVoucher', fn ($q) => $q
+                // A PCV qualifies for this period either by its own issue
+                // date, or by having been replenished via a CV issued this
+                // period — a PCV can be issued in an earlier month than the
+                // CV that eventually reimburses it, and it still needs to
+                // show up alongside that CV's payment in the month the check
+                // itself was cut, not just in its own issue month.
+                ->where(fn ($dateMatch) => $dateMatch
+                    ->whereBetween('date', [$dateFrom, $dateTo])
+                    ->orWhereHas('checkVoucher', fn ($cv) => $cv->whereBetween('date', [$dateFrom, $dateTo])))
                 ->when($branchId, fn ($inner, $id) => $inner->where('branch_id', $id))
                 ->when($search, fn ($inner, $s) => $inner->where(fn ($w) => $w->where('pcv_no', 'like', "%{$s}%")
                     ->orWhere('remarks', 'like', "%{$s}%")

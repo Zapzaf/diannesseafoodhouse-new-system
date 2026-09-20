@@ -462,6 +462,7 @@ Route::middleware('auth')->group(function (): void {
 		Route::get('/{pettyCashVoucher}', [PettyCashVoucherController::class, 'show'])->name('show');
 		Route::get('/{pettyCashVoucher}/edit', [PettyCashVoucherController::class, 'edit'])->name('edit');
 		Route::put('/{pettyCashVoucher}', [PettyCashVoucherController::class, 'update'])->name('update');
+		Route::put('/{pettyCashVoucher}/date', [PettyCashVoucherController::class, 'updateDate'])->name('update-date');
 		Route::delete('/{pettyCashVoucher}', [PettyCashVoucherController::class, 'destroy'])->name('destroy');
 	});
 
