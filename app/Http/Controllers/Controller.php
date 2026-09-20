@@ -49,4 +49,21 @@ abstract class Controller
             abort(403, 'This record belongs to another branch.');
         }
     }
+
+    /**
+     * True when the request's date_from/date_to are both today — the exact
+     * value the shared period-filter widget (resources/views/reports/
+     * partials/period-filter.blade.php) submits when the user never touched
+     * it. Used to tell "the user left the date picker alone" apart from "the
+     * user deliberately chose today" isn't perfectly possible, but this is
+     * the only signal available, and picking today on purpose while also
+     * searching is a rare combination compared to the widget's default
+     * silently swallowing a search for anything not dated today.
+     */
+    protected function isUntouchedDefaultDateRange(Request $request): bool
+    {
+        $today = now()->toDateString();
+
+        return $request->input('date_from') === $today && $request->input('date_to') === $today;
+    }
 }

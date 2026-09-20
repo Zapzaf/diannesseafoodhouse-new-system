@@ -72,13 +72,15 @@
                                     <a href="{{ route('purchase-vouchers.show', $voucher) }}" class="btn btn-sm btn-info text-white" title="View"><i data-lucide="eye"></i></a>
                                     @if($voucher->status === 'unpaid')
                                     <a href="{{ route('purchase-vouchers.edit', $voucher) }}" class="btn btn-sm btn-primary text-white" title="Edit"><i data-lucide="edit-2"></i></a>
+                                    <a href="{{ route('check-vouchers.create', ['pay_apv' => $voucher->id]) }}" class="btn btn-sm btn-success text-white">Pay</a>
                                     <form action="{{ route('purchase-vouchers.destroy', $voucher) }}" method="POST" class="d-inline" onsubmit="return confirm('Delete this APV?');">
                                         @csrf @method('DELETE')
                                         <button type="submit" class="btn btn-sm btn-danger text-white" title="Delete"><i data-lucide="trash-2"></i></button>
                                     </form>
-                                    @else
+                                    @elseif($voucher->status === 'partially_paid')
                                     <a href="{{ route('check-vouchers.create', ['pay_apv' => $voucher->id]) }}" class="btn btn-sm btn-success text-white">Pay</a>
                                     @endif
+                                    {{-- 'paid' APVs: View only — editing is locked once any payment is recorded, and there's nothing left to pay. --}}
                                 </td>
                             </tr>
                             @empty

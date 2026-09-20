@@ -19,12 +19,14 @@ class PettyCashVoucherController extends Controller
             ->when($this->activeBranchId($request), fn ($q, $id) => $q->where('branch_id', $id))
             ->when($request->input('status') === 'replenished', fn ($q) => $q->whereNotNull('check_voucher_id'))
             ->when($request->input('status') === 'pending', fn ($q) => $q->whereNull('check_voucher_id'))
-            // The period-filter widget always submits a date_from/date_to
-            // (it defaults to today when the user never touched it), so
-            // honoring it while a search term is present made searching for
-            // an older PCV number silently return nothing — a targeted
-            // number search should win over an incidental default date range.
-            ->when(! $request->filled('search'), fn ($q) => $q
+            // The period-filter widget always submits a date_from/date_to —
+            // it defaults to today on both ends when the user never touched
+            // it — so a search term used to get silently narrowed to "only
+            // if dated today". It's only safe to skip the date filter when
+            // the range is still that untouched default; if the user
+            // deliberately picked a real range, it should combine with the
+            // search term, not be discarded by it.
+            ->when(! ($request->filled('search') && $this->isUntouchedDefaultDateRange($request)), fn ($q) => $q
                 ->when($request->input('date_from'), fn ($qq, $d) => $qq->whereDate('date', '>=', $d))
                 ->when($request->input('date_to'), fn ($qq, $d) => $qq->whereDate('date', '<=', $d)))
             ->when($request->input('search'), fn ($q, $s) => $q->where('pcv_no', 'like', "%{$s}%"))
