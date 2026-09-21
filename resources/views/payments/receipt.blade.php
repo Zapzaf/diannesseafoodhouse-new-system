@@ -184,6 +184,7 @@
 <div class="receipt-wrap">
 <div class="receipt">
 <pre>{{ $center(strtoupper($payment->branch->name ?? "DIANNE'S SEAFOOD HOUSE"), $w) }}
+{{ $center("DIANNE'S SEAFOOD HOUSE", $w) }}
 @if(!empty($payment->branch->address))
 {{ $center($payment->branch->address, $w) }}
 @endif
