@@ -190,7 +190,9 @@
 @if(!empty($payment->branch->address))
 {{ $center($payment->branch->address, $w) }}
 @endif
-@php($effectiveTin = $payment->branch?->tin_number ?: \App\Models\AppSetting::get('company_tin'))
+@php
+    $effectiveTin = $payment->branch?->tin_number ?: \App\Models\AppSetting::get('company_tin');
+@endphp
 @if(!empty($effectiveTin))
 {{ $center('TIN: ' . $effectiveTin, $w) }}
 @endif

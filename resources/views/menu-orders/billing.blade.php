@@ -123,7 +123,9 @@
 @if(!empty($branch->address))
 {{ $center($branch->address, $w) }}
 @endif
-@php($effectiveTin = $branch->tin_number ?: \App\Models\AppSetting::get('company_tin'))
+@php
+    $effectiveTin = $branch->tin_number ?: \App\Models\AppSetting::get('company_tin');
+@endphp
 @if(!empty($effectiveTin))
 {{ $center('TIN: ' . $effectiveTin, $w) }}
 @endif

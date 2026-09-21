@@ -141,7 +141,9 @@
 @if(!empty($order->branch->address))
 {{ $center($order->branch->address, $w) }}
 @endif
-@php($effectiveTin = $order->branch?->tin_number ?: \App\Models\AppSetting::get('company_tin'))
+@php
+    $effectiveTin = $order->branch?->tin_number ?: \App\Models\AppSetting::get('company_tin');
+@endphp
 @if(!empty($effectiveTin))
 {{ $center('TIN: ' . $effectiveTin, $w) }}
 @endif
