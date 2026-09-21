@@ -30,6 +30,7 @@ class SettingsController extends Controller
         return view('settings.show', [
             'sidebarBgLight' => AppSetting::get('sidebar_bg_light', '#ffffff'),
             'sidebarBgDark' => AppSetting::get('sidebar_bg_dark', '#0f131c'),
+            'companyTin' => AppSetting::get('company_tin'),
             'totalBranches' => Branch::count(),
             'totalUsers' => User::count(),
             'totalItems' => Item::count(),
@@ -103,5 +104,24 @@ class SettingsController extends Controller
         AppSetting::set('sidebar_bg_dark', strtolower($validated['sidebar_bg_dark']));
 
         return redirect()->route('settings.show')->with('success', 'Appearance settings updated successfully.');
+    }
+
+    /**
+     * Company-wide TIN used as the fallback on receipts/billing when the
+     * branch printing it doesn't have its own tin_number set — most
+     * businesses register one TIN for the whole legal entity, not a
+     * separate one per branch, so this saves re-entering it on every branch.
+     */
+    public function updateCompany(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()?->isAdmin(), 403);
+
+        $validated = $request->validate([
+            'company_tin' => ['nullable', 'string', 'max:50'],
+        ]);
+
+        AppSetting::set('company_tin', trim((string) ($validated['company_tin'] ?? '')) ?: null);
+
+        return redirect()->route('settings.show')->with('success', 'Company settings updated successfully.');
     }
 }

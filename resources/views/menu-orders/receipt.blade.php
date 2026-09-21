@@ -134,13 +134,16 @@
 </div>
 <div class="receipt-wrap">
 <div class="receipt">
-<pre>{{ $center(strtoupper($order->branch->name ?? "DIANNE'S SEAFOOD HOUSE"), $w) }}
-{{ $center("DIANNE'S SEAFOOD HOUSE", $w) }}
+<pre>{{ $center("DIANNE'S SEAFOOD HOUSE", $w) }}
+@if(!empty($order->branch->name))
+{{ $center(strtoupper($order->branch->name), $w) }}
+@endif
 @if(!empty($order->branch->address))
 {{ $center($order->branch->address, $w) }}
 @endif
-@if(!empty($order->branch->tin_number))
-{{ $center('TIN: ' . $order->branch->tin_number, $w) }}
+@php($effectiveTin = $order->branch?->tin_number ?: \App\Models\AppSetting::get('company_tin'))
+@if(!empty($effectiveTin))
+{{ $center('TIN: ' . $effectiveTin, $w) }}
 @endif
 {{ $line }}
 OR#:  {{ $payment->or_number ?? 'N/A' }}

@@ -266,6 +266,29 @@
     </div>
 
     @if(auth()->user()->isAdmin())
+    {{-- Main Settings --}}
+    <div class="card shadow-sm mb-4">
+        <div class="card-header fw-semibold"><i data-lucide="building-2" class="me-1"></i> Main Settings</div>
+        <div class="card-body">
+            <form action="{{ route('settings.company.update') }}" method="POST" class="row g-3 align-items-end">
+                @csrf
+                @method('PUT')
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Company TIN</label>
+                    <input type="text" name="company_tin" class="form-control @error('company_tin') is-invalid @enderror"
+                           value="{{ old('company_tin', $companyTin) }}" placeholder="Tax identification number">
+                    @error('company_tin')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-primary text-white">Save Company Settings</button>
+                </div>
+                <div class="col-12">
+                    <div class="form-text">Shown on receipts/billing for any branch that doesn't have its own TIN Number set below.</div>
+                </div>
+            </form>
+        </div>
+    </div>
+
     {{-- Appearance --}}
     <div class="card shadow-sm mb-4">
         <div class="card-header fw-semibold"><i data-lucide="palette" class="me-1"></i> Appearance</div>

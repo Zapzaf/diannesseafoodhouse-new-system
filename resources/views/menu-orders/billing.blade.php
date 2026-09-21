@@ -115,14 +115,17 @@
 </div>
 <div class="receipt-wrap">
 <div class="receipt">
-<pre>{{ $center(strtoupper($branch->name ?? "DIANNE'S SEAFOOD HOUSE"), $w) }}
-{{ $center("DIANNE'S SEAFOOD HOUSE", $w) }}
+<pre>{{ $center("DIANNE'S SEAFOOD HOUSE", $w) }}
+@if(!empty($branch->name))
+{{ $center(strtoupper($branch->name), $w) }}
+@endif
 {{ $center("BILLING STATEMENT", $w) }}
 @if(!empty($branch->address))
 {{ $center($branch->address, $w) }}
 @endif
-@if(!empty($branch->tin_number))
-{{ $center('TIN: ' . $branch->tin_number, $w) }}
+@php($effectiveTin = $branch->tin_number ?: \App\Models\AppSetting::get('company_tin'))
+@if(!empty($effectiveTin))
+{{ $center('TIN: ' . $effectiveTin, $w) }}
 @endif
 {{ $line }}
 ORDER#: {{ $order->orderNumber() }}
