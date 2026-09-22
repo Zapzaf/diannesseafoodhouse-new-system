@@ -7,7 +7,7 @@
     <div class="container-xl px-4">
         @include('layouts.alerts')
 
-        <div class="card mb-4">
+        <div class="card mb-4" data-static-pagination="1">
             <div class="card-header d-flex align-items-center justify-content-between gap-2">
                 <div><i class="me-1" data-lucide="check-square"></i> Issued Checks</div>
             </div>
