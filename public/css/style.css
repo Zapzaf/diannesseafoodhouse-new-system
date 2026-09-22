@@ -4013,6 +4013,10 @@ body.bg-body.text-main {
     min-width: 0;
 }
 
+.card-footer nav {
+    width: 100%;
+}
+
 .table-actions-head,
 .table-actions-cell {
     position: static !important;
@@ -4503,7 +4507,8 @@ th.table-sortable {
 
 .pagination .page-item.disabled .page-link,
 .datatable-pagination .disabled a {
-    color: rgba(100, 116, 139, 0.58) !important;
+    color: var(--text-muted) !important;
+    opacity: 0.58;
     background: rgba(148, 163, 184, 0.1) !important;
     border-color: transparent !important;
     box-shadow: none;
