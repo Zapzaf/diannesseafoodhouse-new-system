@@ -75,11 +75,12 @@ it('marks an apv paid once a check voucher for the full amount is issued via the
         'type' => 'apv_payment',
         'particulars' => 'Settle APV-0002',
         'payee_name' => $this->vendor->name,
-        'purchase_voucher_id' => $apv->id,
-        'amount_w_vat' => 112,
+        'apv_allocations' => [
+            ['purchase_voucher_id' => $apv->id, 'amount_w_vat' => 112],
+        ],
     ])->assertRedirect(route('check-vouchers.index'));
 
-    $checkVoucher = $apv->fresh()->checkVouchers()->firstOrFail();
+    $checkVoucher = $apv->fresh()->checkVoucherAllocations()->firstOrFail()->checkVoucher;
     expect($checkVoucher->status)->toBe('draft')
         ->and($apv->fresh()->status)->toBe('unpaid');
 

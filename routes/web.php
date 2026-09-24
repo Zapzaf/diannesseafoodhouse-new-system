@@ -481,6 +481,9 @@ Route::middleware('auth')->group(function (): void {
 		Route::post('/{checkVoucher}/receipts', [CheckVoucherController::class, 'addReceipt'])->name('receipts.store');
 		Route::put('/{checkVoucher}/receipts/{receipt}', [CheckVoucherController::class, 'updateReceipt'])->name('receipts.update');
 		Route::delete('/{checkVoucher}/receipts/{receipt}', [CheckVoucherController::class, 'deleteReceipt'])->name('receipts.destroy');
+		Route::post('/{checkVoucher}/apv-allocations', [CheckVoucherController::class, 'addApvAllocation'])->name('apv-allocations.store');
+		Route::put('/{checkVoucher}/apv-allocations/{allocation}', [CheckVoucherController::class, 'updateApvAllocation'])->name('apv-allocations.update');
+		Route::delete('/{checkVoucher}/apv-allocations/{allocation}', [CheckVoucherController::class, 'deleteApvAllocation'])->name('apv-allocations.destroy');
 		Route::post('/{checkVoucher}/liquidate-advance', [CheckVoucherController::class, 'liquidateAdvance'])->name('liquidate-advance');
 		Route::delete('/{checkVoucher}', [CheckVoucherController::class, 'destroy'])->name('destroy');
 	});

@@ -69,7 +69,7 @@
                     <div class="col-md-3"><div class="small text-muted">EWT Rate</div><div class="fw-semibold">{{ number_format($checkVoucher->ewt_rate * 100, 2) }}%</div></div>
                     <div class="col-md-3"><div class="small text-muted">Created By</div><div class="fw-semibold">{{ $checkVoucher->creator?->name ?? '—' }}</div></div>
                 </div>
-                @if($checkVoucher->purchaseVoucher)
+                @if($checkVoucher->purchaseVoucher && $checkVoucher->type !== 'apv_payment')
                 <div class="mt-3">
                     <div class="small text-muted">Settles Purchase Voucher</div>
                     <a href="{{ route('purchase-vouchers.show', $checkVoucher->purchaseVoucher) }}">{{ $checkVoucher->purchaseVoucher->apv_no }}</a>
@@ -294,6 +294,103 @@
         </div>
         @endif
 
+        @if($checkVoucher->type === 'apv_payment')
+        <div class="card mb-4">
+            <div class="card-header d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                <span><i class="me-1" data-lucide="file-text"></i> Purchase Vouchers Paid ({{ $checkVoucher->apvAllocations->count() }})</span>
+                @if($checkVoucher->has_multiple_apvs)
+                <span class="badge bg-info-soft text-info">Split across {{ $checkVoucher->apvAllocations->pluck('purchase_voucher_id')->unique()->count() }} APV(s)</span>
+                @endif
+            </div>
+            <div class="card-body">
+                <p class="small text-muted mb-3">One payment can settle several APVs — add a row per APV (or per tranche) instead of creating another Check Voucher.</p>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>APV #</th>
+                                <th>Vendor</th>
+                                <th class="text-end">Amount Paid to APV</th>
+                                <th style="width:110px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($checkVoucher->apvAllocations as $allocation)
+                            <tr>
+                                <td><a href="{{ route('purchase-vouchers.show', $allocation->purchaseVoucher) }}">{{ $allocation->purchaseVoucher->apv_no }}</a></td>
+                                <td>{{ $allocation->purchaseVoucher->vendor?->name ?: '—' }}</td>
+                                <td class="text-end">₱{{ number_format($allocation->amount_w_vat, 2) }}</td>
+                                <td class="text-nowrap">
+                                    <button type="button" class="btn btn-sm btn-primary text-white toggleApvEdit" data-target="apv-edit-{{ $allocation->id }}" title="Edit"><i data-lucide="pencil" style="width:14px;height:14px;"></i></button>
+                                    <form action="{{ route('check-vouchers.apv-allocations.destroy', [$checkVoucher, $allocation]) }}" method="POST" class="d-inline" onsubmit="return confirm('Remove this APV from the Check Voucher?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-sm btn-danger text-white" title="Delete"><i data-lucide="trash-2" style="width:14px;height:14px;"></i></button>
+                                    </form>
+                                </td>
+                            </tr>
+                            <tr id="apv-edit-{{ $allocation->id }}" class="d-none">
+                                <td colspan="4" class="bg-light">
+                                    <form action="{{ route('check-vouchers.apv-allocations.update', [$checkVoucher, $allocation]) }}" method="POST" class="row g-3 align-items-end py-2">
+                                        @csrf
+                                        @method('PUT')
+                                        <input type="hidden" name="purchase_voucher_id" value="{{ $allocation->purchase_voucher_id }}">
+                                        <div class="col-md-4">
+                                            <label class="form-label small fw-semibold mb-1">Amount Paid to {{ $allocation->purchaseVoucher->apv_no }}</label>
+                                            <input type="number" step="0.01" min="0.01" name="amount_w_vat" class="form-control form-control-sm" value="{{ $allocation->amount_w_vat }}" required>
+                                        </div>
+                                        <div class="col-md-8 d-flex gap-2">
+                                            <button type="submit" class="btn btn-sm btn-primary text-white">Save</button>
+                                            <button type="button" class="btn btn-sm btn-secondary text-white toggleApvEdit" data-target="apv-edit-{{ $allocation->id }}">Cancel</button>
+                                        </div>
+                                    </form>
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                <div class="d-flex justify-content-end border-top pt-2 mt-1">
+                    <div class="text-end">
+                        <div class="small text-muted">Total Amount w/ VAT</div>
+                        <div class="fw-bold">₱{{ number_format($checkVoucher->apvAllocations->sum('amount_w_vat'), 2) }}</div>
+                    </div>
+                </div>
+
+                <div class="border rounded p-3 bg-light mt-3">
+                    <h6 class="fw-bold text-primary small text-uppercase mb-3">
+                        <i data-lucide="plus-circle" style="width:14px;height:14px;" class="me-1"></i>
+                        Add Another APV to CV {{ $checkVoucher->cv_no }}
+                    </h6>
+                    <form action="{{ route('check-vouchers.apv-allocations.store', $checkVoucher) }}" method="POST" class="row g-3">
+                        @csrf
+                        <div class="col-md-6">
+                            <label class="form-label small fw-semibold">Purchase Voucher <span class="text-danger">*</span></label>
+                            <select name="purchase_voucher_id" id="addApvSelect" class="form-select @error('purchase_voucher_id') is-invalid @enderror" required>
+                                <option value="">Select unpaid APV</option>
+                                @foreach($availableApvs as $apv)
+                                @php $balance = round($apv->payable_total - $apv->amount_paid, 2); @endphp
+                                <option value="{{ $apv->id }}" data-balance="{{ $balance }}" {{ (string) old('purchase_voucher_id') === (string) $apv->id ? 'selected' : '' }}>{{ $apv->apv_no }} — {{ $apv->vendor?->name ?? 'No vendor' }} — Balance ₱{{ number_format($balance, 2) }}</option>
+                                @endforeach
+                            </select>
+                            @error('purchase_voucher_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small fw-semibold">Amount w/ VAT <span class="text-danger">*</span></label>
+                            <input type="number" step="0.01" min="0.01" name="amount_w_vat" id="addApvAmount" class="form-control @error('amount_w_vat') is-invalid @enderror" value="{{ old('amount_w_vat') }}" required>
+                            @error('amount_w_vat')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary d-inline-flex align-items-center gap-1">
+                                <i data-lucide="plus" style="width:14px;height:14px;"></i> Add APV
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        @endif
+
         @if($checkVoucher->payment_method !== 'check')
         <div class="card mb-4">
             <div class="card-header"><i class="me-1" data-lucide="banknote"></i> Payment Status</div>
@@ -436,12 +533,23 @@
 <script src="{{ asset('js/supplier-picker.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    document.querySelectorAll('.toggleReceiptEdit').forEach(function (button) {
+    document.querySelectorAll('.toggleReceiptEdit, .toggleApvEdit').forEach(function (button) {
         button.addEventListener('click', function () {
             const target = document.getElementById(this.dataset.target);
             if (target) target.classList.toggle('d-none');
         });
     });
+
+    const addApvSelect = document.getElementById('addApvSelect');
+    const addApvAmount = document.getElementById('addApvAmount');
+    if (addApvSelect && addApvAmount) {
+        addApvSelect.addEventListener('change', function () {
+            const option = this.options[this.selectedIndex];
+            if (option && option.dataset.balance && !addApvAmount.value) {
+                addApvAmount.value = parseFloat(option.dataset.balance).toFixed(2);
+            }
+        });
+    }
 });
 </script>
 @endpush

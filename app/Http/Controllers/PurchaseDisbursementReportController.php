@@ -215,14 +215,16 @@ class PurchaseDisbursementReportController extends Controller
         // than one month).
         $vouchers = $this->cvDetailQuery($request, $dateFrom, $dateTo)
             ->where('type', '!=', 'pcf_replenishment')
-            ->with(['receipts.costAccount', 'receipts.supplier', 'costAccount', 'advanceAccount', 'purchaseVoucher'])
+            ->with(['receipts.costAccount', 'receipts.supplier', 'costAccount', 'advanceAccount', 'purchaseVoucher', 'apvAllocations.purchaseVoucher'])
             ->get();
 
         $rows = [];
         $groupKeys = [];
 
         foreach ($vouchers as $cv) {
-            $apvNo = $cv->purchaseVoucher?->apv_no ?? '—';
+            $apvNo = $cv->apvAllocations->isNotEmpty()
+                ? $cv->apvAllocations->pluck('purchaseVoucher.apv_no')->filter()->unique()->implode(', ')
+                : ($cv->purchaseVoucher?->apv_no ?? '—');
             $branchName = $cv->branch?->name ?? '—';
             $fallbackPayee = $cv->payee_name ?: ($cv->supplier?->name ?? '—');
             $fallbackAddress = $cv->address ?: ($cv->supplier?->address ?? '—');
@@ -402,7 +404,8 @@ class PurchaseDisbursementReportController extends Controller
                 // was cut, not just in its own issue month.
                 ->where(fn ($dateMatch) => $dateMatch
                     ->whereBetween('date', [$dateFrom, $dateTo])
-                    ->orWhereHas('checkVouchers', fn ($cv) => $cv->whereBetween('date', [$dateFrom, $dateTo])))
+                    ->orWhereHas('checkVouchers', fn ($cv) => $cv->whereBetween('date', [$dateFrom, $dateTo]))
+                    ->orWhereHas('checkVoucherAllocations.checkVoucher', fn ($cv) => $cv->whereBetween('date', [$dateFrom, $dateTo])))
                 ->when($branchId, fn ($inner, $id) => $inner->where('branch_id', $id))
                 ->when($search, fn ($inner, $s) => $inner->where(fn ($w) => $w->where('apv_no', 'like', "%{$s}%")
                     ->orWhere('buyer', 'like', "%{$s}%")

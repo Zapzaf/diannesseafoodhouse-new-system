@@ -117,7 +117,8 @@
                         </thead>
                         <tbody>
                             @forelse($vouchers as $voucher)
-                            @php $hasApv = $voucher->purchase_voucher_id !== null; @endphp
+                            @php $apvLinks = $voucher->apvAllocations->pluck('purchaseVoucher')->filter()->unique('id'); @endphp
+                            @php $hasApv = $apvLinks->isNotEmpty() || $voucher->purchase_voucher_id !== null; @endphp
                             @php $hasService = $voucher->service_id !== null; @endphp
                             {{-- APV and Service payments carry their VAT breakdown on the parent record, not the CV itself. --}}
                             @php $breakdownOnParent = $hasApv || $hasService; @endphp
@@ -128,7 +129,11 @@
                                     <div class="small text-muted fw-normal">{{ $voucher->branch?->name ?? '—' }} · {{ ucwords(str_replace('_', ' ', $voucher->type)) }}</div>
                                 </td>
                                 <td class="text-nowrap">
-                                    @if($hasApv)
+                                    @if($apvLinks->isNotEmpty())
+                                        @foreach($apvLinks as $linkedApv)
+                                            <a href="{{ route('purchase-vouchers.show', $linkedApv) }}">{{ $linkedApv->apv_no }}</a>@if(! $loop->last), @endif
+                                        @endforeach
+                                    @elseif($hasApv)
                                         <a href="{{ route('purchase-vouchers.show', $voucher->purchase_voucher_id) }}">{{ $voucher->purchaseVoucher?->apv_no ?? '#'.$voucher->purchase_voucher_id }}</a>
                                     @elseif($hasService)
                                         <a href="{{ route('services.show', $voucher->service_id) }}">{{ $voucher->service?->ref_no ?? '#'.$voucher->service_id }}</a>

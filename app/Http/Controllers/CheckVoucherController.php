@@ -8,6 +8,7 @@ use App\Models\BankAccount;
 use App\Models\ChartOfAccount;
 use App\Models\CheckRegister;
 use App\Models\CheckVoucher;
+use App\Models\CheckVoucherPurchaseVoucher;
 use App\Models\CheckVoucherReceipt;
 use App\Models\PettyCashVoucher;
 use App\Models\PurchaseVoucher;
@@ -43,6 +44,7 @@ class CheckVoucherController extends Controller
                     ->orWhere('reference_no', 'like', "%{$s}%")
                     ->orWhere('payee_name', 'like', "%{$s}%")
                     ->orWhereHas('purchaseVoucher', fn ($apv) => $apv->where('apv_no', 'like', "%{$s}%"))
+                    ->orWhereHas('apvAllocations.purchaseVoucher', fn ($apv) => $apv->where('apv_no', 'like', "%{$s}%"))
                     ->orWhereHas('service', fn ($ser) => $ser->where('ref_no', 'like', "%{$s}%"));
             }));
     }
@@ -62,7 +64,7 @@ class CheckVoucherController extends Controller
         ')->first();
 
         $vouchers = $query
-            ->with(['purchaseVoucher', 'checkRegisterEntry', 'costAccount', 'branch'])
+            ->with(['purchaseVoucher', 'apvAllocations.purchaseVoucher', 'checkRegisterEntry', 'costAccount', 'branch'])
             ->withCount('liquidations')
             ->latest('date')
             ->paginate($this->perPage($request, 20))
@@ -154,8 +156,9 @@ class CheckVoucherController extends Controller
             $rules['petty_cash_voucher_ids.*'] = ['exists:petty_cash_vouchers,id'];
             $rules['amount_w_vat'] = ['required', 'numeric', 'min:0.01'];
         } elseif ($type === 'apv_payment') {
-            $rules['purchase_voucher_id'] = ['required', 'exists:purchase_vouchers,id'];
-            $rules['amount_w_vat'] = ['required', 'numeric', 'min:0.01'];
+            $rules['apv_allocations'] = ['required', 'array', 'min:1'];
+            $rules['apv_allocations.*.purchase_voucher_id'] = ['required', 'exists:purchase_vouchers,id'];
+            $rules['apv_allocations.*.amount_w_vat'] = ['required', 'numeric', 'min:0.01'];
         } elseif ($type === 'service_payment') {
             $rules['service_id'] = ['required', 'exists:services,id'];
             $rules['amount_w_vat'] = ['required', 'numeric', 'min:0.01'];
@@ -193,22 +196,17 @@ class CheckVoucherController extends Controller
         ]);
 
         $apv = null;
+        $allocations = collect();
         if ($type === 'apv_payment') {
-            $apv = PurchaseVoucher::findOrFail($validated['purchase_voucher_id']);
-            $this->authorizeBranchRecord($request, $apv->branch_id);
+            $allocations = collect($validated['apv_allocations'])->map(fn (array $row): array => [
+                'purchase_voucher_id' => (int) $row['purchase_voucher_id'],
+                'amount_w_vat' => round((float) $row['amount_w_vat'], 2),
+            ])->values();
 
-            if (! in_array($apv->status, ['unpaid', 'partially_paid'], true)) {
-                throw ValidationException::withMessages([
-                    'purchase_voucher_id' => 'The selected APV is already fully paid.',
-                ]);
-            }
+            $this->validateApvAllocationBalances($request, $allocations);
 
-            $remainingBalance = round((float) $apv->payable_total - (float) $apv->amount_paid, 2);
-            if ((float) $validated['amount_w_vat'] - $remainingBalance > 0.01) {
-                throw ValidationException::withMessages([
-                    'amount_w_vat' => 'Payment amount cannot exceed the APV remaining balance (₱'.number_format($remainingBalance, 2).').',
-                ]);
-            }
+            // Payee/branch/vendor default from the first APV listed.
+            $apv = PurchaseVoucher::findOrFail($allocations->first()['purchase_voucher_id']);
         }
 
         $service = null;
@@ -282,13 +280,18 @@ class CheckVoucherController extends Controller
             ?? $this->activeBranchId($request)
             ?? ($request->user()->isAdmin() ? ($validated['branch_id'] ?? null) : null);
 
-        DB::transaction(function () use ($validated, $type, $request, $pcvs, $receipts, $branchId, $apv, $service): void {
+        DB::transaction(function () use ($validated, $type, $request, $pcvs, $receipts, $branchId, $apv, $service, $allocations): void {
             $isStandalone = in_array($type, ['cod_purchase', 'other_disbursement'], true);
             $isAdvanceWithoutVat = $type === 'advance' && ($validated['advance_vat_type'] ?? 'without_vat') !== 'with_vat';
 
             // Standalone CVs (COD / Other) derive their totals from the attached
-            // receipts, since one payment commonly covers several supplier receipts.
-            $amountWVat = $isStandalone ? round($receipts->sum('amount_w_vat'), 2) : (float) ($validated['amount_w_vat'] ?? 0);
+            // receipts, since one payment commonly covers several supplier receipts;
+            // APV payments likewise sum their per-APV allocations.
+            $amountWVat = match (true) {
+                $isStandalone => round($receipts->sum('amount_w_vat'), 2),
+                $type === 'apv_payment' => round($allocations->sum('amount_w_vat'), 2),
+                default => (float) ($validated['amount_w_vat'] ?? 0),
+            };
             $vatExempt = $isStandalone ? round($receipts->sum('vat_exempt'), 2) : (float) ($validated['vat_exempt'] ?? 0);
             $nonVat = $isStandalone ? round($receipts->sum('non_vat_purchase'), 2) : (float) ($validated['non_vat_purchase'] ?? 0);
 
@@ -329,7 +332,6 @@ class CheckVoucherController extends Controller
                 'date' => $validated['date'],
                 'cv_no' => $validated['cv_no'],
                 'reference_no' => CheckVoucher::nextDisbursementNo(),
-                'purchase_voucher_id' => $validated['purchase_voucher_id'] ?? null,
                 'service_id' => $validated['service_id'] ?? null,
                 'advance_account_id' => $validated['advance_account_id'] ?? null,
                 'type' => $type,
@@ -355,6 +357,10 @@ class CheckVoucherController extends Controller
 
             if ($type === 'pcf_replenishment') {
                 PettyCashVoucher::whereIn('id', $pcvs->pluck('id'))->update(['check_voucher_id' => $checkVoucher->id]);
+            }
+
+            foreach ($allocations as $allocation) {
+                $checkVoucher->apvAllocations()->create($allocation);
             }
 
             foreach ($receipts as $receipt) {
@@ -402,7 +408,8 @@ class CheckVoucherController extends Controller
             return back()->with('error', 'This advance already has liquidation(s) recorded and cannot be deleted. Void it instead if it was recorded in error.');
         }
 
-        $purchaseVoucher = $checkVoucher->purchaseVoucher;
+        $checkVoucher->load(['apvAllocations.purchaseVoucher', 'purchaseVoucher']);
+        $purchaseVouchers = $checkVoucher->linkedPurchaseVouchers();
         $service = $checkVoucher->service;
         $cvNo = $checkVoucher->cv_no;
 
@@ -410,7 +417,7 @@ class CheckVoucherController extends Controller
             $checkVoucher->delete();
         });
 
-        $purchaseVoucher?->recomputeStatus();
+        $purchaseVouchers->each->recomputeStatus();
         $service?->recomputeStatus();
 
         return redirect()
@@ -421,11 +428,20 @@ class CheckVoucherController extends Controller
     public function show(Request $request, CheckVoucher $checkVoucher)
     {
         $this->authorizeBranchRecord($request, $checkVoucher->branch_id);
-        $checkVoucher->load(['purchaseVoucher.vendor', 'service.supplier', 'pettyCashVouchers.items', 'costAccount', 'bankAccount', 'advanceAccount', 'checkRegisterEntry', 'receipts.supplier', 'receipts.costAccount', 'liquidations', 'attachments']);
+        $checkVoucher->load(['purchaseVoucher.vendor', 'apvAllocations.purchaseVoucher.vendor', 'service.supplier', 'pettyCashVouchers.items', 'costAccount', 'bankAccount', 'advanceAccount', 'checkRegisterEntry', 'receipts.supplier', 'receipts.costAccount', 'liquidations', 'attachments']);
         $suppliers = \App\Models\Supplier::orderBy('name')->get();
         $costAccounts = ChartOfAccount::whereIn('type', ['debit_expense', 'debit_asset'])->where('is_active', true)->orderBy('type')->orderBy('name')->get();
 
-        return view('check-vouchers.show', compact('checkVoucher', 'suppliers', 'costAccounts'));
+        $availableApvs = $checkVoucher->type === 'apv_payment'
+            ? PurchaseVoucher::with(['vendor', 'items'])
+                ->when($this->activeBranchId($request), fn ($q, $id) => $q->where(fn ($inner) => $inner->whereNull('branch_id')->orWhere('branch_id', $id)))
+                ->whereIn('status', ['unpaid', 'partially_paid'])
+                ->orderByDesc('date')
+                ->limit(200)
+                ->get()
+            : collect();
+
+        return view('check-vouchers.show', compact('checkVoucher', 'suppliers', 'costAccounts', 'availableApvs'));
     }
 
     /**
@@ -578,6 +594,163 @@ class CheckVoucherController extends Controller
         }
     }
 
+    public function addApvAllocation(Request $request, CheckVoucher $checkVoucher)
+    {
+        $this->authorizeBranchRecord($request, $checkVoucher->branch_id);
+        $this->guardApvAllocationEditable($checkVoucher);
+
+        $validated = $request->validate([
+            'purchase_voucher_id' => ['required', 'exists:purchase_vouchers,id'],
+            'amount_w_vat' => ['required', 'numeric', 'min:0.01'],
+        ]);
+
+        $prospective = $checkVoucher->apvAllocations()->get(['purchase_voucher_id', 'amount_w_vat'])
+            ->map(fn ($row): array => ['purchase_voucher_id' => (int) $row->purchase_voucher_id, 'amount_w_vat' => (float) $row->amount_w_vat])
+            ->push(['purchase_voucher_id' => (int) $validated['purchase_voucher_id'], 'amount_w_vat' => round((float) $validated['amount_w_vat'], 2)]);
+
+        $this->validateApvAllocationBalances($request, $prospective, $checkVoucher, 'amount_w_vat');
+
+        DB::transaction(function () use ($checkVoucher, $validated): void {
+            $checkVoucher->apvAllocations()->create([
+                'purchase_voucher_id' => $validated['purchase_voucher_id'],
+                'amount_w_vat' => round((float) $validated['amount_w_vat'], 2),
+            ]);
+
+            $this->recalculateFromApvAllocations($checkVoucher);
+        });
+
+        return back()->with('success', 'APV added to Check Voucher '.$checkVoucher->cv_no.'.');
+    }
+
+    public function updateApvAllocation(Request $request, CheckVoucher $checkVoucher, CheckVoucherPurchaseVoucher $allocation)
+    {
+        $this->authorizeBranchRecord($request, $checkVoucher->branch_id);
+        $this->guardApvAllocationEditable($checkVoucher);
+        abort_if($allocation->check_voucher_id !== $checkVoucher->id, 404);
+
+        $validated = $request->validate([
+            'purchase_voucher_id' => ['required', 'exists:purchase_vouchers,id'],
+            'amount_w_vat' => ['required', 'numeric', 'min:0.01'],
+        ]);
+
+        $previousApvId = (int) $allocation->purchase_voucher_id;
+
+        $prospective = $checkVoucher->apvAllocations()->get(['id', 'purchase_voucher_id', 'amount_w_vat'])
+            ->map(fn ($row): array => $row->id === $allocation->id
+                ? ['purchase_voucher_id' => (int) $validated['purchase_voucher_id'], 'amount_w_vat' => round((float) $validated['amount_w_vat'], 2)]
+                : ['purchase_voucher_id' => (int) $row->purchase_voucher_id, 'amount_w_vat' => (float) $row->amount_w_vat]);
+
+        $this->validateApvAllocationBalances($request, $prospective, $checkVoucher, 'amount_w_vat');
+
+        DB::transaction(function () use ($checkVoucher, $allocation, $validated, $previousApvId): void {
+            $allocation->update([
+                'purchase_voucher_id' => $validated['purchase_voucher_id'],
+                'amount_w_vat' => round((float) $validated['amount_w_vat'], 2),
+            ]);
+
+            $this->recalculateFromApvAllocations($checkVoucher, [$previousApvId]);
+        });
+
+        return back()->with('success', 'APV allocation updated.');
+    }
+
+    public function deleteApvAllocation(Request $request, CheckVoucher $checkVoucher, CheckVoucherPurchaseVoucher $allocation)
+    {
+        $this->authorizeBranchRecord($request, $checkVoucher->branch_id);
+        $this->guardApvAllocationEditable($checkVoucher);
+        abort_if($allocation->check_voucher_id !== $checkVoucher->id, 404);
+
+        if ($checkVoucher->apvAllocations()->count() <= 1) {
+            return back()->with('error', 'A Check Voucher must keep at least one APV — delete the whole CV instead.');
+        }
+
+        $removedApvId = (int) $allocation->purchase_voucher_id;
+
+        DB::transaction(function () use ($checkVoucher, $allocation, $removedApvId): void {
+            $allocation->delete();
+            $this->recalculateFromApvAllocations($checkVoucher, [$removedApvId]);
+        });
+
+        return back()->with('success', 'APV removed from this Check Voucher.');
+    }
+
+    private function guardApvAllocationEditable(CheckVoucher $checkVoucher): void
+    {
+        if ($checkVoucher->type !== 'apv_payment') {
+            throw ValidationException::withMessages([
+                'type' => 'APVs can only be managed on APV Payment Check Vouchers.',
+            ]);
+        }
+    }
+
+    /**
+     * Validates a CV's full set of APV allocations. Rows may repeat the same
+     * APV, so the balance check sums per APV instead of row-by-row. When
+     * $checkVoucher is given (editing), its own already-counted payments are
+     * excluded from what the APV is considered to have paid, so re-saving an
+     * issued CV doesn't trip over itself.
+     *
+     * @param  \Illuminate\Support\Collection<int, array{purchase_voucher_id:int, amount_w_vat:float}>  $allocations
+     */
+    private function validateApvAllocationBalances(Request $request, \Illuminate\Support\Collection $allocations, ?CheckVoucher $checkVoucher = null, string $errorKey = 'apv_allocations'): void
+    {
+        $apvs = PurchaseVoucher::with('items')->whereIn('id', $allocations->pluck('purchase_voucher_id')->unique())->get()->keyBy('id');
+
+        foreach ($allocations->groupBy('purchase_voucher_id') as $apvId => $rows) {
+            $apv = $apvs[$apvId];
+            $this->authorizeBranchRecord($request, $apv->branch_id);
+
+            $alreadyPaid = (float) $apv->amount_paid;
+            if ($checkVoucher && in_array($checkVoucher->status, ['issued', 'cleared'], true)) {
+                $alreadyPaid -= (float) $checkVoucher->apvAllocations()->where('purchase_voucher_id', $apvId)->sum('amount_w_vat');
+            }
+
+            if (! $checkVoucher && ! in_array($apv->status, ['unpaid', 'partially_paid'], true)) {
+                throw ValidationException::withMessages([
+                    $errorKey => $apv->apv_no.' is already fully paid.',
+                ]);
+            }
+
+            $remainingBalance = round((float) $apv->payable_total - $alreadyPaid, 2);
+            $requested = round((float) $rows->sum('amount_w_vat'), 2);
+
+            if ($requested - $remainingBalance > 0.01) {
+                throw ValidationException::withMessages([
+                    $errorKey => 'Payment for '.$apv->apv_no.' (₱'.number_format($requested, 2).') cannot exceed its remaining balance (₱'.number_format(max($remainingBalance, 0), 2).').',
+                ]);
+            }
+        }
+    }
+
+    /**
+     * Rolls the CV's APV allocations back up into its own totals, the same way
+     * recalculateFromReceipts() does for receipts. $extraPurchaseVoucherIds
+     * covers an APV that was just removed/swapped out of the CV, so its
+     * status is recomputed too.
+     */
+    private function recalculateFromApvAllocations(CheckVoucher $checkVoucher, array $extraPurchaseVoucherIds = []): void
+    {
+        $checkVoucher->unsetRelation('apvAllocations');
+
+        $checkVoucher->amount_w_vat = round((float) $checkVoucher->apvAllocations()->sum('amount_w_vat'), 2);
+        $split = VatCalculator::split((float) $checkVoucher->amount_w_vat);
+        $checkVoucher->vat = $split['vat'];
+        $checkVoucher->net_purchases = $split['net_purchases'];
+
+        $checkVoucher->applyEwt();
+        $checkVoucher->save();
+
+        if ($checkVoucher->checkRegisterEntry) {
+            $checkVoucher->checkRegisterEntry->update(['amount' => $checkVoucher->amount_paid]);
+        }
+
+        $affectedIds = $checkVoucher->apvAllocations()->pluck('purchase_voucher_id')
+            ->merge($extraPurchaseVoucherIds)
+            ->unique();
+
+        PurchaseVoucher::whereIn('id', $affectedIds)->get()->each->recomputeStatus();
+    }
+
     public function issueCheck(Request $request, CheckVoucher $checkVoucher)
     {
         $this->authorizeBranchRecord($request, $checkVoucher->branch_id);
@@ -627,9 +800,8 @@ class CheckVoucherController extends Controller
 
         $checkVoucher->update(['status' => 'issued']);
 
-        if ($checkVoucher->purchase_voucher_id) {
-            $checkVoucher->purchaseVoucher->recomputeStatus();
-        }
+        $checkVoucher->load(['apvAllocations.purchaseVoucher', 'purchaseVoucher']);
+        $checkVoucher->linkedPurchaseVouchers()->each->recomputeStatus();
 
         if ($checkVoucher->service_id) {
             $checkVoucher->service->recomputeStatus();

@@ -142,17 +142,62 @@
 
                             {{-- APV Payment section --}}
                             <div class="cv-type-section" data-type="apv_payment" style="display:none;">
-                                <h6 class="fw-bold text-primary">Purchase Voucher to Pay</h6>
+                                <h6 class="fw-bold text-primary">Purchase Vouchers to Pay</h6>
+                                <p class="small text-muted">One payment can settle several APVs, even from different vendors. Search and click an APV to add it, then set how much of this payment goes to each. The same APV may be added more than once. The CV total is computed automatically.</p>
                                 <div class="mb-2">
-                                    <input type="text" id="apvSearch" class="form-control" placeholder="Search unpaid APV # or vendor name..." value="{{ $payApv?->apv_no }}">
+                                    <input type="text" id="apvSearch" class="form-control" placeholder="Search unpaid APV # or vendor name...">
                                 </div>
                                 <div id="apvResults" class="border rounded p-2 mb-3" style="max-height: 220px; overflow-y: auto;"></div>
-                                <div id="selectedApvInfo" class="alert alert-info small {{ $payApv ? '' : 'd-none' }}">
-                                    @if($payApv)
-                                        Paying APV <strong>{{ $payApv->apv_no }}</strong> — Remaining balance: <strong>₱{{ number_format($payApv->payable_total - $payApv->amount_paid, 2) }}</strong>
-                                    @endif
+                                @error('apv_allocations')<div class="text-danger small mb-2">{{ $message }}</div>@enderror
+                                @php
+                                    $apvRows = collect(old('apv_allocations', $payApv ? [[
+                                        'purchase_voucher_id' => $payApv->id,
+                                        'amount_w_vat' => round($payApv->payable_total - $payApv->amount_paid, 2),
+                                    ]] : []))->values();
+                                    $apvRowLookup = \App\Models\PurchaseVoucher::with(['vendor', 'items'])->whereIn('id', $apvRows->pluck('purchase_voucher_id'))->get()->keyBy('id');
+                                @endphp
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-bordered align-middle mb-1">
+                                        <thead>
+                                            <tr>
+                                                <th>APV #</th>
+                                                <th>Vendor</th>
+                                                <th class="text-end" style="width:150px;">Remaining Balance</th>
+                                                <th style="width:170px;">Amount w/ VAT <span class="text-danger">*</span></th>
+                                                <th style="width:40px;"></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="apvAllocationsBody">
+                                            @foreach($apvRows as $i => $row)
+                                            @php $rowApv = $apvRowLookup[$row['purchase_voucher_id']] ?? null; @endphp
+                                            @if($rowApv)
+                                            <tr class="apv-allocation-row">
+                                                <td class="fw-semibold">{{ $rowApv->apv_no }}<input type="hidden" name="apv_allocations[{{ $i }}][purchase_voucher_id]" value="{{ $rowApv->id }}"></td>
+                                                <td>{{ $rowApv->vendor?->name ?? '—' }}</td>
+                                                <td class="text-end">₱{{ number_format($rowApv->payable_total - $rowApv->amount_paid, 2) }}</td>
+                                                <td><input type="number" step="0.01" min="0.01" name="apv_allocations[{{ $i }}][amount_w_vat]" class="form-control form-control-sm apv-allocation-amount" value="{{ $row['amount_w_vat'] }}"></td>
+                                                <td class="text-center"><button type="button" class="btn btn-sm btn-danger text-white removeApvRow" title="Remove"><i data-lucide="trash-2" style="width:14px;height:14px;"></i></button></td>
+                                            </tr>
+                                            @endif
+                                            @endforeach
+                                        </tbody>
+                                    </table>
                                 </div>
-                                <input type="hidden" name="purchase_voucher_id" id="purchaseVoucherId" value="{{ old('purchase_voucher_id', $payApv?->id) }}">
+                                <div class="d-flex justify-content-end border-top pt-2 mt-1">
+                                    <div class="text-end">
+                                        <div class="small text-muted">Total Amount w/ VAT</div>
+                                        <div class="fw-bold" id="apvAllocationTotal">₱0.00</div>
+                                    </div>
+                                </div>
+                                <template id="apvAllocationRowTemplate">
+                                    <tr class="apv-allocation-row">
+                                        <td class="fw-semibold"><span class="apv-row-no"></span><input type="hidden" name="apv_allocations[__INDEX__][purchase_voucher_id]" class="apv-row-id"></td>
+                                        <td class="apv-row-vendor"></td>
+                                        <td class="text-end apv-row-balance"></td>
+                                        <td><input type="number" step="0.01" min="0.01" name="apv_allocations[__INDEX__][amount_w_vat]" class="form-control form-control-sm apv-allocation-amount"></td>
+                                        <td class="text-center"><button type="button" class="btn btn-sm btn-danger text-white removeApvRow" title="Remove"><i data-lucide="trash-2" style="width:14px;height:14px;"></i></button></td>
+                                    </tr>
+                                </template>
                             </div>
 
                             {{-- Service Payment section --}}
@@ -282,7 +327,7 @@
                             </div>
 
                             {{-- Amount field shared by PCF replenishment / APV payment / Service payment / Advance (standalone types use their own amount above) --}}
-                            <div class="cv-type-section" data-type="pcf_replenishment,apv_payment,service_payment,advance" style="display:none;">
+                            <div class="cv-type-section" data-type="pcf_replenishment,service_payment,advance" style="display:none;">
                                 <div class="mb-3" style="max-width: 280px;">
                                     <label class="form-label fw-semibold" id="linkedAmountLabel">Amount w/ VAT <span class="text-danger">*</span></label>
                                     <input type="number" step="0.01" min="0" name="amount_w_vat" id="linkedAmount" class="form-control @error('amount_w_vat') is-invalid @enderror" value="{{ old('amount_w_vat', $payApv ? round($payApv->payable_total - $payApv->amount_paid, 2) : ($payService ? round($payService->payable_total - $payService->amount_paid, 2) : '')) }}">
@@ -459,35 +504,79 @@ document.addEventListener('DOMContentLoaded', function () {
     // --- APV search ---
     const apvSearch = document.getElementById('apvSearch');
     const apvResults = document.getElementById('apvResults');
-    const purchaseVoucherId = document.getElementById('purchaseVoucherId');
-    const selectedApvInfo = document.getElementById('selectedApvInfo');
+    const apvAllocationsBody = document.getElementById('apvAllocationsBody');
+    const apvRowTemplate = document.getElementById('apvAllocationRowTemplate');
+    const apvAllocationTotal = document.getElementById('apvAllocationTotal');
     const payeeName = document.getElementById('payeeName');
     const payeeAddress = document.getElementById('payeeAddress');
     const payeeTin = document.getElementById('payeeTin');
     let apvSearchTimer = null;
+    let apvRowIndex = apvAllocationsBody ? apvAllocationsBody.querySelectorAll('.apv-allocation-row').length : 0;
+
+    function updateApvAllocationTotal() {
+        let total = 0;
+        apvAllocationsBody.querySelectorAll('.apv-allocation-amount').forEach(function (input) {
+            total += parseFloat(input.value) || 0;
+        });
+        apvAllocationTotal.textContent = '₱' + total.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function addApvRow(apv) {
+        const isFirstRow = apvAllocationsBody.querySelectorAll('.apv-allocation-row').length === 0;
+        const fragment = apvRowTemplate.content.cloneNode(true);
+        fragment.querySelectorAll('[name]').forEach(function (el) {
+            el.name = el.name.replace('__INDEX__', apvRowIndex);
+        });
+        apvRowIndex++;
+        fragment.querySelector('.apv-row-no').textContent = apv.apv_no;
+        fragment.querySelector('.apv-row-id').value = apv.id;
+        fragment.querySelector('.apv-row-vendor').textContent = apv.vendor_name || '—';
+        fragment.querySelector('.apv-row-balance').textContent = '₱' + Number(apv.remaining_balance).toFixed(2);
+        fragment.querySelector('.apv-allocation-amount').value = Number(apv.remaining_balance).toFixed(2);
+        apvAllocationsBody.appendChild(fragment);
+
+        // Payee defaults from the first APV listed; still editable afterward.
+        if (isFirstRow) {
+            payeeName.value = apv.vendor_name || '';
+            payeeAddress.value = apv.vendor_address || '';
+            payeeTin.value = apv.vendor_tin || '';
+        }
+
+        if (typeof window.refreshLucideIcons === 'function') window.refreshLucideIcons();
+        updateApvAllocationTotal();
+    }
+
+    if (apvAllocationsBody) {
+        apvAllocationsBody.addEventListener('input', function (event) {
+            if (event.target.classList.contains('apv-allocation-amount')) updateApvAllocationTotal();
+        });
+        apvAllocationsBody.addEventListener('click', function (event) {
+            const removeButton = event.target.closest('.removeApvRow');
+            if (!removeButton) return;
+            removeButton.closest('.apv-allocation-row').remove();
+            updateApvAllocationTotal();
+        });
+        updateApvAllocationTotal();
+    }
 
     function renderApvResults(apvs) {
+        apvResults.innerHTML = '';
         if (!apvs.length) {
-            apvResults.innerHTML = '<div class="text-muted small">No unpaid APVs found for the selected branch. Create a Purchase Voucher first, or switch branches if the APV belongs elsewhere.</div>';
+            const empty = document.createElement('div');
+            empty.className = 'text-muted small';
+            empty.textContent = 'No unpaid APVs found for the selected branch. Create a Purchase Voucher first, or switch branches if the APV belongs elsewhere.';
+            apvResults.appendChild(empty);
             return;
         }
-        apvResults.innerHTML = apvs.map(function (apv) {
-            return '<button type="button" class="btn btn-sm btn-secondary text-white w-100 text-start mb-1 apv-result" ' +
-                'data-id="' + apv.id + '" data-vendor="' + (apv.vendor_name || '') + '" data-address="' + (apv.vendor_address || '') + '" data-tin="' + (apv.vendor_tin || '') + '" data-balance="' + apv.remaining_balance + '" data-apv-no="' + apv.apv_no + '">' +
-                apv.apv_no + ' — ' + (apv.vendor_name || 'No vendor') + ' — Balance ₱' + Number(apv.remaining_balance).toFixed(2) +
-                '</button>';
-        }).join('');
-        apvResults.querySelectorAll('.apv-result').forEach(function (button) {
+        apvs.forEach(function (apv) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'btn btn-sm btn-secondary text-white w-100 text-start mb-1 apv-result';
+            button.textContent = apv.apv_no + ' — ' + (apv.vendor_name || 'No vendor') + ' — Balance ₱' + Number(apv.remaining_balance).toFixed(2);
             button.addEventListener('click', function () {
-                purchaseVoucherId.value = this.dataset.id;
-                payeeName.value = this.dataset.vendor;
-                payeeAddress.value = this.dataset.address;
-                payeeTin.value = this.dataset.tin;
-                if (linkedAmount) linkedAmount.value = parseFloat(this.dataset.balance).toFixed(2);
-                selectedApvInfo.textContent = 'Paying APV ' + this.dataset.apvNo + ' — Remaining balance: ₱' + Number(this.dataset.balance).toFixed(2);
-                selectedApvInfo.classList.remove('d-none');
-                apvResults.innerHTML = '';
+                addApvRow(apv);
             });
+            apvResults.appendChild(button);
         });
     }
 

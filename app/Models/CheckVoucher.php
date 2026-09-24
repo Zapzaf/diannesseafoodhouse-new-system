@@ -62,6 +62,33 @@ class CheckVoucher extends Model
         return $this->belongsTo(PurchaseVoucher::class);
     }
 
+    /**
+     * apv_payment CVs can settle several APVs at once — one row per
+     * (CV, APV) allocation. cod_purchase CVs still use the scalar
+     * purchase_voucher_id link instead and never have allocations.
+     */
+    public function apvAllocations(): HasMany
+    {
+        return $this->hasMany(CheckVoucherPurchaseVoucher::class);
+    }
+
+    public function getHasMultipleApvsAttribute(): bool
+    {
+        return $this->apvAllocations->count() > 1;
+    }
+
+    /**
+     * Every APV this CV settles, whether through allocations or the legacy
+     * scalar link — the single place status-recompute call sites read from.
+     */
+    public function linkedPurchaseVouchers(): \Illuminate\Support\Collection
+    {
+        return $this->apvAllocations->pluck('purchaseVoucher')
+            ->push($this->purchaseVoucher)
+            ->filter()
+            ->unique('id');
+    }
+
     public function service(): BelongsTo
     {
         return $this->belongsTo(Service::class);

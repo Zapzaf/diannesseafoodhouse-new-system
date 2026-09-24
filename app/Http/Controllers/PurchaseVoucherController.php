@@ -121,7 +121,7 @@ class PurchaseVoucherController extends Controller
     public function show(Request $request, PurchaseVoucher $purchaseVoucher)
     {
         $this->authorizeBranchRecord($request, $purchaseVoucher->branch_id);
-        $purchaseVoucher->load(['items.costAccount', 'vendor', 'creditAccount', 'checkVouchers.checkRegisterEntry', 'attachments']);
+        $purchaseVoucher->load(['items.costAccount', 'vendor', 'creditAccount', 'checkVouchers.checkRegisterEntry', 'checkVoucherAllocations.checkVoucher.checkRegisterEntry', 'checkVoucherAllocations.checkVoucher.apvAllocations', 'attachments']);
 
         return view('purchase-vouchers.show', compact('purchaseVoucher'));
     }

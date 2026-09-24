@@ -31,9 +31,8 @@ class CheckRegisterObserver
 
     private function recomputeParent(\App\Models\CheckVoucher $checkVoucher): void
     {
-        if ($checkVoucher->purchase_voucher_id) {
-            $checkVoucher->purchaseVoucher->recomputeStatus();
-        }
+        $checkVoucher->load(['apvAllocations.purchaseVoucher', 'purchaseVoucher']);
+        $checkVoucher->linkedPurchaseVouchers()->each->recomputeStatus();
 
         if ($checkVoucher->service_id) {
             $checkVoucher->service->recomputeStatus();

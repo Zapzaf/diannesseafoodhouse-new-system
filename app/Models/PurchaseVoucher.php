@@ -60,11 +60,18 @@ class PurchaseVoucher extends Model
         return $this->morphMany(Attachment::class, 'attachable');
     }
 
-    // A single APV can be settled by more than one CV (partial payments),
-    // so this is hasMany rather than hasOne despite the spec doc's shorthand.
+    // Only cod_purchase CVs (and any unmigrated legacy rows) link through the
+    // scalar purchase_voucher_id. apv_payment CVs link through allocations —
+    // see checkVoucherAllocations(); don't sum this relation for amount paid.
     public function checkVouchers(): HasMany
     {
         return $this->hasMany(CheckVoucher::class);
+    }
+
+    // One row per (CV, APV) payment allocation; a CV can span several APVs.
+    public function checkVoucherAllocations(): HasMany
+    {
+        return $this->hasMany(CheckVoucherPurchaseVoucher::class);
     }
 
     public function getTotalAttribute(): float
@@ -83,7 +90,16 @@ class PurchaseVoucher extends Model
 
     public function getAmountPaidAttribute(): float
     {
-        return (float) $this->checkVouchers()->whereIn('status', ['issued', 'cleared'])->sum('amount_w_vat');
+        $viaAllocations = (float) $this->checkVoucherAllocations()
+            ->whereHas('checkVoucher', fn ($q) => $q->whereIn('status', ['issued', 'cleared']))
+            ->sum('amount_w_vat');
+
+        $viaLegacyCod = (float) $this->checkVouchers()
+            ->where('type', 'cod_purchase')
+            ->whereIn('status', ['issued', 'cleared'])
+            ->sum('amount_w_vat');
+
+        return round($viaAllocations + $viaLegacyCod, 2);
     }
 
     public function recomputeStatus(): void

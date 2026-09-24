@@ -124,13 +124,31 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @forelse($purchaseVoucher->checkVouchers as $cv)
+                            {{-- apv_payment CVs pay through allocations (each row is this APV's share of the CV); cod_purchase CVs still link directly. --}}
+                            @php
+                                $payments = $purchaseVoucher->checkVoucherAllocations
+                                    ->map(fn ($allocation) => (object) [
+                                        'cv' => $allocation->checkVoucher,
+                                        'allocated' => (float) $allocation->amount_w_vat,
+                                        'shared' => $allocation->checkVoucher->apvAllocations->pluck('purchase_voucher_id')->unique()->count() > 1
+                                            || $allocation->checkVoucher->apvAllocations->where('purchase_voucher_id', $purchaseVoucher->id)->count() > 1,
+                                    ])
+                                    ->concat($purchaseVoucher->checkVouchers->where('type', 'cod_purchase')->map(fn ($cv) => (object) [
+                                        'cv' => $cv,
+                                        'allocated' => (float) $cv->amount_w_vat,
+                                        'shared' => false,
+                                    ]))
+                                    ->sortBy(fn ($row) => $row->cv->date)
+                                    ->values();
+                            @endphp
+                            @forelse($payments as $payment)
+                            @php $cv = $payment->cv; @endphp
                             <tr>
                                 <td>{{ $cv->date->format('M d, Y') }}</td>
                                 <td><a href="{{ route('check-vouchers.show', $cv) }}">{{ $cv->cv_no }}</a></td>
-                                <td class="text-end">₱{{ number_format($cv->amount_w_vat, 2) }}</td>
-                                <td class="text-end">₱{{ number_format($cv->ewt_amount, 2) }}</td>
-                                <td class="text-end">₱{{ number_format($cv->amount_paid, 2) }}</td>
+                                <td class="text-end">₱{{ number_format($payment->allocated, 2) }}</td>
+                                <td class="text-end">{{ $payment->shared ? '—' : '₱'.number_format($cv->ewt_amount, 2) }}</td>
+                                <td class="text-end">{{ $payment->shared ? '—' : '₱'.number_format($cv->amount_paid, 2) }}</td>
                                 <td>{{ ucfirst($cv->status) }}</td>
                                 <td>{{ $cv->checkRegisterEntry?->check_no ?? '—' }}</td>
                             </tr>
