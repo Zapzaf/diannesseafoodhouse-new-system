@@ -325,6 +325,7 @@ Route::middleware('auth')->group(function (): void {
 
 	Route::prefix('reports')->name('reports.')->group(function (): void {
 		Route::get('/inventory', [ReportController::class, 'inventory'])->name('inventory.index');
+		Route::get('/inventory/export', [ReportController::class, 'inventoryExport'])->name('inventory.export');
 		Route::get('/cogs', [ReportController::class, 'cogs'])->name('cogs.index');
 		Route::get('/feedback', [ReportController::class, 'feedback'])->name('feedback.index');
 		Route::get('/feedback/data', [ReportController::class, 'feedbackData'])->name('feedback.data');

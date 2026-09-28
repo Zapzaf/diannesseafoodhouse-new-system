@@ -10,13 +10,16 @@
     {{-- As of Date filter — kept at the very top so it's never buried below a long Low Stock list --}}
     <div class="card shadow-sm mb-4" data-static-pagination="1">
         <div class="card-body">
-            <form method="GET" class="row g-2 align-items-end">
+            <form method="GET" class="row g-2 align-items-end filter-form">
                 <div class="col-md-3">
                     <label class="form-label small fw-semibold mb-1">As of Date</label>
                     <input type="date" name="as_of_date" class="form-control" max="{{ now()->toDateString() }}" value="{{ $asOfDate }}">
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-3 d-flex gap-2">
                     <button type="submit" class="btn btn-primary">View</button>
+                    <a href="{{ route('reports.inventory.export', ['as_of_date' => $asOfDate]) }}" class="btn btn-success text-white text-nowrap">
+                        <i data-lucide="file-spreadsheet" class="me-1" style="width:16px;height:16px;"></i> Export to Excel
+                    </a>
                 </div>
             </form>
             @if($asOfDate !== now()->toDateString())
@@ -85,50 +88,8 @@
         </div>
     </div>
 
-    {{-- Low Stock Alert --}}
-    @if($lowStockItemsPage->total() > 0)
-    <div class="card shadow-sm mb-4 border-warning" data-static-pagination="1">
-        <div class="card-header text-warning fw-semibold">
-            <i data-lucide="alert-triangle" class="me-1"></i> Low Stock Items ({{ $lowStockItemsPage->total() }})
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table class="table table-sm table-striped">
-                    <thead class="table-dark">
-                        <tr>
-                            <th>Item</th>
-                            <th>Branch</th>
-                            <th>Location</th>
-                            <th>Category</th>
-                            <th>Current Stock</th>
-                            <th>Threshold</th>
-                            <th class="text-end">Unit Cost</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($lowStockItemsPage as $item)
-                        <tr>
-                            <td class="fw-semibold">{{ $item->name }}</td>
-                            <td>{{ $item->branch?->name ?? '—' }}</td>
-                            <td>{{ $item->category?->location?->name ?? '—' }}</td>
-                            <td>{{ $item->category?->name ?? '—' }}</td>
-                            <td class="text-danger fw-bold">{{ number_format($item->quantity, 2) }} {{ $item->unit }}</td>
-                            <td class="text-muted">{{ number_format($item->low_stock_threshold, 2) }} {{ $item->unit }}</td>
-                            <td class="text-end">₱{{ number_format($item->unit_price ?? 0, 2) }}</td>
-                        </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        @if($lowStockItemsPage->hasPages())
-        <div class="card-footer d-flex justify-content-center">{{ $lowStockItemsPage->links('pagination::bootstrap-5') }}</div>
-        @endif
-    </div>
-    @endif
-
     {{-- All Items --}}
-    <div class="card shadow-sm" data-static-pagination="1">
+    <div class="card shadow-sm mb-4" data-static-pagination="1">
         <div class="card-header fw-semibold"><i data-lucide="archive" class="me-1"></i> All Items — Stock Levels as of {{ \Illuminate\Support\Carbon::parse($asOfDate)->format('M d, Y') }}</div>
         <div class="card-body">
             <div class="table-responsive">
@@ -182,6 +143,48 @@
         <div class="card-footer d-flex justify-content-center">{{ $snapshotItemsPage->links('pagination::bootstrap-5') }}</div>
         @endif
     </div>
+
+    {{-- Low Stock Alert --}}
+    @if($lowStockItemsPage->total() > 0)
+    <div class="card shadow-sm border-warning" data-static-pagination="1">
+        <div class="card-header text-warning fw-semibold">
+            <i data-lucide="alert-triangle" class="me-1"></i> Low Stock Items ({{ $lowStockItemsPage->total() }})
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm table-striped">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Item</th>
+                            <th>Branch</th>
+                            <th>Location</th>
+                            <th>Category</th>
+                            <th>Current Stock</th>
+                            <th>Threshold</th>
+                            <th class="text-end">Unit Cost</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($lowStockItemsPage as $item)
+                        <tr>
+                            <td class="fw-semibold">{{ $item->name }}</td>
+                            <td>{{ $item->branch?->name ?? '—' }}</td>
+                            <td>{{ $item->category?->location?->name ?? '—' }}</td>
+                            <td>{{ $item->category?->name ?? '—' }}</td>
+                            <td class="text-danger fw-bold">{{ number_format($item->quantity, 2) }} {{ $item->unit }}</td>
+                            <td class="text-muted">{{ number_format($item->low_stock_threshold, 2) }} {{ $item->unit }}</td>
+                            <td class="text-end">₱{{ number_format($item->unit_price ?? 0, 2) }}</td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        @if($lowStockItemsPage->hasPages())
+        <div class="card-footer d-flex justify-content-center">{{ $lowStockItemsPage->links('pagination::bootstrap-5') }}</div>
+        @endif
+    </div>
+    @endif
 </div>
 @endsection
 

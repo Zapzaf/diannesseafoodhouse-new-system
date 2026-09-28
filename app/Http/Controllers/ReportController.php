@@ -20,6 +20,70 @@ class ReportController extends Controller
 {
     public function inventory(Request $request): View
     {
+        $data = $this->buildInventoryAsOfSnapshot($request);
+        $branchId = $data['branchId'];
+        $snapshotItems = $data['snapshotItems'];
+        $lowStockItems = $data['lowStockItems'];
+
+        $lowStockPerPage = 20;
+        $lowStockPage = \Illuminate\Pagination\LengthAwarePaginator::resolveCurrentPage('low_stock_page');
+        $lowStockItemsPage = new \Illuminate\Pagination\LengthAwarePaginator(
+            $lowStockItems->forPage($lowStockPage, $lowStockPerPage)->values(),
+            $lowStockItems->count(),
+            $lowStockPerPage,
+            $lowStockPage,
+            ['path' => $request->url(), 'query' => $request->query(), 'pageName' => 'low_stock_page']
+        );
+
+        // Totals are computed from every matching item (in
+        // buildInventoryAsOfSnapshot), then the same collection is paginated
+        // here for display only — mirrors how cogs() computes its formula
+        // totals separately from the paginated list.
+        $perPage = $this->perPage($request, 20);
+        $page = \Illuminate\Pagination\LengthAwarePaginator::resolveCurrentPage();
+        $snapshotItemsPage = new \Illuminate\Pagination\LengthAwarePaginator(
+            $snapshotItems->forPage($page, $perPage)->values(),
+            $snapshotItems->count(),
+            $perPage,
+            $page,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
+
+        return view('reports.inventory', [
+            'snapshotItemsPage' => $snapshotItemsPage,
+            'lowStockItemsPage' => $lowStockItemsPage,
+            'totalItems' => $data['totalItems'],
+            'totalQuantity' => $data['totalQuantity'],
+            'totalValueAsOf' => $data['totalValueAsOf'],
+            'hasAnyCostData' => $data['hasAnyCostData'],
+            'lowStockCount' => $data['lowStockCount'],
+            'asOfDate' => $data['asOfDate'],
+            'branchId' => $branchId,
+            'branches' => Branch::query()->where('is_active', true)->orderBy('name')->get(),
+            'selectedBranchId' => $branchId,
+        ]);
+    }
+
+    public function inventoryExport(Request $request)
+    {
+        $data = $this->buildInventoryAsOfSnapshot($request);
+
+        $filename = 'inventory-value-as-of-'.$data['asOfDate'].'.xlsx';
+
+        return Excel::download(
+            new \App\Exports\InventoryValueAsOfDateExport($data['snapshotItems'], $data['lowStockItems'], $data['asOfDate']),
+            $filename
+        );
+    }
+
+    /**
+     * Shared by the report page and its Excel export, so both always show
+     * the exact same numbers for a given date/branch.
+     *
+     * @return array{snapshotItems: \Illuminate\Support\Collection, lowStockItems: \Illuminate\Support\Collection, totalItems: int, totalQuantity: float, totalValueAsOf: float, hasAnyCostData: bool, lowStockCount: int, asOfDate: string, branchId: ?int}
+     */
+    private function buildInventoryAsOfSnapshot(Request $request): array
+    {
         $branchId = $this->resolveBranchId($request);
 
         // The Low Stock Alert is a live, right-now operational warning —
@@ -31,18 +95,8 @@ class ReportController extends Controller
             ->orderBy('name')
             ->get();
 
-        $lowStockItems = $items->filter(fn (Item $item) => $item->quantity <= $item->low_stock_threshold);
+        $lowStockItems = $items->filter(fn (Item $item) => $item->quantity <= $item->low_stock_threshold)->values();
         $lowStockCount = $lowStockItems->count();
-
-        $lowStockPerPage = 20;
-        $lowStockPage = \Illuminate\Pagination\LengthAwarePaginator::resolveCurrentPage('low_stock_page');
-        $lowStockItemsPage = new \Illuminate\Pagination\LengthAwarePaginator(
-            $lowStockItems->forPage($lowStockPage, $lowStockPerPage)->values(),
-            $lowStockItems->count(),
-            $lowStockPerPage,
-            $lowStockPage,
-            ['path' => $request->url(), 'query' => $request->query(), 'pageName' => 'low_stock_page']
-        );
 
         $asOfDate = $this->validatedAsOfDate($request);
         $cutoff = \Illuminate\Support\Carbon::parse($asOfDate)->endOfDay();
@@ -102,38 +156,17 @@ class ReportController extends Controller
             $item->value_as_of = round($item->quantity_as_of * $item->cost_as_of, 2);
         });
 
-        $totalItems = $snapshotItems->count();
-        $totalQuantity = $snapshotItems->sum('quantity_as_of');
-        $totalValueAsOf = $snapshotItems->sum('value_as_of');
-        $hasAnyCostData = $snapshotItems->contains(fn (Item $item) => (float) $item->cost_as_of > 0);
-
-        // Totals above are computed from every matching item, then the same
-        // collection is paginated for display only — mirrors how cogs()
-        // computes its formula totals separately from the paginated list.
-        $perPage = $this->perPage($request, 20);
-        $page = \Illuminate\Pagination\LengthAwarePaginator::resolveCurrentPage();
-        $snapshotItemsPage = new \Illuminate\Pagination\LengthAwarePaginator(
-            $snapshotItems->forPage($page, $perPage)->values(),
-            $snapshotItems->count(),
-            $perPage,
-            $page,
-            ['path' => $request->url(), 'query' => $request->query()]
-        );
-
-        return view('reports.inventory', compact(
-            'snapshotItemsPage',
-            'lowStockItemsPage',
-            'totalItems',
-            'totalQuantity',
-            'totalValueAsOf',
-            'hasAnyCostData',
-            'lowStockCount',
-            'asOfDate',
-            'branchId'
-        ) + [
-            'branches' => Branch::query()->where('is_active', true)->orderBy('name')->get(),
-            'selectedBranchId' => $branchId,
-        ]);
+        return [
+            'snapshotItems' => $snapshotItems,
+            'lowStockItems' => $lowStockItems,
+            'totalItems' => $snapshotItems->count(),
+            'totalQuantity' => $snapshotItems->sum('quantity_as_of'),
+            'totalValueAsOf' => $snapshotItems->sum('value_as_of'),
+            'hasAnyCostData' => $snapshotItems->contains(fn (Item $item) => (float) $item->cost_as_of > 0),
+            'lowStockCount' => $lowStockCount,
+            'asOfDate' => $asOfDate,
+            'branchId' => $branchId,
+        ];
     }
 
     private function validatedAsOfDate(Request $request): string
