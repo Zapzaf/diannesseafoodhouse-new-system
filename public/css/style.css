@@ -567,6 +567,19 @@ body {
     padding-right: 2.5rem !important;
 }
 
+/* Native date/time inputs render their calendar/clock icon (and the popup
+   picker itself) using the browser's light-mode palette by default, which
+   makes the icon nearly invisible against a dark .form-control background —
+   color-scheme tells the browser to render this control's native UI (icon +
+   popup) using its dark variant instead. */
+[data-bs-theme="dark"] input[type="date"],
+[data-bs-theme="dark"] input[type="time"],
+[data-bs-theme="dark"] input[type="datetime-local"],
+[data-bs-theme="dark"] input[type="month"],
+[data-bs-theme="dark"] input[type="week"] {
+    color-scheme: dark;
+}
+
 /* Buttons default to a taller padding (styles-old.css: --bs-btn-padding-y:
    0.875rem) than .form-control/.form-select above (0.6rem) — normally not
    noticeable, but obvious wherever a Filter/Reset/Apply button sits directly

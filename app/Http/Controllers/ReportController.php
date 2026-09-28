@@ -90,8 +90,21 @@ class ReportController extends Controller
         $totalQuantity = $snapshotItems->sum('quantity_as_of');
         $totalValueAsOf = $snapshotItems->sum('value_as_of');
 
+        // Totals above are computed from every matching item, then the same
+        // collection is paginated for display only — mirrors how cogs()
+        // computes its formula totals separately from the paginated list.
+        $perPage = $this->perPage($request, 20);
+        $page = \Illuminate\Pagination\LengthAwarePaginator::resolveCurrentPage();
+        $snapshotItemsPage = new \Illuminate\Pagination\LengthAwarePaginator(
+            $snapshotItems->forPage($page, $perPage)->values(),
+            $snapshotItems->count(),
+            $perPage,
+            $page,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
+
         return view('reports.inventory', compact(
-            'snapshotItems',
+            'snapshotItemsPage',
             'lowStockItems',
             'totalItems',
             'totalQuantity',

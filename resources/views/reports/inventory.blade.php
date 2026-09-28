@@ -113,6 +113,9 @@
                     <button type="submit" class="btn btn-primary">View</button>
                 </div>
             </form>
+            @if($asOfDate !== now()->toDateString())
+            <div class="alert alert-info small py-2">Showing inventory as of <strong>{{ \Illuminate\Support\Carbon::parse($asOfDate)->format('M d, Y') }}</strong>. <a href="{{ route('reports.inventory.index') }}" class="alert-link">Back to today</a>.</div>
+            @endif
             <p class="form-text text-muted">Unit cost is the most recent purchase price on or before this date; items never purchased before then show today's current cost instead.</p>
             <div class="table-responsive">
                 <table class="table table-bordered table-striped">
@@ -132,9 +135,9 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @forelse($snapshotItems as $index => $item)
+                        @forelse($snapshotItemsPage as $index => $item)
                         <tr>
-                            <td>{{ $index + 1 }}</td>
+                            <td>{{ $snapshotItemsPage->firstItem() + $index }}</td>
                             <td class="fw-semibold">{{ $item->name }}</td>
                             <td>{{ $item->branch?->name ?? '—' }}</td>
                             <td>{{ $item->category?->location?->name ?? '—' }}</td>
@@ -161,6 +164,9 @@
                 </table>
             </div>
         </div>
+        @if($snapshotItemsPage->hasPages())
+        <div class="card-footer d-flex justify-content-center">{{ $snapshotItemsPage->links('pagination::bootstrap-5') }}</div>
+        @endif
     </div>
 </div>
 @endsection

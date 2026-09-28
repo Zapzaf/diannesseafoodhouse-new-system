@@ -64,8 +64,8 @@ it('values inventory as of a chosen past date, unwinding later transactions', fu
     // since quantity is a running column, not derived).
     $this->actingAs($user)->get(route('reports.inventory.index', ['as_of_date' => '2026-09-05']))
         ->assertOk()
-        ->assertViewHas('snapshotItems', function ($items) {
-            $item = $items->firstWhere('name', 'AsOf Item');
+        ->assertViewHas('snapshotItemsPage', function ($items) {
+            $item = $items->getCollection()->firstWhere('name', 'AsOf Item');
 
             // As of Sep 5: current qty (30) - in-after-cutoff (10) + out-after-cutoff (5) = 25.
             expect((float) $item->quantity_as_of)->toBe(25.0)
@@ -107,8 +107,8 @@ it('falls back to the current unit price when an item has no priced purchase bef
 
     $this->actingAs($user)->get(route('reports.inventory.index', ['as_of_date' => '2026-09-01']))
         ->assertOk()
-        ->assertViewHas('snapshotItems', function ($items) {
-            $item = $items->firstWhere('name', 'Never Purchased Before Cutoff');
+        ->assertViewHas('snapshotItemsPage', function ($items) {
+            $item = $items->getCollection()->firstWhere('name', 'Never Purchased Before Cutoff');
 
             expect((float) $item->cost_as_of)->toBe(42.0); // falls back to today's current unit_price
 
@@ -135,8 +135,8 @@ it('excludes items created after the chosen date', function () {
 
     $this->actingAs($user)->get(route('reports.inventory.index', ['as_of_date' => '2026-09-01']))
         ->assertOk()
-        ->assertViewHas('snapshotItems', function ($items) {
-            expect($items->firstWhere('name', 'Created Later Item'))->toBeNull();
+        ->assertViewHas('snapshotItemsPage', function ($items) {
+            expect($items->getCollection()->firstWhere('name', 'Created Later Item'))->toBeNull();
 
             return true;
         });
