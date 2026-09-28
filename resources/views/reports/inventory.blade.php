@@ -80,6 +80,7 @@
                             <th>Category</th>
                             <th>Current Stock</th>
                             <th>Threshold</th>
+                            <th class="text-end">Unit Cost</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -91,6 +92,7 @@
                             <td>{{ $item->category?->name ?? '—' }}</td>
                             <td class="text-danger fw-bold">{{ number_format($item->quantity, 2) }} {{ $item->unit }}</td>
                             <td class="text-muted">{{ number_format($item->low_stock_threshold, 2) }} {{ $item->unit }}</td>
+                            <td class="text-end">₱{{ number_format($item->unit_price, 2) }}</td>
                         </tr>
                         @endforeach
                     </tbody>
