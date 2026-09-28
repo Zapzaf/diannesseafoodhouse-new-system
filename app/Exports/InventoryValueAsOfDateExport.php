@@ -48,7 +48,7 @@ class InventoryAsOfDateSheet implements FromCollection, WithHeadings, WithTitle,
 
     public function collection(): Collection
     {
-        return $this->items->values()->map(fn (Item $item, int $index): array => [
+        $rows = $this->items->values()->map(fn (Item $item, int $index): array => [
             $index + 1,
             $item->name,
             $item->branch?->name ?? '',
@@ -61,6 +61,13 @@ class InventoryAsOfDateSheet implements FromCollection, WithHeadings, WithTitle,
             (float) $item->value_as_of,
             $this->status($item),
         ]);
+
+        $rows->push([
+            '', 'TOTAL ITEMS: '.$this->items->count(), '', '', '', '', '', '',
+            'TOTAL VALUE:', round((float) $this->items->sum('value_as_of'), 2), '',
+        ]);
+
+        return $rows;
     }
 
     public function headings(): array
@@ -91,16 +98,26 @@ class InventoryAsOfDateSheet implements FromCollection, WithHeadings, WithTitle,
         $lastRow = $sheet->getHighestDataRow();
         $lastColumn = $sheet->getHighestDataColumn();
 
+        // Data rows only get an autofilter range (excludes the totals row below it).
         $sheet->freezePane('A2');
-        $sheet->setAutoFilter("A1:{$lastColumn}{$lastRow}");
+        $sheet->setAutoFilter('A1:'.$lastColumn.max($lastRow - 1, 1));
 
-        return [
+        $styles = [
             1 => [
                 'font' => ['bold' => true, 'color' => ['argb' => 'FFFFFFFF']],
                 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF2D3748']],
                 'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
             ],
         ];
+
+        if ($lastRow > 1) {
+            $styles[$lastRow] = [
+                'font' => ['bold' => true],
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFEDF2F7']],
+            ];
+        }
+
+        return $styles;
     }
 
     private function status(Item $item): string
@@ -121,7 +138,7 @@ class InventoryLowStockSheet implements FromCollection, WithHeadings, WithTitle,
 
     public function collection(): Collection
     {
-        return $this->items->values()->map(fn (Item $item): array => [
+        $rows = $this->items->values()->map(fn (Item $item): array => [
             $item->name,
             $item->branch?->name ?? '',
             $item->category?->location?->name ?? '',
@@ -130,6 +147,10 @@ class InventoryLowStockSheet implements FromCollection, WithHeadings, WithTitle,
             (float) $item->low_stock_threshold,
             (float) ($item->unit_price ?? 0),
         ]);
+
+        $rows->push(['TOTAL ITEMS: '.$this->items->count(), '', '', '', '', '', '']);
+
+        return $rows;
     }
 
     public function headings(): array
@@ -157,14 +178,23 @@ class InventoryLowStockSheet implements FromCollection, WithHeadings, WithTitle,
         $lastColumn = $sheet->getHighestDataColumn();
 
         $sheet->freezePane('A2');
-        $sheet->setAutoFilter("A1:{$lastColumn}{$lastRow}");
+        $sheet->setAutoFilter('A1:'.$lastColumn.max($lastRow - 1, 1));
 
-        return [
+        $styles = [
             1 => [
                 'font' => ['bold' => true, 'color' => ['argb' => 'FFFFFFFF']],
                 'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFB45309']],
                 'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
             ],
         ];
+
+        if ($lastRow > 1) {
+            $styles[$lastRow] = [
+                'font' => ['bold' => true],
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFEDF2F7']],
+            ];
+        }
+
+        return $styles;
     }
 }
