@@ -65,7 +65,7 @@
 
     {{-- Low Stock Alert --}}
     @if($lowStockItems->isNotEmpty())
-    <div class="card shadow-sm mb-4 border-warning">
+    <div class="card shadow-sm mb-4 border-warning" data-static-pagination="1">
         <div class="card-header text-warning fw-semibold">
             <i data-lucide="alert-triangle" class="me-1"></i> Low Stock Items ({{ $lowStockItems->count() }})
         </div>
@@ -101,7 +101,7 @@
     @endif
 
     {{-- All Items --}}
-    <div class="card shadow-sm">
+    <div class="card shadow-sm" data-static-pagination="1">
         <div class="card-header fw-semibold"><i data-lucide="archive" class="me-1"></i> All Items — Stock Levels as of {{ \Illuminate\Support\Carbon::parse($asOfDate)->format('M d, Y') }}</div>
         <div class="card-body">
             <form method="GET" class="row g-2 align-items-end mb-3">
