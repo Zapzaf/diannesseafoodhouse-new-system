@@ -116,14 +116,21 @@ it('falls back to the current unit price when an item has no priced purchase bef
         });
 });
 
-it('excludes items created after the chosen date', function () {
+it('still includes an item in the snapshot even if its row was only entered into the system after the chosen date', function () {
+    // items.created_at reflects when the row was entered into this system
+    // (often a bulk import), not necessarily when the item actually existed
+    // in the business — it must not be used to hide items from a past
+    // snapshot, or a data migration date would wrongly zero out every item
+    // for any date before it (this happened with the real dataset: all
+    // items were bulk-imported on one day, which made every earlier date
+    // show zero items until this was fixed).
     $user = User::factory()->create(['role' => 'admin']);
     $branch = Branch::create(['name' => 'AsOf Branch 3', 'address' => 'Test Address', 'is_active' => true]);
     $location = Location::create(['name' => 'AsOf Location 3', 'branch_id' => $branch->id]);
     $category = Category::create(['name' => 'AsOf Category 3', 'branch_id' => $branch->id, 'location_id' => $location->id]);
 
     $item = tap(Item::create([
-        'name' => 'Created Later Item',
+        'name' => 'Imported Later Item',
         'category_id' => $category->id,
         'branch_id' => $branch->id,
         'unit' => 'kg',
@@ -131,12 +138,39 @@ it('excludes items created after the chosen date', function () {
         'unit_price' => 20,
         'low_stock_threshold' => 1,
         'created_by' => $user->id,
-    ]))->forceFill(['created_at' => '2026-09-15 08:00:00'])->save();
+    ]), fn ($i) => $i->forceFill(['created_at' => '2026-09-15 08:00:00'])->save());
 
     $this->actingAs($user)->get(route('reports.inventory.index', ['as_of_date' => '2026-09-01']))
         ->assertOk()
         ->assertViewHas('snapshotItemsPage', function ($items) {
-            expect($items->getCollection()->firstWhere('name', 'Created Later Item'))->toBeNull();
+            expect($items->getCollection()->firstWhere('name', 'Imported Later Item'))->not->toBeNull();
+
+            return true;
+        });
+});
+
+it('excludes an item that was soft-deleted before the chosen date', function () {
+    $user = User::factory()->create(['role' => 'admin']);
+    $branch = Branch::create(['name' => 'AsOf Branch 4', 'address' => 'Test Address', 'is_active' => true]);
+    $location = Location::create(['name' => 'AsOf Location 4', 'branch_id' => $branch->id]);
+    $category = Category::create(['name' => 'AsOf Category 4', 'branch_id' => $branch->id, 'location_id' => $location->id]);
+
+    $item = tap(Item::create([
+        'name' => 'Deleted Before Cutoff Item',
+        'category_id' => $category->id,
+        'branch_id' => $branch->id,
+        'unit' => 'kg',
+        'quantity' => 5,
+        'unit_price' => 20,
+        'low_stock_threshold' => 1,
+        'created_by' => $user->id,
+    ]), fn ($i) => $i->forceFill(['created_at' => '2026-08-01 08:00:00'])->save());
+    $item->forceFill(['deleted_at' => '2026-08-15 08:00:00'])->save();
+
+    $this->actingAs($user)->get(route('reports.inventory.index', ['as_of_date' => '2026-09-01']))
+        ->assertOk()
+        ->assertViewHas('snapshotItemsPage', function ($items) {
+            expect($items->getCollection()->firstWhere('name', 'Deleted Before Cutoff Item'))->toBeNull();
 
             return true;
         });

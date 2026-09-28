@@ -34,6 +34,16 @@ class ReportController extends Controller
         $lowStockItems = $items->filter(fn (Item $item) => $item->quantity <= $item->low_stock_threshold);
         $lowStockCount = $lowStockItems->count();
 
+        $lowStockPerPage = 20;
+        $lowStockPage = \Illuminate\Pagination\LengthAwarePaginator::resolveCurrentPage('low_stock_page');
+        $lowStockItemsPage = new \Illuminate\Pagination\LengthAwarePaginator(
+            $lowStockItems->forPage($lowStockPage, $lowStockPerPage)->values(),
+            $lowStockItems->count(),
+            $lowStockPerPage,
+            $lowStockPage,
+            ['path' => $request->url(), 'query' => $request->query(), 'pageName' => 'low_stock_page']
+        );
+
         $asOfDate = $this->validatedAsOfDate($request);
         $cutoff = \Illuminate\Support\Carbon::parse($asOfDate)->endOfDay();
 
@@ -52,13 +62,19 @@ class ReportController extends Controller
             ->latest('created_at')
             ->limit(1);
 
+        // Not filtered by items.created_at: that column reflects when the row
+        // was entered into this system (e.g. a bulk data import), not when
+        // the item actually came into existence in the business — filtering
+        // on it would wrongly hide real items from any date before that
+        // import. An item only truly didn't exist yet if it hasn't been
+        // deleted as of the cutoff (kept below) or, in principle, doesn't
+        // have any transaction history before the cutoff — but we still show
+        // it either way, just with whatever quantity/cost the unwind yields.
         $snapshotItems = Item::query()
             ->withTrashed()
             ->with(['category.location', 'branch'])
             ->when($branchId, fn ($q, $id) => $q->where('branch_id', $id))
-            ->where('created_at', '<=', $cutoff)
-            // Exclude items that didn't exist yet as of the cutoff, but keep
-            // ones only deleted after it.
+            // Keep items only deleted after the cutoff — still existed then.
             ->where(fn ($q) => $q->whereNull('deleted_at')->orWhere('deleted_at', '>', $cutoff))
             ->select('items.*')
             ->selectSub($costAsOfSub, 'cost_as_of')
@@ -89,6 +105,7 @@ class ReportController extends Controller
         $totalItems = $snapshotItems->count();
         $totalQuantity = $snapshotItems->sum('quantity_as_of');
         $totalValueAsOf = $snapshotItems->sum('value_as_of');
+        $hasAnyCostData = $snapshotItems->contains(fn (Item $item) => (float) $item->cost_as_of > 0);
 
         // Totals above are computed from every matching item, then the same
         // collection is paginated for display only — mirrors how cogs()
@@ -105,10 +122,11 @@ class ReportController extends Controller
 
         return view('reports.inventory', compact(
             'snapshotItemsPage',
-            'lowStockItems',
+            'lowStockItemsPage',
             'totalItems',
             'totalQuantity',
             'totalValueAsOf',
+            'hasAnyCostData',
             'lowStockCount',
             'asOfDate',
             'branchId'
