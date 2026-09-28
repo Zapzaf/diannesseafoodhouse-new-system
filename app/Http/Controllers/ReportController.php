@@ -22,6 +22,9 @@ class ReportController extends Controller
     {
         $branchId = $this->resolveBranchId($request);
 
+        // The Low Stock Alert is a live, right-now operational warning —
+        // always today's actual stock, independent of whatever date the
+        // snapshot below is showing.
         $items = Item::query()
             ->with(['category.location', 'branch'])
             ->when($branchId, fn ($q, $id) => $q->where('branch_id', $id))
@@ -29,22 +32,86 @@ class ReportController extends Controller
             ->get();
 
         $lowStockItems = $items->filter(fn (Item $item) => $item->quantity <= $item->low_stock_threshold);
-
-        $totalItems = $items->count();
-        $totalQuantity = $items->sum('quantity');
         $lowStockCount = $lowStockItems->count();
 
+        $asOfDate = $this->validatedAsOfDate($request);
+        $cutoff = \Illuminate\Support\Carbon::parse($asOfDate)->endOfDay();
+
+        // Most recent priced purchase ("in") on or before the cutoff — the
+        // same latest-purchase-cost convention the COGS report uses, just
+        // date-bounded so a later price change doesn't leak into a past
+        // snapshot. Items never purchased before the cutoff fall back to
+        // today's current unit_price.
+        $costAsOfSub = InventoryTransaction::query()
+            ->select('transaction_price')
+            ->whereColumn('item_id', 'items.id')
+            ->where('type', 'in')
+            ->where('status', 'approved')
+            ->whereNotNull('transaction_price')
+            ->where('created_at', '<=', $cutoff)
+            ->latest('created_at')
+            ->limit(1);
+
+        $snapshotItems = Item::query()
+            ->withTrashed()
+            ->with(['category.location', 'branch'])
+            ->when($branchId, fn ($q, $id) => $q->where('branch_id', $id))
+            ->where('created_at', '<=', $cutoff)
+            // Exclude items that didn't exist yet as of the cutoff, but keep
+            // ones only deleted after it.
+            ->where(fn ($q) => $q->whereNull('deleted_at')->orWhere('deleted_at', '>', $cutoff))
+            ->select('items.*')
+            ->selectSub($costAsOfSub, 'cost_as_of')
+            ->orderBy('name')
+            ->get();
+
+        // Quantity as of the cutoff = current balance, with everything that
+        // happened after the cutoff unwound back out — mirrors the
+        // beginning/ending inventory formula in cogsFormulaTotals().
+        $afterByItem = InventoryTransaction::query()
+            ->whereIn('item_id', $snapshotItems->pluck('id'))
+            ->where('status', 'approved')
+            ->where('created_at', '>', $cutoff)
+            ->selectRaw("item_id,
+                SUM(CASE WHEN type = 'in' THEN quantity ELSE 0 END) as qty_in,
+                SUM(CASE WHEN type = 'out' THEN quantity ELSE 0 END) as qty_out")
+            ->groupBy('item_id')->get()->keyBy('item_id');
+
+        $snapshotItems->each(function (Item $item) use ($afterByItem): void {
+            $after = $afterByItem->get($item->id);
+            $item->quantity_as_of = round((float) $item->quantity
+                - (float) ($after->qty_in ?? 0)
+                + (float) ($after->qty_out ?? 0), 2);
+            $item->cost_as_of = round((float) ($item->cost_as_of ?? $item->unit_price), 4);
+            $item->value_as_of = round($item->quantity_as_of * $item->cost_as_of, 2);
+        });
+
+        $totalItems = $snapshotItems->count();
+        $totalQuantity = $snapshotItems->sum('quantity_as_of');
+        $totalValueAsOf = $snapshotItems->sum('value_as_of');
+
         return view('reports.inventory', compact(
-            'items',
+            'snapshotItems',
             'lowStockItems',
             'totalItems',
             'totalQuantity',
+            'totalValueAsOf',
             'lowStockCount',
+            'asOfDate',
             'branchId'
         ) + [
             'branches' => Branch::query()->where('is_active', true)->orderBy('name')->get(),
             'selectedBranchId' => $branchId,
         ]);
+    }
+
+    private function validatedAsOfDate(Request $request): string
+    {
+        $validated = $request->validate([
+            'as_of_date' => ['nullable', 'date', 'before_or_equal:today'],
+        ]);
+
+        return $validated['as_of_date'] ?? now()->toDateString();
     }
 
     /**
