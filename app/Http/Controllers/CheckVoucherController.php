@@ -425,6 +425,62 @@ class CheckVoucherController extends Controller
             ->with('success', 'Check Voucher '.$cvNo.' deleted.');
     }
 
+    /**
+     * Admin-only: edit the Voucher Details header of an existing CV (date,
+     * CV #, payee, particulars, payment method, bank account, EWT rate,
+     * remarks). Amounts stay derived from the receipts / APV allocations /
+     * PCVs the CV settles, so only EWT can move amount_paid here — and when
+     * it does, the Check Register entry and anything the CV settles are
+     * brought back in line.
+     */
+    public function update(Request $request, CheckVoucher $checkVoucher)
+    {
+        abort_unless($request->user()?->isAdmin(), 403);
+        $this->authorizeBranchRecord($request, $checkVoucher->branch_id);
+
+        $validated = $request->validate([
+            'date' => ['required', 'date'],
+            'cv_no' => ['required', 'string', 'max:50', Rule::unique('check_vouchers', 'cv_no')->where(fn ($q) => $q->where('type', $checkVoucher->type))->ignore($checkVoucher->id)],
+            'payee_name' => ['required', 'string', 'max:255'],
+            'particulars' => ['required', 'string', 'max:255'],
+            'payment_method' => ['required', Rule::in(['cash', 'check', 'bank_transfer', 'online'])],
+            'bank_account_id' => ['nullable', 'exists:bank_accounts,id'],
+            'ewt_rate' => ['nullable', 'numeric', 'min:0', 'max:1'],
+            'remarks' => ['nullable', 'string'],
+        ]);
+
+        // A check already logged in the Check Register can't silently become a
+        // cash/online payment (and vice versa) — that would orphan or skip the
+        // register entry. Delete and re-create the CV for that instead.
+        if ($validated['payment_method'] !== $checkVoucher->payment_method && $checkVoucher->status !== 'draft') {
+            throw ValidationException::withMessages([
+                'payment_method' => 'Payment Method can only be changed while the Check Voucher is still a draft.',
+            ]);
+        }
+
+        DB::transaction(function () use ($request, $checkVoucher, $validated): void {
+            $checkVoucher->fill([
+                ...$validated,
+                'ewt_rate' => $validated['ewt_rate'] ?? 0,
+                'updated_by' => $request->user()->id,
+            ]);
+            $checkVoucher->applyEwt();
+            $checkVoucher->save();
+
+            $checkVoucher->checkRegisterEntry?->update([
+                'payee' => $checkVoucher->payee_name,
+                'particulars' => $checkVoucher->particulars,
+                'amount' => $checkVoucher->amount_paid,
+            ]);
+        });
+
+        $checkVoucher->load(['apvAllocations.purchaseVoucher', 'purchaseVoucher']);
+        $checkVoucher->linkedPurchaseVouchers()->each->recomputeStatus();
+        $checkVoucher->service?->recomputeStatus();
+
+        return redirect()->route('check-vouchers.show', $checkVoucher)->with('success', 'Check Voucher '.$checkVoucher->cv_no.' updated.');
+    }
+
     public function show(Request $request, CheckVoucher $checkVoucher)
     {
         $this->authorizeBranchRecord($request, $checkVoucher->branch_id);
@@ -441,7 +497,12 @@ class CheckVoucherController extends Controller
                 ->get()
             : collect();
 
-        return view('check-vouchers.show', compact('checkVoucher', 'suppliers', 'costAccounts', 'availableApvs'));
+        $bankAccounts = BankAccount::where('is_active', true)
+            ->where(fn ($q) => $q->whereNull('branch_id')->orWhere('branch_id', $checkVoucher->branch_id)->orWhere('id', $checkVoucher->bank_account_id))
+            ->orderBy('bank_name')
+            ->get();
+
+        return view('check-vouchers.show', compact('checkVoucher', 'suppliers', 'costAccounts', 'availableApvs', 'bankAccounts'));
     }
 
     /**

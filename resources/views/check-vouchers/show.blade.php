@@ -57,7 +57,14 @@
         </div>
 
         <div class="card mb-4">
-            <div class="card-header"><i class="me-1" data-lucide="info"></i> Voucher Details</div>
+            <div class="card-header d-flex align-items-center justify-content-between gap-2">
+                <span><i class="me-1" data-lucide="info"></i> Voucher Details</span>
+                @if(auth()->user()->isAdmin())
+                <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editDetailsModal">
+                    <i data-lucide="pencil" class="me-1"></i> Edit
+                </button>
+                @endif
+            </div>
             <div class="card-body">
                 <div class="row g-3">
                     <div class="col-md-3"><div class="small text-muted">Date</div><div class="fw-semibold">{{ $checkVoucher->date->format('M d, Y') }}</div></div>
@@ -527,6 +534,10 @@
 
         @include('partials.attachments', ['attachmentType' => 'check-voucher', 'attachmentId' => $checkVoucher->id, 'attachments' => $checkVoucher->attachments])
     </div>
+
+    @if(auth()->user()->isAdmin())
+        @include('check-vouchers._edit-details-modal')
+    @endif
 @endsection
 
 @push('scripts')
@@ -539,6 +550,11 @@ document.addEventListener('DOMContentLoaded', function () {
             if (target) target.classList.toggle('d-none');
         });
     });
+
+    @if(old('_form') === 'edit_details' && $errors->any())
+    const editDetailsModal = document.getElementById('editDetailsModal');
+    if (editDetailsModal) bootstrap.Modal.getOrCreateInstance(editDetailsModal).show();
+    @endif
 
     const addApvSelect = document.getElementById('addApvSelect');
     const addApvAmount = document.getElementById('addApvAmount');

@@ -477,6 +477,7 @@ Route::middleware('auth')->group(function (): void {
 		Route::get('/unpaid-apvs', [CheckVoucherController::class, 'unpaidApvs'])->name('unpaid-apvs');
 		Route::get('/unpaid-services', [CheckVoucherController::class, 'unpaidServices'])->name('unpaid-services');
 		Route::get('/{checkVoucher}', [CheckVoucherController::class, 'show'])->name('show');
+		Route::put('/{checkVoucher}', [CheckVoucherController::class, 'update'])->name('update');
 		Route::post('/{checkVoucher}/issue-check', [CheckVoucherController::class, 'issueCheck'])->name('issue-check');
 		Route::post('/{checkVoucher}/mark-paid', [CheckVoucherController::class, 'markPaid'])->name('mark-paid');
 		Route::post('/{checkVoucher}/receipts', [CheckVoucherController::class, 'addReceipt'])->name('receipts.store');
