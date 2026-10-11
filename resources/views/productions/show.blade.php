@@ -8,6 +8,8 @@
         $totalInputQuantity = $production->inputs->sum(fn ($input) => (float) $input->quantity_used);
         $totalOutputQuantity = $production->outputs->sum(fn ($output) => (float) $output->quantity_produced);
         $totalScrapQuantity = $scrapItems->sum(fn ($item) => (float) $item->quantity_lost);
+        $productionDate = $production->production_date ?? $production->created_at;
+        $canEditDates = $production->status !== 'cancelled';
     @endphp
 
     <x-page-header :title="'Production #' . $production->id" :subtitle="'Branch: ' . ($production->branch?->name ?? 'N/A')" icon="settings">
@@ -27,7 +29,7 @@
                         <div class="detail-stat-value text-capitalize">{{ str_replace('_', ' ', $production->status) }}</div>
                         <div class="detail-stat-meta">
                             @if($production->finished_at)
-                                Finished {{ $production->finished_at->format('M d, Y h:i A') }}
+                                Finished {{ $production->finished_at->format('M d, Y') }}
                             @elseif($production->cancelled_at)
                                 Cancelled {{ $production->cancelled_at->format('M d, Y h:i A') }}
                             @else
@@ -42,7 +44,7 @@
                     <div class="card-body">
                         <span class="detail-stat-label">Created By</span>
                         <div class="detail-stat-value">{{ $production->creator?->name ?? 'N/A' }}</div>
-                        <div class="detail-stat-meta">Started {{ $production->created_at?->format('M d, Y h:i A') ?? 'N/A' }}</div>
+                        <div class="detail-stat-meta">Created {{ $production->created_at?->format('M d, Y h:i A') ?? 'N/A' }}</div>
                     </div>
                 </div>
             </div>
@@ -65,6 +67,80 @@
                 </div>
             </div>
         </div>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-header fw-semibold d-flex align-items-center justify-content-between gap-2">
+                <span><i data-lucide="calendar" class="me-1"></i> Production Dates</span>
+                @if($canEditDates)
+                <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editProductionDatesModal">
+                    <i data-lucide="pencil" class="me-1"></i> Edit Dates
+                </button>
+                @endif
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="small text-muted">Production Date</div>
+                        <div class="fw-semibold">{{ $productionDate?->format('M d, Y') ?? 'N/A' }}</div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="small text-muted">Production Finish Date</div>
+                        <div class="fw-semibold">{{ $production->finished_at?->format('M d, Y') ?? '—' }}</div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="small text-muted">Inventory Transaction Date</div>
+                        <div class="fw-semibold">
+                            @if($production->finished_at)
+                                {{ $production->finished_at->format('M d, Y') }}
+                                <span class="small text-muted fw-normal">(follows the finish date)</span>
+                            @else
+                                —
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @if($canEditDates)
+        <div class="modal fade" id="editProductionDatesModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+                <form action="{{ route('productions.dates.update', $production) }}" method="POST">
+                    @csrf @method('PUT')
+                    <input type="hidden" name="_form" value="production_dates">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title"><i data-lucide="calendar" class="me-1"></i> Edit Production Dates</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Production Date <span class="text-danger">*</span></label>
+                                <input type="date" name="production_date" class="form-control @error('production_date') is-invalid @enderror"
+                                    value="{{ old('production_date', $productionDate?->toDateString()) }}" max="{{ now()->toDateString() }}" required>
+                                @error('production_date') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
+                            @if($production->status === 'finished')
+                            <div class="mb-2">
+                                <label class="form-label fw-semibold">Production Finish Date <span class="text-danger">*</span></label>
+                                <input type="date" name="finished_date" class="form-control @error('finished_date') is-invalid @enderror"
+                                    value="{{ old('finished_date', $production->finished_at?->toDateString()) }}" max="{{ now()->toDateString() }}" required>
+                                @error('finished_date') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            </div>
+                            <div class="form-text">The inventory Transaction Date of this production's outputs and scrap will be moved to the finish date. Raw input pulls follow the Production Date.</div>
+                            @else
+                            <div class="form-text">The Production Finish Date is set when you finish this production.</div>
+                            @endif
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Save Dates</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        @endif
 
         <div class="row g-4 mb-4">
             <div class="col-lg-12">
@@ -308,9 +384,17 @@
                         </table>
                     </div>
 
-                    <div class="mt-3 d-flex justify-content-end">
+                    <div class="mt-3 d-flex justify-content-end align-items-end gap-3 flex-wrap">
+                        <div>
+                            <label class="form-label fw-semibold mb-1">Production Finish Date <span class="text-danger">*</span></label>
+                            <input type="date" name="finished_date" class="form-control @error('finished_date') is-invalid @enderror"
+                                value="{{ old('finished_date', now()->toDateString()) }}"
+                                min="{{ $productionDate?->toDateString() }}" max="{{ now()->toDateString() }}" required>
+                            @error('finished_date') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        </div>
                         <button type="submit" class="btn btn-success">Finish Production</button>
                     </div>
+                    <div class="small text-muted text-end mt-2">The inventory Transaction Date of the outputs and scrap will be set to this date.</div>
                 </form>
             </div>
         </div>
@@ -322,6 +406,11 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    @if(old('_form') === 'production_dates' && $errors->any())
+    const editDatesModal = document.getElementById('editProductionDatesModal');
+    if (editDatesModal) bootstrap.Modal.getOrCreateInstance(editDatesModal).show();
+    @endif
+
     const itemOptions = @json($items->map(fn ($item) => ['id' => $item->id, 'unit' => $item->unit, 'label' => '#' . $item->id . ' - ' . $item->name . ' (' . ($item->category?->location?->name ?? 'N/A') . ' / ' . ($item->category?->name ?? 'N/A') . ')'])->values());
     let activePickerInput = null;
 

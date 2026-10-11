@@ -39,8 +39,8 @@
                                 <th data-sort-key="branch_name">Branch</th>
                                 @endif
                                 <th data-sort-key="status">Status</th>
-                                <th data-sort-key="created_at">Created Date</th>
-                                <th data-sort-key="finished_at">Finished Date</th>
+                                <th data-sort-key="production_date">Production Date</th>
+                                <th data-sort-key="finished_at">Production Finish Date</th>
                                 <th data-sort-key="inputs_count">Input Details</th>
                                 <th data-sort-key="outputs_count">Output Details</th>
                                 <th class="table-actions-head text-end">Action</th>
@@ -98,8 +98,8 @@ document.addEventListener('DOMContentLoaded', function () {
         searchInputId: 'searchInput',
         perPageId: 'perPage',
         sortColumns: isAdmin
-            ? ['id', 'branch_name', 'status', 'created_at', 'finished_at', 'inputs_count', 'outputs_count']
-            : ['id', 'status', 'created_at', 'finished_at', 'inputs_count', 'outputs_count'],
+            ? ['id', 'branch_name', 'status', 'production_date', 'finished_at', 'inputs_count', 'outputs_count']
+            : ['id', 'status', 'production_date', 'finished_at', 'inputs_count', 'outputs_count'],
         defaultSort: 'created_at',
         defaultDirection: 'desc',
         emptyMessage: 'No production orders yet.',
@@ -121,7 +121,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     </td>
                     ${branchCell}
                     <td><span class="badge-status badge-${ctx.escapeHtml(row.status)}">${ctx.escapeHtml(row.status_label)}</span></td>
-                    <td class="text-muted small">${ctx.escapeHtml(row.created_at || 'N/A')}</td>
+                    <td class="text-muted small">${ctx.escapeHtml(row.production_date || 'N/A')}</td>
                     <td class="text-muted small">${ctx.escapeHtml(row.finished_at || '—')}</td>
                     <td>${renderItemSummary(row.inputs, 'input', 'No inputs')}</td>
                     <td>${renderItemSummary(row.outputs, 'output', 'No outputs yet')}</td>

@@ -14,6 +14,7 @@ use App\Services\WastageInventoryService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -56,7 +57,7 @@ class ProductionManagementController extends Controller
         $branchId = $this->resolveBranchId($request);
         $sort = (string) $request->input('sort', 'created_at');
         $direction = strtolower((string) $request->input('direction', 'desc')) === 'asc' ? 'asc' : 'desc';
-        $allowedSort = ['id', 'branch_name', 'status', 'inputs_count', 'outputs_count', 'created_at', 'finished_at'];
+        $allowedSort = ['id', 'branch_name', 'status', 'inputs_count', 'outputs_count', 'created_at', 'production_date', 'finished_at'];
 
         if (! in_array($sort, $allowedSort, true)) {
             $sort = 'created_at';
@@ -100,7 +101,7 @@ class ProductionManagementController extends Controller
         $branchId = $this->resolveBranchId($request);
         $sort = (string) $request->input('sort', 'created_at');
         $direction = strtolower((string) $request->input('direction', 'desc')) === 'asc' ? 'asc' : 'desc';
-        $allowedSort = ['id', 'branch_name', 'status', 'inputs_count', 'outputs_count', 'created_at', 'finished_at'];
+        $allowedSort = ['id', 'branch_name', 'status', 'inputs_count', 'outputs_count', 'created_at', 'production_date', 'finished_at'];
 
         if (! in_array($sort, $allowedSort, true)) {
             $sort = 'created_at';
@@ -133,6 +134,7 @@ class ProductionManagementController extends Controller
                 'status' => $production->status,
                 'status_label' => strtoupper(str_replace('_', ' ', $production->status)),
                 'created_at' => $production->created_at?->format('M d, Y'),
+                'production_date' => ($production->production_date ?? $production->created_at)?->format('M d, Y'),
                 'finished_at' => $production->finished_at?->format('M d, Y'),
                 'outputs_count' => $production->outputs_count,
                 'inputs' => $this->summarizeProductionItems($production->inputs, 'quantity_used'),
@@ -206,9 +208,12 @@ class ProductionManagementController extends Controller
         }
 
         DB::transaction(function () use ($validated, $request): void {
+            $productionDate = Carbon::parse($validated['production_date'] ?? now()->toDateString());
+
             $order = ProductionOrder::create([
                 'branch_id' => $validated['branch_id'],
                 'status' => 'in_progress',
+                'production_date' => $productionDate->toDateString(),
                 'created_by' => $request->user()->id,
             ]);
 
@@ -233,7 +238,7 @@ class ProductionManagementController extends Controller
                     'beginning_quantity' => $beginning,
                     'remaining_quantity' => $remaining,
                     'transaction_price' => $item->unit_price ? (float) $item->unit_price : null,
-                    'transaction_date' => now(),
+                    'transaction_date' => $productionDate->copy()->setTimeFrom(now()),
                     'reason' => $reason,
                     'status' => 'approved',
                     'created_by' => $request->user()?->id,
@@ -313,9 +318,18 @@ class ProductionManagementController extends Controller
         $request->merge(['outputs' => $outputs, 'wastage' => $wastage]);
 
         $validated = $request->validate(
-            $this->finishProductionRules(),
-            $this->finishProductionMessages()
+            [
+                ...$this->finishProductionRules(),
+                'finished_date' => ['nullable', 'date', 'before_or_equal:today', 'after_or_equal:'.($production->production_date ?? $production->created_at)->toDateString()],
+            ],
+            [
+                ...$this->finishProductionMessages(),
+                'finished_date.after_or_equal' => 'The Production Finish Date cannot be earlier than the Production Date.',
+                'finished_date.before_or_equal' => 'The Production Finish Date cannot be in the future.',
+            ]
         );
+
+        $finishedAt = Carbon::parse($validated['finished_date'] ?? now()->toDateString())->setTimeFrom(now());
 
         if ($production->status === 'finished') {
             return redirect()->route('productions.show', $production)->with('error', 'Production order already finished.');
@@ -339,7 +353,7 @@ class ProductionManagementController extends Controller
             ]);
         }
 
-        DB::transaction(function () use ($production, $validated, $request): void {
+        DB::transaction(function () use ($production, $validated, $request, $finishedAt): void {
             $production = ProductionOrder::query()->lockForUpdate()->findOrFail($production->id);
 
             if ($production->status === 'finished') {
@@ -399,7 +413,7 @@ class ProductionManagementController extends Controller
                     'beginning_quantity' => $beginning,
                     'remaining_quantity' => $remaining,
                     'transaction_price' => $outputUnitCost !== null ? (float) $outputUnitCost : ($item->unit_price ? (float) $item->unit_price : null),
-                    'transaction_date' => now(),
+                    'transaction_date' => $finishedAt,
                     'reason' => 'FROM PRODUCTION: '.$production->id,
                     'status' => 'approved',
                     'created_by' => $request->user()?->id,
@@ -419,11 +433,60 @@ class ProductionManagementController extends Controller
 
             $production->update([
                 'status' => 'finished',
-                'finished_at' => now(),
+                'finished_at' => $finishedAt,
             ]);
+
+            // Scrap loss/conversion rows are written by the wastage service
+            // with today's date — pull them onto the finish date too.
+            $production->syncInventoryTransactionDates();
         });
 
         return redirect()->route('productions.show', $production)->with('success', 'Production order finished successfully.');
+    }
+
+    /**
+     * Edit the Production Date and (once finished) the Production Finish
+     * Date after the fact. The inventory ledger rows for this production
+     * are re-dated to match, so the Transaction Date of a completed
+     * production always follows its Production Finish Date.
+     */
+    public function updateDates(Request $request, ProductionOrder $production): RedirectResponse
+    {
+        $branchId = $this->resolveBranchId($request);
+        if ($branchId && (int) $production->branch_id !== $branchId) {
+            abort(403, 'This production order is outside your active branch.');
+        }
+
+        if ($production->status === 'cancelled') {
+            return redirect()->route('productions.show', $production)->with('error', 'Dates of a cancelled production order can no longer be changed.');
+        }
+
+        $isFinished = $production->status === 'finished';
+
+        $validated = $request->validate([
+            'production_date' => ['required', 'date', 'before_or_equal:today'],
+            'finished_date' => $isFinished
+                ? ['required', 'date', 'before_or_equal:today', 'after_or_equal:production_date']
+                : ['prohibited'],
+        ], [
+            'production_date.before_or_equal' => 'The Production Date cannot be in the future.',
+            'finished_date.before_or_equal' => 'The Production Finish Date cannot be in the future.',
+            'finished_date.after_or_equal' => 'The Production Finish Date cannot be earlier than the Production Date.',
+        ]);
+
+        DB::transaction(function () use ($production, $validated, $isFinished): void {
+            $production->production_date = $validated['production_date'];
+
+            if ($isFinished) {
+                $production->finished_at = Carbon::parse($validated['finished_date'])
+                    ->setTimeFrom($production->finished_at ?? now());
+            }
+
+            $production->save();
+            $production->syncInventoryTransactionDates();
+        });
+
+        return redirect()->route('productions.show', $production)->with('success', 'Production dates updated.');
     }
 
     public function cancel(Request $request, ProductionOrder $production): RedirectResponse
@@ -526,7 +589,7 @@ class ProductionManagementController extends Controller
         $branchId = $this->resolveBranchId($request);
         $sort = (string) $request->input('sort', 'created_at');
         $direction = strtolower((string) $request->input('direction', 'desc')) === 'asc' ? 'asc' : 'desc';
-        $allowedSort = ['id', 'branch_name', 'inputs_count', 'outputs_count', 'created_at'];
+        $allowedSort = ['id', 'branch_name', 'inputs_count', 'outputs_count', 'created_at', 'production_date'];
 
         if (! in_array($sort, $allowedSort, true)) {
             $sort = 'created_at';

@@ -22,7 +22,7 @@
                         <tr>
                             <th data-sort-key="id">Order</th>
                             <th data-sort-key="branch_name">Branch</th>
-                            <th data-sort-key="created_at">Started</th>
+                            <th data-sort-key="production_date">Production Date</th>
                             <th data-sort-key="inputs_count">Input Details</th>
                             <th data-sort-key="outputs_count">Output Details</th>
                             <th class="table-actions-head">Action</th>
@@ -36,7 +36,7 @@
                                 <div class="small text-muted">by {{ $production->creator?->name ?? 'System' }}</div>
                             </td>
                             <td>{{ $production->branch?->name ?? '—' }}</td>
-                            <td class="text-nowrap text-muted small">{{ $production->created_at->format('M d, Y H:i') }}</td>
+                            <td class="text-nowrap text-muted small">{{ ($production->production_date ?? $production->created_at)->format('M d, Y') }}</td>
                             <td>
                                 <x-production-item-summary :items="$production->inputs" quantity-field="quantity_used" empty="No inputs" variant="input" />
                             </td>

@@ -23,6 +23,7 @@ class StoreProductionRequest extends FormRequest
     {
         return [
             'branch_id' => ['required', 'exists:branches,id'],
+            'production_date' => ['nullable', 'date', 'before_or_equal:today'],
             'inputs' => ['required', 'array', 'min:1'],
             'inputs.*.item_id' => ['required', 'exists:items,id'],
             'inputs.*.quantity_used' => ['required', 'numeric', 'gt:0'],

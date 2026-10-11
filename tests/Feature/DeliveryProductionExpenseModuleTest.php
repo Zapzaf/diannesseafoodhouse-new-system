@@ -858,3 +858,80 @@ it('refuses to cancel a production order that already has outputs', function () 
     expect($production->fresh()->status)->toBe('finished')
         ->and((float) $input->fresh()->quantity)->toBe(6.0);
 });
+
+it('records the chosen production and finish dates on the inventory transactions', function () {
+    [$manager, $branch, , $input, $output] = makeDeliveryProductionContext();
+
+    $this->actingAs($manager)->post(route('productions.store'), [
+        'branch_id' => $branch->id,
+        'production_date' => now()->subDays(5)->toDateString(),
+        'inputs' => [['item_id' => $input->id, 'quantity_used' => 4, 'unit' => 'kg']],
+    ])->assertRedirect(route('productions.index'));
+
+    $production = ProductionOrder::query()->firstOrFail();
+    expect($production->production_date->toDateString())->toBe(now()->subDays(5)->toDateString());
+
+    $this->actingAs($manager)->post(route('productions.finish', $production), [
+        'finished_date' => now()->subDays(2)->toDateString(),
+        'outputs' => [['item_id' => $output->id, 'quantity_produced' => 3, 'unit' => 'kg']],
+    ])->assertRedirect(route('productions.show', $production));
+
+    $production->refresh();
+    $pull = InventoryTransaction::where('reason', 'Pulling Items for Production: PROD-'.$production->id)->firstOrFail();
+    $produced = InventoryTransaction::where('reason', 'FROM PRODUCTION: '.$production->id)->firstOrFail();
+
+    expect($production->finished_at->toDateString())->toBe(now()->subDays(2)->toDateString())
+        ->and($pull->transaction_date->toDateString())->toBe(now()->subDays(5)->toDateString())
+        ->and($produced->transaction_date->toDateString())->toBe(now()->subDays(2)->toDateString());
+});
+
+it('rejects a finish date earlier than the production date', function () {
+    [$manager, $branch, , $input, $output] = makeDeliveryProductionContext();
+
+    $this->actingAs($manager)->post(route('productions.store'), [
+        'branch_id' => $branch->id,
+        'production_date' => now()->subDays(2)->toDateString(),
+        'inputs' => [['item_id' => $input->id, 'quantity_used' => 1, 'unit' => 'kg']],
+    ]);
+
+    $production = ProductionOrder::query()->firstOrFail();
+
+    $this->actingAs($manager)->post(route('productions.finish', $production), [
+        'finished_date' => now()->subDays(3)->toDateString(),
+        'outputs' => [['item_id' => $output->id, 'quantity_produced' => 1, 'unit' => 'kg']],
+    ])->assertSessionHasErrors('finished_date');
+
+    expect($production->fresh()->status)->toBe('in_progress');
+});
+
+it('edits production dates afterwards and moves the transaction date to the new finish date', function () {
+    [$manager, $branch, , $input, $output] = makeDeliveryProductionContext();
+
+    $this->actingAs($manager)->post(route('productions.store'), [
+        'branch_id' => $branch->id,
+        'inputs' => [['item_id' => $input->id, 'quantity_used' => 2, 'unit' => 'kg']],
+    ]);
+    $production = ProductionOrder::query()->firstOrFail();
+
+    $this->actingAs($manager)->post(route('productions.finish', $production), [
+        'outputs' => [['item_id' => $output->id, 'quantity_produced' => 2, 'unit' => 'kg']],
+    ]);
+
+    $this->actingAs($manager)->put(route('productions.dates.update', $production), [
+        'production_date' => now()->subDays(4)->toDateString(),
+        'finished_date' => now()->subDay()->toDateString(),
+    ])->assertRedirect(route('productions.show', $production))->assertSessionHasNoErrors();
+
+    $production->refresh();
+    $pull = InventoryTransaction::where('reason', 'Pulling Items for Production: PROD-'.$production->id)->firstOrFail();
+    $produced = InventoryTransaction::where('reason', 'FROM PRODUCTION: '.$production->id)->firstOrFail();
+
+    expect($production->production_date->toDateString())->toBe(now()->subDays(4)->toDateString())
+        ->and($production->finished_at->toDateString())->toBe(now()->subDay()->toDateString())
+        ->and($pull->transaction_date->toDateString())->toBe(now()->subDays(4)->toDateString())
+        ->and($produced->transaction_date->toDateString())->toBe(now()->subDay()->toDateString());
+
+    $this->actingAs($manager)->get(route('productions.show', $production))
+        ->assertOk()
+        ->assertSee('Production Finish Date');
+});
