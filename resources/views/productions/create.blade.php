@@ -31,11 +31,6 @@
                             </select>
                             @error('branch_id') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-semibold">Production Date <span class="text-danger">*</span></label>
-                            <input type="date" name="production_date" class="form-control @error('production_date') is-invalid @enderror" value="{{ old('production_date', now()->toDateString()) }}" max="{{ now()->toDateString() }}" required>
-                            @error('production_date') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
-                        </div>
                     </div>
 
                     <div class="mt-4 d-flex justify-content-between align-items-center border-top pt-4">

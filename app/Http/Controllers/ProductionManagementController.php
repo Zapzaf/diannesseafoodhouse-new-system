@@ -208,12 +208,11 @@ class ProductionManagementController extends Controller
         }
 
         DB::transaction(function () use ($validated, $request): void {
-            $productionDate = Carbon::parse($validated['production_date'] ?? now()->toDateString());
-
+            // A manually started production is dated the day it's started.
             $order = ProductionOrder::create([
                 'branch_id' => $validated['branch_id'],
                 'status' => 'in_progress',
-                'production_date' => $productionDate->toDateString(),
+                'production_date' => now()->toDateString(),
                 'created_by' => $request->user()->id,
             ]);
 
@@ -238,7 +237,7 @@ class ProductionManagementController extends Controller
                     'beginning_quantity' => $beginning,
                     'remaining_quantity' => $remaining,
                     'transaction_price' => $item->unit_price ? (float) $item->unit_price : null,
-                    'transaction_date' => $productionDate->copy()->setTimeFrom(now()),
+                    'transaction_date' => now(),
                     'reason' => $reason,
                     'status' => 'approved',
                     'created_by' => $request->user()?->id,
@@ -317,23 +316,18 @@ class ProductionManagementController extends Controller
 
         $request->merge(['outputs' => $outputs, 'wastage' => $wastage]);
 
-        // The finish form also carries the Production Date, so a production
-        // started on the wrong day can be corrected in the same step instead
-        // of blocking an earlier finish date.
-        $request->merge([
-            'production_date' => $request->input('production_date') ?: ($production->production_date ?? $production->created_at)->toDateString(),
-        ]);
+        // The Production Date is fixed (delivery date, or the day a manual
+        // production was started) — only the finish date is chosen here.
+        $productionDate = ($production->production_date ?? $production->created_at)->toDateString();
 
         $validated = $request->validate(
             [
                 ...$this->finishProductionRules(),
-                'production_date' => ['required', 'date', 'before_or_equal:today'],
-                'finished_date' => ['nullable', 'date', 'before_or_equal:today', 'after_or_equal:production_date'],
+                'finished_date' => ['nullable', 'date', 'before_or_equal:today', 'after_or_equal:'.$productionDate],
             ],
             [
                 ...$this->finishProductionMessages(),
-                'production_date.before_or_equal' => 'The Production Date cannot be in the future.',
-                'finished_date.after_or_equal' => 'The Production Finish Date cannot be earlier than the Production Date. Adjust the Production Date first if production actually started earlier.',
+                'finished_date.after_or_equal' => 'The Production Finish Date cannot be earlier than the Production Date ('.Carbon::parse($productionDate)->format('M d, Y').').',
                 'finished_date.before_or_equal' => 'The Production Finish Date cannot be in the future.',
             ]
         );
@@ -442,7 +436,6 @@ class ProductionManagementController extends Controller
 
             $production->update([
                 'status' => 'finished',
-                'production_date' => $validated['production_date'],
                 'finished_at' => $finishedAt,
             ]);
 
@@ -455,10 +448,11 @@ class ProductionManagementController extends Controller
     }
 
     /**
-     * Edit the Production Date and (once finished) the Production Finish
-     * Date after the fact. The inventory ledger rows for this production
-     * are re-dated to match, so the Transaction Date of a completed
-     * production always follows its Production Finish Date.
+     * Correct the Production Finish Date of a finished production after the
+     * fact. The Production Date itself is fixed and never edited here. The
+     * inventory ledger rows for this production are re-dated to match, so
+     * the Transaction Date of a completed production always follows its
+     * Production Finish Date.
      */
     public function updateDates(Request $request, ProductionOrder $production): RedirectResponse
     {
@@ -467,36 +461,28 @@ class ProductionManagementController extends Controller
             abort(403, 'This production order is outside your active branch.');
         }
 
-        if ($production->status === 'cancelled') {
-            return redirect()->route('productions.show', $production)->with('error', 'Dates of a cancelled production order can no longer be changed.');
+        if ($production->status !== 'finished') {
+            return redirect()->route('productions.show', $production)->with('error', 'The Production Finish Date can only be changed on a finished production.');
         }
 
-        $isFinished = $production->status === 'finished';
+        $productionDate = ($production->production_date ?? $production->created_at)->toDateString();
 
         $validated = $request->validate([
-            'production_date' => ['required', 'date', 'before_or_equal:today'],
-            'finished_date' => $isFinished
-                ? ['required', 'date', 'before_or_equal:today', 'after_or_equal:production_date']
-                : ['prohibited'],
+            'finished_date' => ['required', 'date', 'before_or_equal:today', 'after_or_equal:'.$productionDate],
         ], [
-            'production_date.before_or_equal' => 'The Production Date cannot be in the future.',
             'finished_date.before_or_equal' => 'The Production Finish Date cannot be in the future.',
-            'finished_date.after_or_equal' => 'The Production Finish Date cannot be earlier than the Production Date.',
+            'finished_date.after_or_equal' => 'The Production Finish Date cannot be earlier than the Production Date ('.Carbon::parse($productionDate)->format('M d, Y').').',
         ]);
 
-        DB::transaction(function () use ($production, $validated, $isFinished): void {
-            $production->production_date = $validated['production_date'];
-
-            if ($isFinished) {
-                $production->finished_at = Carbon::parse($validated['finished_date'])
-                    ->setTimeFrom($production->finished_at ?? now());
-            }
+        DB::transaction(function () use ($production, $validated): void {
+            $production->finished_at = Carbon::parse($validated['finished_date'])
+                ->setTimeFrom($production->finished_at ?? now());
 
             $production->save();
             $production->syncInventoryTransactionDates();
         });
 
-        return redirect()->route('productions.show', $production)->with('success', 'Production dates updated.');
+        return redirect()->route('productions.show', $production)->with('success', 'Production Finish Date updated.');
     }
 
     public function cancel(Request $request, ProductionOrder $production): RedirectResponse

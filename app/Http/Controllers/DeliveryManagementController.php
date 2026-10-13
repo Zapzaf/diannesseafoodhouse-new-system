@@ -742,10 +742,15 @@ class DeliveryManagementController extends Controller
             return;
         }
 
+        // Production of delivered raw materials starts on the day they were
+        // delivered, not on the day someone got around to approving it.
+        $productionDate = ($delivery->delivery_date ?? now())->toDateString();
+
         foreach ($availableItems as $deliveryItem) {
             $order = ProductionOrder::create([
                 'branch_id' => $delivery->destination_branch_id,
                 'status' => 'in_progress',
+                'production_date' => $productionDate,
                 'created_by' => $actorId,
             ]);
 
