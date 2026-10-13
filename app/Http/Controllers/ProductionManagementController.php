@@ -317,14 +317,23 @@ class ProductionManagementController extends Controller
 
         $request->merge(['outputs' => $outputs, 'wastage' => $wastage]);
 
+        // The finish form also carries the Production Date, so a production
+        // started on the wrong day can be corrected in the same step instead
+        // of blocking an earlier finish date.
+        $request->merge([
+            'production_date' => $request->input('production_date') ?: ($production->production_date ?? $production->created_at)->toDateString(),
+        ]);
+
         $validated = $request->validate(
             [
                 ...$this->finishProductionRules(),
-                'finished_date' => ['nullable', 'date', 'before_or_equal:today', 'after_or_equal:'.($production->production_date ?? $production->created_at)->toDateString()],
+                'production_date' => ['required', 'date', 'before_or_equal:today'],
+                'finished_date' => ['nullable', 'date', 'before_or_equal:today', 'after_or_equal:production_date'],
             ],
             [
                 ...$this->finishProductionMessages(),
-                'finished_date.after_or_equal' => 'The Production Finish Date cannot be earlier than the Production Date.',
+                'production_date.before_or_equal' => 'The Production Date cannot be in the future.',
+                'finished_date.after_or_equal' => 'The Production Finish Date cannot be earlier than the Production Date. Adjust the Production Date first if production actually started earlier.',
                 'finished_date.before_or_equal' => 'The Production Finish Date cannot be in the future.',
             ]
         );
@@ -433,6 +442,7 @@ class ProductionManagementController extends Controller
 
             $production->update([
                 'status' => 'finished',
+                'production_date' => $validated['production_date'],
                 'finished_at' => $finishedAt,
             ]);
 

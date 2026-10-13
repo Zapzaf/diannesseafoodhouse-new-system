@@ -904,6 +904,33 @@ it('rejects a finish date earlier than the production date', function () {
     expect($production->fresh()->status)->toBe('in_progress');
 });
 
+it('finishes with an earlier date when the production date is corrected in the same form', function () {
+    [$manager, $branch, , $input, $output] = makeDeliveryProductionContext();
+
+    // Started "today" in the system, but production really began 10 days ago.
+    $this->actingAs($manager)->post(route('productions.store'), [
+        'branch_id' => $branch->id,
+        'inputs' => [['item_id' => $input->id, 'quantity_used' => 1, 'unit' => 'kg']],
+    ]);
+    $production = ProductionOrder::query()->firstOrFail();
+
+    $this->actingAs($manager)->post(route('productions.finish', $production), [
+        'production_date' => now()->subDays(10)->toDateString(),
+        'finished_date' => now()->subDays(9)->toDateString(),
+        'outputs' => [['item_id' => $output->id, 'quantity_produced' => 1, 'unit' => 'kg']],
+    ])->assertSessionHasNoErrors();
+
+    $production->refresh();
+    $pull = InventoryTransaction::where('reason', 'Pulling Items for Production: PROD-'.$production->id)->firstOrFail();
+    $produced = InventoryTransaction::where('reason', 'FROM PRODUCTION: '.$production->id)->firstOrFail();
+
+    expect($production->status)->toBe('finished')
+        ->and($production->production_date->toDateString())->toBe(now()->subDays(10)->toDateString())
+        ->and($production->finished_at->toDateString())->toBe(now()->subDays(9)->toDateString())
+        ->and($pull->transaction_date->toDateString())->toBe(now()->subDays(10)->toDateString())
+        ->and($produced->transaction_date->toDateString())->toBe(now()->subDays(9)->toDateString());
+});
+
 it('edits production dates afterwards and moves the transaction date to the new finish date', function () {
     [$manager, $branch, , $input, $output] = makeDeliveryProductionContext();
 

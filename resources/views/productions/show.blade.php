@@ -114,18 +114,19 @@
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
                         <div class="modal-body">
+                            @php $datesFormErrors = old('_form') === 'production_dates'; @endphp
                             <div class="mb-3">
                                 <label class="form-label fw-semibold">Production Date <span class="text-danger">*</span></label>
-                                <input type="date" name="production_date" class="form-control @error('production_date') is-invalid @enderror"
-                                    value="{{ old('production_date', $productionDate?->toDateString()) }}" max="{{ now()->toDateString() }}" required>
-                                @error('production_date') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                <input type="date" name="production_date" class="form-control {{ $datesFormErrors && $errors->has('production_date') ? 'is-invalid' : '' }}"
+                                    value="{{ $datesFormErrors ? old('production_date') : $productionDate?->toDateString() }}" max="{{ now()->toDateString() }}" required>
+                                @if($datesFormErrors) @error('production_date') <div class="invalid-feedback">{{ $message }}</div> @enderror @endif
                             </div>
                             @if($production->status === 'finished')
                             <div class="mb-2">
                                 <label class="form-label fw-semibold">Production Finish Date <span class="text-danger">*</span></label>
-                                <input type="date" name="finished_date" class="form-control @error('finished_date') is-invalid @enderror"
-                                    value="{{ old('finished_date', $production->finished_at?->toDateString()) }}" max="{{ now()->toDateString() }}" required>
-                                @error('finished_date') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                                <input type="date" name="finished_date" class="form-control {{ $datesFormErrors && $errors->has('finished_date') ? 'is-invalid' : '' }}"
+                                    value="{{ $datesFormErrors ? old('finished_date') : $production->finished_at?->toDateString() }}" max="{{ now()->toDateString() }}" required>
+                                @if($datesFormErrors) @error('finished_date') <div class="invalid-feedback">{{ $message }}</div> @enderror @endif
                             </div>
                             <div class="form-text">The inventory Transaction Date of this production's outputs and scrap will be moved to the finish date. Raw input pulls follow the Production Date.</div>
                             @else
@@ -384,17 +385,28 @@
                         </table>
                     </div>
 
-                    <div class="mt-3 d-flex justify-content-end align-items-end gap-3 flex-wrap">
+                    @php $finishFormErrors = old('_form') === 'finish'; @endphp
+                    <input type="hidden" name="_form" value="finish">
+                    <div class="mt-3 d-flex justify-content-end align-items-start gap-3 flex-wrap">
+                        <div>
+                            <label class="form-label fw-semibold mb-1">Production Date <span class="text-danger">*</span></label>
+                            <input type="date" name="production_date" id="finishProductionDate" class="form-control {{ $finishFormErrors && $errors->has('production_date') ? 'is-invalid' : '' }}"
+                                value="{{ $finishFormErrors ? old('production_date') : $productionDate?->toDateString() }}"
+                                max="{{ now()->toDateString() }}" required>
+                            @if($finishFormErrors) @error('production_date') <div class="invalid-feedback">{{ $message }}</div> @enderror @endif
+                        </div>
                         <div>
                             <label class="form-label fw-semibold mb-1">Production Finish Date <span class="text-danger">*</span></label>
-                            <input type="date" name="finished_date" class="form-control @error('finished_date') is-invalid @enderror"
-                                value="{{ old('finished_date', now()->toDateString()) }}"
-                                min="{{ $productionDate?->toDateString() }}" max="{{ now()->toDateString() }}" required>
-                            @error('finished_date') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                            <input type="date" name="finished_date" id="finishFinishedDate" class="form-control {{ $finishFormErrors && $errors->has('finished_date') ? 'is-invalid' : '' }}"
+                                value="{{ $finishFormErrors ? old('finished_date') : now()->toDateString() }}"
+                                max="{{ now()->toDateString() }}" required>
+                            @if($finishFormErrors) @error('finished_date') <div class="invalid-feedback" style="max-width: 320px;">{{ $message }}</div> @enderror @endif
                         </div>
-                        <button type="submit" class="btn btn-success">Finish Production</button>
+                        <div class="pt-4">
+                            <button type="submit" class="btn btn-success mt-1">Finish Production</button>
+                        </div>
                     </div>
-                    <div class="small text-muted text-end mt-2">The inventory Transaction Date of the outputs and scrap will be set to this date.</div>
+                    <div class="small text-muted text-end mt-2">The inventory Transaction Date of the outputs and scrap will be set to the Production Finish Date. If production started earlier than shown, correct the Production Date here too.</div>
                 </form>
             </div>
         </div>
@@ -410,6 +422,22 @@ document.addEventListener('DOMContentLoaded', function () {
     const editDatesModal = document.getElementById('editProductionDatesModal');
     if (editDatesModal) bootstrap.Modal.getOrCreateInstance(editDatesModal).show();
     @endif
+
+    // Explain an out-of-order pair in plain words instead of the browser's
+    // bare "Value must be …" tooltip.
+    const finishProductionDate = document.getElementById('finishProductionDate');
+    const finishFinishedDate = document.getElementById('finishFinishedDate');
+    if (finishProductionDate && finishFinishedDate) {
+        const checkFinishDates = function () {
+            const tooEarly = finishProductionDate.value && finishFinishedDate.value && finishFinishedDate.value < finishProductionDate.value;
+            finishFinishedDate.setCustomValidity(tooEarly
+                ? 'The Production Finish Date cannot be earlier than the Production Date. Change the Production Date first if production started earlier.'
+                : '');
+        };
+        finishProductionDate.addEventListener('change', checkFinishDates);
+        finishFinishedDate.addEventListener('change', checkFinishDates);
+        checkFinishDates();
+    }
 
     const itemOptions = @json($items->map(fn ($item) => ['id' => $item->id, 'unit' => $item->unit, 'label' => '#' . $item->id . ' - ' . $item->name . ' (' . ($item->category?->location?->name ?? 'N/A') . ' / ' . ($item->category?->name ?? 'N/A') . ')'])->values());
     let activePickerInput = null;
