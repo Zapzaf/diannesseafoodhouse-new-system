@@ -87,7 +87,7 @@
         </div>
 
         {{-- BIR / Tax Details Card --}}
-        @if($delivery->tin || $delivery->address || $delivery->si_no || (float) $delivery->amount_w_vat > 0)
+        @if($delivery->tin || $delivery->address || $delivery->si_no || (float) $delivery->amount_w_vat > 0 || $delivery->purchaseVoucher)
         <div class="card shadow-sm mb-4">
             <div class="card-header fw-semibold">BIR / Tax Details</div>
             <div class="card-body">
@@ -128,6 +128,18 @@
                         <div class="small text-muted">Non-VAT Purchase</div>
                         <div>&#8369;{{ number_format((float) $delivery->non_vat_purchase, 2) }}</div>
                     </div>
+                    @if($delivery->purchaseVoucher)
+                    <div class="col-md-3">
+                        <div class="small text-muted">Accounts Payable Voucher</div>
+                        <div>
+                            @if(auth()->user()?->isAdmin() || auth()->user()?->isBranchManager())
+                                <a href="{{ route('purchase-vouchers.show', $delivery->purchaseVoucher) }}">{{ $delivery->purchaseVoucher->apv_no }}</a>
+                            @else
+                                {{ $delivery->purchaseVoucher->apv_no }}
+                            @endif
+                        </div>
+                    </div>
+                    @endif
                 </div>
             </div>
         </div>

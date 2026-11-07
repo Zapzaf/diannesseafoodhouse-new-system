@@ -58,6 +58,9 @@
                     <div class="col-md-3"><div class="small text-muted">Credit Account</div><div class="fw-semibold">{{ $purchaseVoucher->creditAccount?->name ?? '—' }}</div></div>
                     <div class="col-md-3"><div class="small text-muted">Created By</div><div class="fw-semibold">{{ $purchaseVoucher->creator?->name ?? '—' }}</div></div>
                     <div class="col-md-3"><div class="small text-muted">Last Modified By</div><div class="fw-semibold">{{ $purchaseVoucher->updater?->name ?? '—' }}</div></div>
+                    @if($purchaseVoucher->delivery)
+                    <div class="col-md-3"><div class="small text-muted">Source Delivery</div><div class="fw-semibold"><a href="{{ route('deliveries.show', $purchaseVoucher->delivery) }}">{{ $purchaseVoucher->delivery->reference_number }}</a></div></div>
+                    @endif
                 </div>
                 @if($purchaseVoucher->remarks)
                 <div class="mt-3"><div class="small text-muted">Remarks</div><div>{{ $purchaseVoucher->remarks }}</div></div>

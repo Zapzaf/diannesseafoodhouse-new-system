@@ -10,6 +10,7 @@ class PurchaseVoucher extends Model
 {
     protected $fillable = [
         'branch_id',
+        'delivery_id',
         'date',
         'apv_no',
         'purchase_type',
@@ -38,6 +39,12 @@ class PurchaseVoucher extends Model
     public function vendor(): BelongsTo
     {
         return $this->belongsTo(Supplier::class, 'vendor_id');
+    }
+
+    // Set when this APV was auto-generated from an approved supplier delivery.
+    public function delivery(): BelongsTo
+    {
+        return $this->belongsTo(Delivery::class);
     }
 
     public function creditAccount(): BelongsTo

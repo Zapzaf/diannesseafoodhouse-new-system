@@ -39,6 +39,19 @@ class DeliveryDeletionService
 
             $this->assertReversalIsPossible($delivery, $productions);
 
+            // The auto-generated APV goes with the delivery — but only while
+            // nothing has been paid against it.
+            $apv = $delivery->purchaseVoucher()->lockForUpdate()->first();
+            if ($apv) {
+                if ($apv->status !== 'unpaid') {
+                    throw ValidationException::withMessages([
+                        'delivery' => 'Cannot delete this delivery — its APV '.$apv->apv_no
+                            .' already has payments recorded. Remove the payment first.',
+                    ]);
+                }
+                $apv->delete();
+            }
+
             foreach ($productions as $production) {
                 $this->reverseProduction($production, $reference, $actorId);
                 $production->delete(); // cascades inputs, outputs, wastage reports/items

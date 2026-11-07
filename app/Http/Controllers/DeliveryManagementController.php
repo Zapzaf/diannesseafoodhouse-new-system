@@ -12,6 +12,7 @@ use App\Models\ProductionInput;
 use App\Models\ProductionOrder;
 use App\Models\Supplier;
 use App\Models\Transfer;
+use App\Services\DeliveryApvService;
 use App\Services\InventoryService;
 use App\Support\InventoryUnit;
 use App\Support\VatCalculator;
@@ -25,7 +26,10 @@ use Illuminate\View\View;
 
 class DeliveryManagementController extends Controller
 {
-    public function __construct(private readonly InventoryService $inventoryService) {}
+    public function __construct(
+        private readonly InventoryService $inventoryService,
+        private readonly DeliveryApvService $deliveryApvService,
+    ) {}
 
     public function create(Request $request): View
     {
@@ -257,6 +261,7 @@ class DeliveryManagementController extends Controller
 
             if ($isAutoApprove) {
                 $this->createProductionOrderFromDelivery($delivery, $request->user()->id);
+                $this->deliveryApvService->createForDelivery($delivery, $request->user()->id);
             }
         });
 
@@ -582,6 +587,7 @@ class DeliveryManagementController extends Controller
             }
 
             $this->createProductionOrderFromDelivery($delivery, $request->user()->id);
+            $this->deliveryApvService->createForDelivery($delivery, $request->user()->id);
         });
 
         return redirect()->route('deliveries.index')->with('success', 'Delivery approved successfully.');

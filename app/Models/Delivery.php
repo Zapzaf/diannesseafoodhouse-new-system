@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Model;
 
 class Delivery extends Model
@@ -103,5 +104,11 @@ class Delivery extends Model
     public function items(): HasMany
     {
         return $this->hasMany(DeliveryItem::class);
+    }
+
+    // The APV auto-generated when this supplier delivery was approved.
+    public function purchaseVoucher(): HasOne
+    {
+        return $this->hasOne(PurchaseVoucher::class);
     }
 }

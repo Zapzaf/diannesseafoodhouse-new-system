@@ -5,14 +5,17 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreDeliveryRequest;
 use App\Models\Delivery;
 use App\Models\DeliveryItem;
+use App\Services\DeliveryApvService;
 use App\Services\InventoryService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 
 class DeliveryController extends Controller
 {
-    public function __construct(private readonly InventoryService $inventoryService)
-    {
+    public function __construct(
+        private readonly InventoryService $inventoryService,
+        private readonly DeliveryApvService $deliveryApvService,
+    ) {
     }
 
     /**
@@ -134,6 +137,8 @@ class DeliveryController extends Controller
                     }
                 }
             }
+
+            $this->deliveryApvService->createForDelivery($delivery, $request->user()->id);
         });
 
         return response()->json($delivery->refresh()->load('items.item'));
