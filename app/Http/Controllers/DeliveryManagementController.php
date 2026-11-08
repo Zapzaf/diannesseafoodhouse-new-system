@@ -67,7 +67,7 @@ class DeliveryManagementController extends Controller
         $branchId = $this->resolveBranchId($request);
         $sort = (string) $request->input('sort', 'created_at');
         $direction = strtolower((string) $request->input('direction', 'desc')) === 'asc' ? 'asc' : 'desc';
-        $allowedSort = ['reference_number', 'supplier_name', 'destination_branch', 'source_branch', 'items_count', 'total_cost', 'created_at', 'status'];
+        $allowedSort = ['reference_number', 'supplier_name', 'destination_branch', 'source_branch', 'items_count', 'total_cost', 'delivery_date', 'created_at', 'status'];
 
         if (! in_array($sort, $allowedSort, true)) {
             $sort = 'created_at';
@@ -106,7 +106,7 @@ class DeliveryManagementController extends Controller
             )
             ->when($sort === 'items_count', fn ($query) => $query->orderBy('items_count', $direction))
             ->when($sort === 'total_cost', fn ($query) => $query->orderBy('total_cost', $direction))
-            ->when(in_array($sort, ['reference_number', 'created_at', 'status'], true), fn ($query) => $query->orderBy("deliveries.{$sort}", $direction))
+            ->when(in_array($sort, ['reference_number', 'delivery_date', 'created_at', 'status'], true), fn ($query) => $query->orderBy("deliveries.{$sort}", $direction))
             ->orderBy('deliveries.created_at', 'desc')
             ->paginate($this->perPage(request(), 10))->withQueryString();
 
@@ -444,6 +444,59 @@ class DeliveryManagementController extends Controller
         return redirect()->route('deliveries.show', $delivery)->with('success', 'Delivery prices updated successfully.');
     }
 
+    /**
+     * Admins and the destination branch's manager can correct the delivery
+     * date at any status. For an approved delivery the records it already
+     * posted (inventory movements, production orders, the unpaid APV) are
+     * moved to the new date too, so reports stay consistent.
+     */
+    public function updateDate(Request $request, Delivery $delivery): RedirectResponse
+    {
+        Gate::authorize('updateDate', $delivery);
+
+        $validated = $request->validate([
+            'delivery_date' => ['required', 'date'],
+        ]);
+
+        DB::transaction(function () use ($delivery, $validated): void {
+            $delivery = Delivery::query()->lockForUpdate()->with('items')->findOrFail($delivery->id);
+
+            $oldDate = $delivery->delivery_date?->toDateString();
+            $newDate = \Illuminate\Support\Carbon::parse($validated['delivery_date'])->toDateString();
+
+            if ($oldDate === $newDate) {
+                return;
+            }
+
+            $delivery->update(['delivery_date' => $newDate]);
+
+            if (! $delivery->isReceived()) {
+                return;
+            }
+
+            InventoryTransaction::query()
+                ->whereIn('reason', [
+                    'FROM DELIVERY: '.$delivery->reference_number,
+                    'TO BRANCH TRANSFER: '.$delivery->reference_number,
+                ])
+                ->update(['transaction_date' => $newDate.' 00:00:00']);
+
+            if ($oldDate) {
+                ProductionOrder::query()
+                    ->whereHas('inputs', fn ($q) => $q->whereIn('delivery_item_id', $delivery->items->pluck('id')))
+                    ->whereDate('production_date', $oldDate)
+                    ->update(['production_date' => $newDate]);
+
+                $delivery->purchaseVoucher()
+                    ->where('status', 'unpaid')
+                    ->whereDate('date', $oldDate)
+                    ->update(['date' => $newDate]);
+            }
+        });
+
+        return redirect()->route('deliveries.show', $delivery)->with('success', 'Delivery date updated successfully.');
+    }
+
     public function approve(Request $request, Delivery $delivery): RedirectResponse
     {
         $branchId = $this->resolveBranchId($request);
@@ -612,7 +665,7 @@ class DeliveryManagementController extends Controller
         $branchId = $this->resolveBranchId($request);
         $sort = (string) $request->input('sort', 'created_at');
         $direction = strtolower((string) $request->input('direction', 'desc')) === 'asc' ? 'asc' : 'desc';
-        $allowedSort = ['reference_number', 'supplier_name', 'destination_branch', 'items_count', 'created_at', 'status'];
+        $allowedSort = ['reference_number', 'supplier_name', 'destination_branch', 'items_count', 'delivery_date', 'created_at', 'status'];
 
         if (! in_array($sort, $allowedSort, true)) {
             $sort = 'created_at';
@@ -646,7 +699,7 @@ class DeliveryManagementController extends Controller
                 ->orderBy('destination_sort_branches.name', $direction)
             )
             ->when($sort === 'items_count', fn ($query) => $query->orderBy('items_count', $direction))
-            ->when(in_array($sort, ['reference_number', 'created_at', 'status'], true), fn ($query) => $query->orderBy("deliveries.{$sort}", $direction))
+            ->when(in_array($sort, ['reference_number', 'delivery_date', 'created_at', 'status'], true), fn ($query) => $query->orderBy("deliveries.{$sort}", $direction))
             ->orderBy('deliveries.created_at', 'desc')
             ->paginate($this->perPage(request(), 10))->withQueryString();
 

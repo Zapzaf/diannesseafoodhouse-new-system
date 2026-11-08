@@ -53,7 +53,25 @@
                         <div>{{ $delivery->destinationBranch?->name ?? '—' }}</div>
                     </div>
                     <div class="col-md-3">
-                        <div class="small text-muted">Date</div>
+                        <div class="small text-muted">Delivery Date</div>
+                        @can('updateDate', $delivery)
+                            <form method="POST" action="{{ route('deliveries.date.update', $delivery) }}" class="d-flex gap-1 align-items-start"
+                                  onsubmit="return confirm('Change the delivery date?{{ $delivery->status === 'received' ? '\n\nInventory movements, production orders, and the unpaid APV from this delivery will move to the new date too.' : '' }}')">
+                                @csrf
+                                @method('PATCH')
+                                <input type="date" name="delivery_date" class="form-control form-control-sm" style="max-width: 160px;"
+                                       value="{{ old('delivery_date', ($delivery->delivery_date ?? $delivery->created_at)->toDateString()) }}" required>
+                                <button type="submit" class="btn btn-sm btn-primary text-white" title="Save delivery date">
+                                    <i data-lucide="save"></i>
+                                </button>
+                            </form>
+                            @error('delivery_date') <div class="text-danger small mt-1">{{ $message }}</div> @enderror
+                        @else
+                            <div>{{ ($delivery->delivery_date ?? $delivery->created_at)->format('M d, Y') }}</div>
+                        @endcan
+                    </div>
+                    <div class="col-md-3">
+                        <div class="small text-muted">Encoded At</div>
                         <div>{{ $delivery->created_at->format('M d, Y H:i') }}</div>
                     </div>
                     <div class="col-md-3">

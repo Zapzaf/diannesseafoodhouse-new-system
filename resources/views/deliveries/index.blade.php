@@ -42,7 +42,7 @@
                             @endif
                             <th data-sort-key="items_count">Items</th>
                             <th data-sort-key="total_cost">Total Cost</th>
-                            <th data-sort-key="created_at">Date</th>
+                            <th data-sort-key="delivery_date">Delivery Date</th>
                             <th data-sort-key="status">Status</th>
                             <th class="table-actions-head">Actions</th>
                         </tr>
@@ -72,7 +72,7 @@
                             @endif
                             <td>{{ $delivery->items->count() }}</td>
                             <td class="fw-semibold">&#8369;{{ number_format($delivery->items->sum(fn($i) => (float) ($i->price ?? 0)), 2) }}</td>
-                            <td class="text-muted small">{{ $delivery->created_at->format('M d, Y H:i') }}</td>
+                            <td class="text-muted small">{{ ($delivery->delivery_date ?? $delivery->created_at)->format('M d, Y') }}</td>
                             <td>
                                 @php
                                     $statusLabels = ['pending' => 'PENDING REVIEW', 'received' => 'APPROVED', 'rejected' => 'REJECTED'];

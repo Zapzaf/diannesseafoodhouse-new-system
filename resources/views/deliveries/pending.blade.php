@@ -38,7 +38,7 @@
                             <th data-sort-key="supplier_name">Supplier / Source</th>
                             <th data-sort-key="destination_branch">Destination Branch</th>
                             <th data-sort-key="items_count">Items</th>
-                            <th data-sort-key="created_at">Date</th>
+                            <th data-sort-key="delivery_date">Delivery Date</th>
                             <th>Created By</th>
                             <th data-sort-key="status">Status</th>
                             <th>Actions</th>
@@ -59,7 +59,7 @@
                             </td>
                             <td>{{ $delivery->destinationBranch?->name ?? 'N/A' }}</td>
                             <td>{{ $delivery->items->count() }}</td>
-                            <td class="text-muted small">{{ $delivery->created_at->format('M d, Y H:i') }}</td>
+                            <td class="text-muted small">{{ ($delivery->delivery_date ?? $delivery->created_at)->format('M d, Y') }}</td>
                             <td>{{ $delivery->creator?->name ?? 'System' }}</td>
                             <td><span class="badge-status badge-pending">PENDING</span></td>
                             <td class="table-actions-cell text-nowrap">

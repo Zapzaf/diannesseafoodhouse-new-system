@@ -79,6 +79,19 @@ class DeliveryPolicy
         return false;
     }
 
+    /**
+     * Correcting the delivery date is allowed at any status, but only for
+     * admins and the manager of the delivery's destination branch.
+     */
+    public function updateDate(User $user, Delivery $delivery): bool
+    {
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        return $user->isBranchManager() && (int) $user->branch_id === (int) $delivery->destination_branch_id;
+    }
+
     public function approve(User $user, Delivery $delivery): bool
     {
         if ($user->isAdmin() || $user->can_approve_deliveries) {
